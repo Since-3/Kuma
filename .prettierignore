@@ -1,0 +1,14 @@
+# Ignore GitHub Actions workflows
+.github/
+
+# Ignore root config and package manifests
+package.json
+package-lock.json
+
+# Ignore generated shadcn/ui components
+src/components/ui/
+components/ui/
+
+# Ignore shared configuration files
+config/
+packages/config/
