@@ -31,4 +31,4 @@ jobs:
         run: npm run prettier:check --workspaces=false
 
       - name: 🏗 Build Next.js app
-        run: npm run build --workspace=apps/web
+        run: npm run build
