@@ -30,5 +30,8 @@ jobs:
       - name: 💅 Check formatting
         run: npm run prettier:check --workspaces=false
 
+      - name: 🧪 Run tests
+        run: npm test
+
       - name: 🏗 Build Next.js app
         run: npm run build
