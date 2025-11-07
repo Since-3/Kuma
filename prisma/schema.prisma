@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id String @id @default(uuid())
+  name String?
+  complaints String?
+  birthday DateTime?
+  plz String?
+  city String?
+  street String?
+  houseNumber String?
+  email String @unique
+  tel String?
+  gender String?
+  is2FA Boolean @default(false)
+  isSendingMail Boolean @default(false)
+  isNewsletter Boolean @default(false)
+  pbSrc String?
+  isValid Boolean @default(false)
+  trainings      UserTraining[]
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Employee {
+  id String @id @default(uuid())
+  firstName String
+  lastName String
+  email String @unique
+  is2FA Boolean @default(false)
+  isSendingMail Boolean @default(false)
+  pbSrc String?
+  status String?
+  affiliation String?
+  label String?
+  qualification String?
+  authorization Json?
+  trainings UserTraining[]
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model UserTraining {
+  userId String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+  @@id([userId, employeeId])
+}
+
+model Manager {
+  id String @id @default(uuid())
+  firstName String
+  lastName String
+  tel String?
+  email String @unique
+  is2FA Boolean @default(false)
+  isSendingMail Boolean @default(false)
+  pbSrc String?
+  businesses     Business[] 
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Business {
+  id String @id @default(uuid())
+  managerId String
+  name String
+  address String
+  email String 
+  title String
+  ustId String?
+  banking String?
+  plan String?
+  subscription Json?
+  manager         Manager  @relation(fields: [managerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
