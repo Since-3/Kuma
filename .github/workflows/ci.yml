@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [dev]
 
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+
 jobs:
   build-and-test:
     name: Build, Lint, Test
