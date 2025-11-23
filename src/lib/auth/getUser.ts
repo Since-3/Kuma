@@ -2,7 +2,7 @@ import { createClient } from "@/src/lib/supabase/server";
 import { prisma } from "@/src/lib/prisma";
 import { cache } from "react";
 
-// Define the user data type
+// Define the user data types
 export type UserData = {
   id: string;
   name: string | null;
@@ -15,11 +15,31 @@ export type UserData = {
   gender: string | null;
   pbSrc: string | null;
   createdAt: Date | null;
+  role: "user";
 };
+
+export type ManagerData = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  tel: string | null;
+  pbSrc: string | null;
+  createdAt: Date | null;
+  role: "manager";
+  businesses: Array<{
+    id: string;
+    name: string;
+    address: string;
+    email: string;
+  }>;
+};
+
+export type AuthUserData = UserData | ManagerData;
 
 // Cache entry type
 type CacheEntry = {
-  data: UserData;
+  data: AuthUserData;
   timestamp: number;
 };
 
@@ -40,7 +60,7 @@ export const getUser = cache(async () => {
 });
 
 // Cache user data from database with time-based cache
-export const getUserData = cache(async (): Promise<UserData | null> => {
+export const getUserData = cache(async (): Promise<AuthUserData | null> => {
   userDataCallCount++;
   console.log(`📊 [DB] getUserData called (count: ${userDataCallCount})`);
 
@@ -60,6 +80,7 @@ export const getUserData = cache(async (): Promise<UserData | null> => {
 
   console.log("🗄️ [DB] Fetching user data from Prisma for:", user.email);
 
+  // Try to find in User table first
   const userData = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
@@ -77,14 +98,47 @@ export const getUserData = cache(async (): Promise<UserData | null> => {
     },
   });
 
-  console.log("✅ [DB] User data fetched:", userData?.name);
-
-  // Store in cache
   if (userData) {
-    userDataCache.set(user.id, { data: userData, timestamp: now });
+    console.log("✅ [DB] User data fetched:", userData.name);
+    const userWithRole: UserData = { ...userData, role: "user" };
+    userDataCache.set(user.id, { data: userWithRole, timestamp: now });
+    return userWithRole;
   }
 
-  return userData;
+  // If not found in User table, try Manager table
+  const managerData = await prisma.manager.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      tel: true,
+      pbSrc: true,
+      createdAt: true,
+      businesses: {
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (managerData) {
+    console.log(
+      "✅ [DB] Manager data fetched:",
+      `${managerData.firstName} ${managerData.lastName}`
+    );
+    const managerWithRole: ManagerData = { ...managerData, role: "manager" };
+    userDataCache.set(user.id, { data: managerWithRole, timestamp: now });
+    return managerWithRole;
+  }
+
+  console.log("⚠️ [DB] No user or manager found for:", user.email);
+  return null;
 });
 
 export async function requireAuth() {
@@ -95,7 +149,7 @@ export async function requireAuth() {
 export async function requireAuthWithData() {
   const userData = await getUserData();
   if (!userData) {
-    throw new Error("User not found");
+    throw new Error("User or Manager not found");
   }
   return userData;
 }
@@ -106,4 +160,14 @@ export async function requireGuest() {
     const { redirect } = await import("next/navigation");
     redirect("/dashboard");
   }
+}
+
+// Helper function to check if user is a manager
+export function isManager(userData: AuthUserData): userData is ManagerData {
+  return userData.role === "manager";
+}
+
+// Helper function to check if user is a regular user
+export function isUser(userData: AuthUserData): userData is UserData {
+  return userData.role === "user";
 }
