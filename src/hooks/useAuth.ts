@@ -8,7 +8,8 @@ import { userLoginSchema } from "../modules/auth/validation/userLoginSchema";
 import { createClient } from "@/src/lib/supabase/client";
 import { useAuthStore } from "@/src/store/authStore";
 import { useRouter } from "next/navigation";
-import { RegisterFormData } from "../types/auth";
+import { RegisterFormData, AdminRegisterFormData } from "../types/auth";
+import { adminRegisterSchema } from "../modules/auth/validation/adminRegisterSchema";
 
 export const useAuth = () => {
   const [loading, setLoading] = useState(false);
@@ -112,10 +113,69 @@ export const useAuth = () => {
     }
   };
 
+  const registerAdmin = async (formData: AdminRegisterFormData) => {
+    setErrors({});
+    setLoading(true);
+
+    try {
+      adminRegisterSchema.parse(formData);
+
+      const [firstName, ...lastNameParts] = formData.fullName.split(" ");
+      const lastName = lastNameParts.join(" ") || firstName;
+
+      const res = await fetch("/api/auth/register/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName,
+          lastName,
+          tel: formData.tel,
+          plz: formData.plz,
+          city: formData.place,
+          street: formData.street,
+          companyName: formData.companyName,
+          companyPlace: formData.companyPlace,
+          companyPLZ: formData.companyPLZ,
+          companyStreet: formData.companyStreet,
+          companyMail: formData.companyMail,
+          companyNumber: formData.companyNumber,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ email: data.error || "Registrierung fehlgeschlagen" });
+        toast.error(data.error || "Registrierung fehlgeschlagen");
+        return false;
+      }
+
+      toast.success("Manager und Business erfolgreich registriert! Bitte bestätige deine E-Mail.");
+      return true;
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        err.issues.forEach((issue) => {
+          const path = issue.path[0];
+          if (typeof path === "string") fieldErrors[path] = issue.message;
+        });
+        setErrors(fieldErrors);
+        return false;
+      }
+      toast.error("Ein unbekannter Fehler ist aufgetreten.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     errors,
     registerUser,
+    registerAdmin,
     loginUser,
     setErrors,
   };
