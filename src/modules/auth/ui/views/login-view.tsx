@@ -8,49 +8,20 @@ import { Label } from "@/src/components/ui/label";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/src/lib/supabaseClient";
 import { Spinner } from "@/src/components/ui/spinner";
+import { useAuth } from "@/src/hooks/useAuth";
 
 const LoginView = () => {
-  //TODO: RIGHT LOGIN with Schema etc.
+  const { loginUser, errors, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
-    setError("");
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabaseBrowser.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error("❌ Login Error:", error.message);
-        setError("E-Mail oder Passwort ist falsch");
-        setLoading(false);
-        return;
-      }
-
-      // Optional: Session speichern
-      if (remember) {
-        localStorage.setItem("since3_remember_me", "true");
-      } else {
-        localStorage.removeItem("since3_remember_me");
-      }
-
-      // Redirect nach Login
+    const success = await loginUser(email, password, remember);
+    if (success) {
       router.push("/dashboard");
-    } catch (err) {
-      console.error(err);
-      setError("Ein unerwarteter Fehler ist aufgetreten");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -79,6 +50,7 @@ const LoginView = () => {
             id="login-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            error={errors.email}
           />
           <InputComponent
             isLabel
@@ -87,10 +59,11 @@ const LoginView = () => {
             id="login-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            error={errors.password}
           />
 
           <Button onClick={handleLogin} disabled={loading} className="w-full mt-6">
-            {loading ? <Spinner /> : "Weiter"}
+            {loading ? <Spinner /> : "Anmelden"}
           </Button>
 
           <div className="flex flex-col sm:flex-row sm:justify-between w-full mt-6 gap-4 text-sm">
@@ -119,7 +92,7 @@ const LoginView = () => {
             <p>Ich habe noch keinen Account</p>
             <p
               className="text-yellow hover:underline cursor-pointer"
-              onClick={() => router.push("/register")}
+              onClick={() => router.push("/register/user")}
             >
               Sign Up
             </p>
