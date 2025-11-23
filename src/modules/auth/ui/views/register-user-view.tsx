@@ -6,17 +6,16 @@ import { Button } from "@/src/components/ui/button";
 import AuthButton from "../components/AuthButton";
 import { FaGoogle, FaFacebook } from "react-icons/fa";
 import { useAuthFormStore } from "../../store/authFormState";
-import { userRegisterSchema, userRegisterStep1Schema } from "../../validation/userRegisterSchema";
+import { userRegisterStep1Schema } from "../../validation/userRegisterSchema";
 import { ZodError } from "zod";
 import DropdownComponent from "@/src/components/layout/DropdownComponent";
 import { Spinner } from "@/src/components/ui/spinner";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/src/hooks/useAuth";
 
 const RegisterUserView = () => {
   const [step, setStep] = useState(1);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const { registerUser, loading, errors, setErrors } = useAuth();
   const router = useRouter();
   const formData = useAuthFormStore();
 
@@ -51,69 +50,26 @@ const RegisterUserView = () => {
   };
 
   const handleRegister = async () => {
-    setErrors({});
-    setLoading(true);
-    try {
-      userRegisterSchema.parse({
-        fullName: formData.fullName,
-        email: formData.email,
-        password: formData.password,
-        passwordConfirm: formData.passwordConfirm,
-        birthday: formData.birthday,
-        plz: formData.plz,
-        place: formData.place,
-        street: formData.street,
-        gender: formData.gender,
-      });
+    const success = await registerUser({
+      fullName: formData.fullName,
+      email: formData.email,
+      password: formData.password,
+      passwordConfirm: formData.passwordConfirm,
+      birthday: formData.birthday,
+      plz: formData.plz,
+      place: formData.place,
+      street: formData.street,
+      gender: formData.gender,
+    });
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          name: formData.fullName,
-          birthday: formData.birthday,
-          plz: formData.plz,
-          city: formData.place,
-          street: formData.street,
-          houseNumber: "",
-          gender: formData.gender,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrors({ email: data.error || "Registrierung fehlgeschlagen" });
-        return;
-      }
-
-      toast.info("Bitte Email bestätigen für erfolgreiche Registrierung");
+    if (success) {
       formData.resetForm();
-      setStep(1);
-      setErrors({});
-
       router.push("/login");
-    } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {};
-        err.issues.forEach((issue) => {
-          const path = issue.path[0];
-          if (typeof path === "string") {
-            fieldErrors[path] = issue.message;
-          }
-        });
-        setErrors(fieldErrors);
-      } else {
-        toast.error(`Registrierung fehlgeschlagen: ${err}`);
-      }
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screena">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
       <div className="hidden lg:flex lg:w-1/6 ">
         <div className="fixed p-4 left-0 top-0 h-screen w-1/2 z-10">
@@ -173,7 +129,7 @@ const RegisterUserView = () => {
               />
 
               <Button className="w-full mt-6" onClick={handleNext}>
-                Weiter
+                {loading ? <Spinner /> : "Weiter"}
               </Button>
             </>
           )}

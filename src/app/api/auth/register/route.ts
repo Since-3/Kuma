@@ -1,14 +1,8 @@
-import { supabaseServer } from "@/src/lib/supabaseClient";
+// app/api/auth/register/route.ts
+import { createClient } from "@/src/lib/supabase/server";
 import { prisma } from "@/src/lib/prisma";
 import { NextResponse } from "next/server";
 
-/**
- ** Handles POST request to register and save a User in the DB
- *
- *
- * @param {Request} request - Incoming HTTP request containing user data in JSON format
- * @returns {Promise<NextResponse>} - JSON response with exisiting or newly created user
- */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -18,11 +12,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Pflichtfelder fehlen" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseServer.auth.signUp({
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: "http://localhost:3000/login",
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/login`,
         data: {
           name,
           gender,
