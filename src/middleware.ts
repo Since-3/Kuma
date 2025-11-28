@@ -3,6 +3,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Protected routes
+  const protectedRoutes = ["/dashboard", "/profile", "/trainings", "/courses"];
+  const authRoutes = ["/login", "/register"];
+
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route)
+  );
+  const isAuthRoute = authRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
+
+  // Skip auth check if not a protected or auth route
+  if (!isProtectedRoute && !isAuthRoute) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -28,21 +42,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes
-  const protectedRoutes = ["/dashboard", "/profile", "/trainings", "/courses"];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  );
-
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-
-  // Auth routes (redirect if already logged in)
-  const authRoutes = ["/login", "/register"];
-  const isAuthRoute = authRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
 
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();

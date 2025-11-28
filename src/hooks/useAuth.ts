@@ -91,9 +91,8 @@ export const useAuth = () => {
 
       toast.success("Erfolgreich eingeloggt 🎉");
 
-      // Navigate and refresh
+      // Navigate to dashboard (no refresh needed - middleware handles it)
       router.push("/dashboard");
-      router.refresh();
 
       return true;
     } catch (err) {
