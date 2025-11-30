@@ -5,15 +5,16 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   // Protected routes
   const protectedRoutes = ["/dashboard", "/profile", "/trainings", "/courses"];
-  const authRoutes = ["/login", "/register"];
+  const authRoutes = ["/login", "/register", "/forgot-password"];
 
   const isProtectedRoute = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
   const isAuthRoute = authRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
+  const isPasswordReset = request.nextUrl.pathname.startsWith("/reset-password");
 
-  // Skip auth check if not a protected or auth route
-  if (!isProtectedRoute && !isAuthRoute) {
+  // Skip auth check if not a protected, auth, or reset route
+  if (!isProtectedRoute && !isAuthRoute && !isPasswordReset) {
     return NextResponse.next({ request });
   }
 
@@ -48,7 +49,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  // Redirect logged-in users away from auth routes (except password reset)
+  if (user && isAuthRoute && !isPasswordReset) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

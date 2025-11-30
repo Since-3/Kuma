@@ -62,10 +62,6 @@ const LoginView = () => {
             error={errors.password}
           />
 
-          <Button onClick={handleLogin} disabled={loading} className="w-full mt-6">
-            {loading ? <Spinner /> : "Anmelden"}
-          </Button>
-
           <div className="flex flex-col sm:flex-row sm:justify-between w-full mt-6 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Checkbox
@@ -78,8 +74,17 @@ const LoginView = () => {
                 Beim nächsten Mal an mich erinnern
               </Label>
             </div>
-            <p className="hover:underline cursor-pointer text-blue">Passwort vergessen?</p>
+            <p
+              className="hover:underline cursor-pointer text-blue"
+              onClick={() => router.push("/forgot-password")}
+            >
+              Passwort vergessen?
+            </p>
           </div>
+
+          <Button onClick={handleLogin} disabled={loading} className="w-full mt-6">
+            {loading ? <Spinner /> : "Anmelden"}
+          </Button>
 
           <hr className="mt-6 border-blue" />
 
