@@ -18,9 +18,6 @@ const CourseView = () => {
           >
             Kurs anlegen
           </Button>
-          <Button variant="outline" className="text-sm tracking-wide font-normal">
-            Kurs löschen
-          </Button>
         </div>
       </div>
       <CourseListView />
