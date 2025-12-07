@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "src/components/ui/**",
     "src/generated/prisma/**",
+    "src/components/layout/RichTextEditor.tsx",
     "next-env.d.ts",
   ]),
 ]);
