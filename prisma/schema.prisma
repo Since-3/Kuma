@@ -81,7 +81,7 @@ model Business {
   managerId String
   name String
   address String
-  email String 
+  email String
   title String
   ustId String?
   banking String?
@@ -90,4 +90,23 @@ model Business {
   manager         Manager  @relation(fields: [managerId], references: [id])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model Course {
+  id String @id @default(uuid())
+  name String
+  sport String
+  date DateTime
+  time String
+  trainers String[] // Array of trainer IDs
+  room String
+  description String // Rich text HTML content
+  maxParticipants Int // Maximum number of participants
+  isStandingOrder Boolean @default(false)
+  frequency String? // daily, weekly, biweekly, monthly, custom
+  weekdays String[] // For custom frequency
+  status String @default("draft") // draft, published
+  createdBy String // Manager ID who created the course
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import InputComponent from "@/src/components/layout/InputComponent";
 import GenericDropdown from "@/src/components/layout/GenericDropdown";
 import MultiSelectDropdown from "@/src/components/layout/MultiSelectDropdown";
@@ -7,6 +8,8 @@ import RichTextEditor from "@/src/components/layout/RichTextEditor";
 import { Button } from "@/src/components/ui/button";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
+import { createCourse } from "../../actions/course-actions";
+import { toast } from "sonner";
 
 // Hardcoded data
 const SPORTS = [
@@ -14,7 +17,7 @@ const SPORTS = [
   { value: "basketball", label: "Basketball" },
   { value: "volleyball", label: "Volleyball" },
   { value: "tennis", label: "Tennis" },
-  { value: "swimming", label: "Schwimmen" },
+  { value: "boxing", label: "Boxen" },
   { value: "yoga", label: "Yoga" },
 ];
 
@@ -52,13 +55,100 @@ const WEEKDAYS = [
 ];
 
 const CourseCreateView = () => {
+  const router = useRouter();
+  const [courseName, setCourseName] = useState("");
+  const [courseDate, setCourseDate] = useState("");
+  const [courseTime, setCourseTime] = useState("");
   const [selectedSport, setSelectedSport] = useState("");
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [description, setDescription] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("");
   const [isStandingOrder, setIsStandingOrder] = useState(false);
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!courseName.trim()) newErrors.name = "Kursname ist erforderlich";
+    if (!selectedSport) newErrors.sport = "Sportart ist erforderlich";
+    if (!courseDate) newErrors.date = "Datum ist erforderlich";
+    if (!courseTime) newErrors.time = "Uhrzeit ist erforderlich";
+    if (selectedTrainers.length === 0)
+      newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
+    if (!selectedRoom) newErrors.room = "Raum ist erforderlich";
+    if (!description.trim()) newErrors.description = "Beschreibung ist erforderlich";
+
+    const maxPart = parseInt(maxParticipants);
+    if (!maxParticipants || isNaN(maxPart) || maxPart < 1) {
+      newErrors.maxParticipants = "Mindestens 1 Teilnehmer erforderlich";
+    } else if (maxPart > 100) {
+      newErrors.maxParticipants = "Maximal 100 Teilnehmer erlaubt";
+    }
+
+    if (isStandingOrder) {
+      if (!selectedFrequency)
+        newErrors.frequency = "Häufigkeit ist erforderlich bei Daueraufträgen";
+      if (selectedFrequency === "custom" && selectedWeekdays.length === 0) {
+        newErrors.weekdays = "Mindestens ein Tag muss ausgewählt werden";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (status: "draft" | "published") => {
+    if (!validateForm()) {
+      toast.error("Bitte füllen Sie alle erforderlichen Felder aus");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await createCourse(
+        {
+          name: courseName,
+          sport: selectedSport,
+          date: courseDate,
+          time: courseTime,
+          trainers: selectedTrainers,
+          room: selectedRoom,
+          description,
+          maxParticipants: parseInt(maxParticipants),
+          isStandingOrder,
+          frequency: selectedFrequency || undefined,
+          weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
+        },
+        status
+      );
+
+      if (result.success) {
+        toast.success(result.message);
+        router.push("/courses");
+      } else {
+        toast.error(result.error || "Ein Fehler ist aufgetreten");
+        if (result.fieldErrors) {
+          const fieldErrors: Record<string, string> = {};
+          Object.entries(result.fieldErrors).forEach(([key, value]) => {
+            if (Array.isArray(value) && value.length > 0) {
+              fieldErrors[key] = value[0];
+            }
+          });
+          setErrors(fieldErrors);
+        }
+      }
+    } catch (error) {
+      toast.error("Ein unerwarteter Fehler ist aufgetreten");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div>
@@ -67,24 +157,56 @@ const CourseCreateView = () => {
         Alle Kurse können nach dem Speichern angepasst oder gelöscht werden
       </p>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
-        <InputComponent isLabel label="Kursnamen" type="text" id="course-create-name" />
+        <div>
+          <InputComponent
+            isLabel
+            label="Kursnamen"
+            type="text"
+            id="course-create-name"
+            value={courseName}
+            onChange={(e) => setCourseName(e.target.value)}
+          />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
 
         <GenericDropdown
           label="Sportart"
           selected={selectedSport}
           onSelect={setSelectedSport}
           options={SPORTS}
+          error={errors.sport}
         />
 
-        <InputComponent isLabel label="Datum" type="date" id="course-create-date" />
+        <div>
+          <InputComponent
+            isLabel
+            label="Datum"
+            type="date"
+            id="course-create-date"
+            value={courseDate}
+            onChange={(e) => setCourseDate(e.target.value)}
+          />
+          {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+        </div>
 
-        <InputComponent isLabel label="Uhrzeit" type="time" id="course-create-time" />
+        <div>
+          <InputComponent
+            isLabel
+            label="Uhrzeit"
+            type="time"
+            id="course-create-time"
+            value={courseTime}
+            onChange={(e) => setCourseTime(e.target.value)}
+          />
+          {errors.time && <p className="text-red-500 text-sm mt-1">{errors.time}</p>}
+        </div>
 
         <MultiSelectDropdown
           label="Trainer"
           selected={selectedTrainers}
           onSelect={setSelectedTrainers}
           options={TRAINERS}
+          error={errors.trainers}
         />
 
         <GenericDropdown
@@ -92,13 +214,29 @@ const CourseCreateView = () => {
           selected={selectedRoom}
           onSelect={setSelectedRoom}
           options={ROOMS}
+          error={errors.room}
         />
+
+        <div>
+          <InputComponent
+            isLabel
+            label="Maximale Teilnehmerzahl"
+            type="number"
+            id="course-create-max-participants"
+            value={maxParticipants}
+            onChange={(e) => setMaxParticipants(e.target.value)}
+          />
+          {errors.maxParticipants && (
+            <p className="text-red-500 text-sm mt-1">{errors.maxParticipants}</p>
+          )}
+        </div>
 
         <RichTextEditor
           label="Was man mitbringen sollte"
           value={description}
           onChange={setDescription}
           placeholder="Beschreibe, was die Teilnehmer mitbringen sollten..."
+          error={errors.description}
         />
 
         <div className="flex items-center gap-2">
@@ -131,6 +269,7 @@ const CourseCreateView = () => {
                 }
               }}
               options={FREQUENCIES}
+              error={errors.frequency}
             />
 
             {selectedFrequency === "custom" && (
@@ -139,16 +278,26 @@ const CourseCreateView = () => {
                 selected={selectedWeekdays}
                 onSelect={setSelectedWeekdays}
                 options={WEEKDAYS}
+                error={errors.weekdays}
               />
             )}
           </>
         )}
         <div className="flex gap-2">
-          <Button>Veröffentlichen</Button>
-          <Button variant="outline">Abbrechen</Button>
+          <Button onClick={() => handleSubmit("published")} disabled={isSubmitting}>
+            {isSubmitting ? "Wird gespeichert..." : "Veröffentlichen"}
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/courses")} disabled={isSubmitting}>
+            Abbrechen
+          </Button>
         </div>
-        <button className="mt-6 w-fit cursor-pointer hover:underline">Entwurf speichern</button>
-        <button className="mb-6 w-fit cursor-pointer hover:underline">Als Vorlage speichern</button>
+        <button
+          className="mt-6 w-fit cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => handleSubmit("draft")}
+          disabled={isSubmitting}
+        >
+          Entwurf speichern
+        </button>
       </div>
     </div>
   );
