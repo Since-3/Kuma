@@ -38,9 +38,15 @@ const allMenuItems = [
   },
   {
     icon: Dumbbell,
+    label: "Meine Kurse",
+    href: "/courses/myCourses",
+    roles: ["user"],
+  },
+  {
+    icon: Dumbbell,
     label: "Kurse",
     href: "/courses",
-    roles: ["manager", "user"],
+    roles: ["manager"],
   },
   {
     icon: IdCardLanyard,

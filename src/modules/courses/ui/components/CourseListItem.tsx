@@ -6,7 +6,7 @@
  * inklusive Teilnehmerzahl, Status und Bearbeitungsoption.
  */
 
-import { Pen } from "lucide-react";
+import { Pen, Trash2 } from "lucide-react";
 
 /**
  * Props für die CourseListItem Komponente
@@ -19,8 +19,10 @@ interface CourseListItemProps {
   maxParticipants: number; // Maximale Anzahl der Teilnehmer
   trainerName: string; // Name(n) des/der Trainer
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
+  onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
   status?: string; // Status des Kurses ("draft" oder "published")
   isPast?: boolean; // Ob der Kurs in der Vergangenheit liegt
+  showDeleteIcon?: boolean; // Ob das Löschen-Icon angezeigt werden soll
 }
 
 /**
@@ -35,8 +37,10 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   maxParticipants,
   trainerName,
   onEdit,
+  onDelete,
   status,
   isPast,
+  showDeleteIcon,
 }) => {
   // Prüfen, ob der Kurs voll belegt ist (für visuelle Hervorhebung)
   const isFull = currentParticipants >= maxParticipants;
@@ -78,11 +82,18 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       </div>
       <div className="flex justify-between items-center pt-3 border-t border-gray-200">
         <p className="text-gray-700">{trainerName}</p>
-        {onEdit && (
-          <button onClick={onEdit} className="p-2 rounded-md hover:bg-gray-100 transition">
-            <Pen size={20} className="text-gray-700" />
-          </button>
-        )}
+        <div className="flex gap-2">
+          {showDeleteIcon && onDelete && (
+            <button onClick={onDelete} className="p-2 rounded-md hover:bg-red-100 transition">
+              <Trash2 size={20} className="text-red-600" />
+            </button>
+          )}
+          {onEdit && (
+            <button onClick={onEdit} className="p-2 rounded-md hover:bg-gray-100 transition">
+              <Pen size={20} className="text-gray-700" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

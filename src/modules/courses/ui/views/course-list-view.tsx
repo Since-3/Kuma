@@ -36,6 +36,7 @@ const CourseListView = () => {
   const [showPastCourses, setShowPastCourses] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [deleteMode, setDeleteMode] = useState(false);
 
   const loadCourses = async () => {
     const result = await getMyCourses();
@@ -161,7 +162,7 @@ const CourseListView = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <div className="flex w-full justify-end mr-2">
+        <div className="flex w-full justify-end mr-2 gap-2">
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
@@ -169,6 +170,13 @@ const CourseListView = () => {
           >
             <Filter size={18} />
             Filter
+          </Button>
+          <Button
+            variant={deleteMode ? "destructive" : "outline"}
+            onClick={() => setDeleteMode(!deleteMode)}
+            className="flex items-center gap-2"
+          >
+            {deleteMode ? "Abbrechen" : "Kurs löschen"}
           </Button>
         </div>
       </div>
@@ -314,6 +322,8 @@ const CourseListView = () => {
                       trainerName={getTrainerName(course.trainers)}
                       status={course.status}
                       isPast={isPastCourse(course.date)}
+                      showDeleteIcon={deleteMode}
+                      onDelete={() => handleDelete(course.id, course.name)}
                       onEdit={() => router.push(`/courses/edit/${course.id}`)}
                     />
                   ))}
