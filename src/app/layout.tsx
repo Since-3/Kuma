@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={salmondFont.className}>
-      <body className={`antialiased`}>
+      <body className={`antialiased bg-muted`}>
         <AuthInitializer />
         <main>{children}</main>
         <Toaster
