@@ -12,6 +12,7 @@ import { prisma } from "@/src/lib/prisma";
 import { getUserData, isManager } from "@/src/lib/auth/getUser";
 import { courseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 /**
  * Erstellt einen neuen Kurs in der Datenbank
@@ -132,20 +133,23 @@ export async function getAllCourses() {
 }
 
 /**
- * Ruft alle Kurse des angemeldeten Managers ab
+ * Fetches all courses created by the logged-in manager
  *
- * Diese Funktion gibt alle Kurse zurück, die vom aktuell angemeldeten Manager
- * erstellt wurden, unabhängig vom Status (Entwurf oder veröffentlicht).
- * Die Kurse werden nach Erstellungsdatum absteigend sortiert (neueste zuerst).
+ * This function returns all courses created by the currently logged-in manager,
+ * regardless of status (draft or published). Supports optional date range filtering
+ * to implement efficient loading for large datasets.
  *
- * @returns Ein Objekt mit success-Flag und einem Array von Kursen des Managers
+ * @param options - Optional filtering parameters
+ * @param options.dateFrom - Start date for filtering (inclusive)
+ * @param options.dateTo - End date for filtering (inclusive)
+ * @returns An object with success flag and an array of the manager's courses
  */
-export async function getMyCourses() {
+export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date }) {
   try {
-    // Aktuellen Benutzer abrufen
+    // Step 1: Get current user
     const userData = await getUserData();
 
-    // Überprüfen, ob Benutzer angemeldet und ein Manager ist
+    // Step 2: Check if user is logged in and is a manager
     if (!userData || !isManager(userData)) {
       return {
         success: false,
@@ -154,13 +158,31 @@ export async function getMyCourses() {
       };
     }
 
-    // Alle Kurse abrufen, die von diesem Manager erstellt wurden
+    // Step 3: Build the where clause with optional date filtering
+    const whereClause: Prisma.CourseWhereInput = {
+      createdBy: userData.id, // Filter by manager ID
+    };
+
+    // Add date range filter if provided
+    if (options?.dateFrom || options?.dateTo) {
+      whereClause.date = {};
+
+      if (options.dateFrom) {
+        // Filter courses from this date onwards (inclusive)
+        whereClause.date.gte = options.dateFrom;
+      }
+
+      if (options.dateTo) {
+        // Filter courses up to this date (inclusive)
+        whereClause.date.lte = options.dateTo;
+      }
+    }
+
+    // Step 4: Fetch courses created by this manager with optional date filtering
     const courses = await prisma.course.findMany({
-      where: {
-        createdBy: userData.id, // Filtert nach Manager-ID
-      },
+      where: whereClause,
       orderBy: {
-        createdAt: "desc", // Neueste Kurse zuerst
+        date: "asc", // Sort by course date ascending (oldest first)
       },
     });
 
