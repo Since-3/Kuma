@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import CourseListItem from "../components/CourseListItem";
 import { Filter } from "lucide-react";
+import DeleteDialog from "@/src/components/layout/DeleteDialog";
 
 type Course = {
   id: string;
@@ -37,6 +38,9 @@ const CourseListView = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [deleteMode, setDeleteMode] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadCourses = async () => {
     const result = await getMyCourses();
@@ -56,12 +60,22 @@ const CourseListView = () => {
     fetchCourses();
   }, []);
 
-  const handleDelete = async (courseId: string, courseName: string) => {
-    if (!confirm(`Möchten Sie den Kurs "${courseName}" wirklich löschen?`)) {
-      return;
-    }
+  const requestDelete = (courseId: string, courseName: string) => {
+    setCourseToDelete({ id: courseId, name: courseName });
+    setDeleteDialogOpen(true);
+  };
 
-    const result = await deleteCourse(courseId);
+  const confirmDelete = async () => {
+    if (!courseToDelete) return;
+
+    setIsDeleting(true);
+
+    const result = await deleteCourse(courseToDelete.id);
+
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setCourseToDelete(null);
+
     if (result.success) {
       toast.success(result.message);
       loadCourses();
@@ -323,7 +337,7 @@ const CourseListView = () => {
                       status={course.status}
                       isPast={isPastCourse(course.date)}
                       showDeleteIcon={deleteMode}
-                      onDelete={() => handleDelete(course.id, course.name)}
+                      onDelete={() => requestDelete(course.id, course.name)}
                       onEdit={() => router.push(`/courses/edit/${course.id}`)}
                     />
                   ))}
@@ -333,6 +347,13 @@ const CourseListView = () => {
           })}
         </div>
       )}
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        courseName={courseToDelete?.name}
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
