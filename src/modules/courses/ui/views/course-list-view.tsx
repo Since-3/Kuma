@@ -84,20 +84,6 @@ const CourseListView = () => {
     }
   };
 
-  const handleDelete = async (courseId: string, courseName: string) => {
-    if (!confirm(`Möchten Sie den Kurs "${courseName}" wirklich löschen?`)) {
-      return;
-    }
-
-    const result = await deleteCourse(courseId);
-    if (result.success) {
-      toast.success(result.message);
-      loadCourses();
-    } else {
-      toast.error(result.error || "Fehler beim Löschen");
-    }
-  };
-
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("de-DE", {
       weekday: "long",
