@@ -348,6 +348,7 @@ export async function updateCourse(
 
     // Schritt 9: Next.js Cache für /courses Seite invalidieren
     revalidatePath("/courses");
+    revalidatePath(`/courses/edit/${courseId}`);
 
     return {
       success: true,

@@ -90,7 +90,11 @@ const CourseCreateView = ({
       // Format date for input field (YYYY-MM-DD)
       if (initialData.date) {
         const date = new Date(initialData.date);
-        const formattedDate = date.toISOString().split("T")[0];
+        const formattedDate = [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0"),
+        ].join("-");
         setCourseDate(formattedDate);
       }
 
@@ -159,9 +163,13 @@ const CourseCreateView = ({
         weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
       };
 
+      if (mode === "edit" && !courseId) {
+        throw new Error("Missing courseId in edit mode");
+      }
+
       const result =
-        mode === "edit" && courseId
-          ? await updateCourse(courseId, courseData, status)
+        mode === "edit"
+          ? await updateCourse(courseId!, courseData, status)
           : await createCourse(courseData, status);
 
       if (result.success) {

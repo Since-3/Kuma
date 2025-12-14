@@ -54,7 +54,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Sync editor content when value prop changes (for edit mode)
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);
 

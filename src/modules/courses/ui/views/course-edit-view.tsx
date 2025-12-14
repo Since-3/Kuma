@@ -16,20 +16,25 @@ const CourseEditView = ({ courseId }: CourseEditViewProps) => {
   const [courseData, setCourseData] = useState<Course | null>(null);
 
   useEffect(() => {
+    let alive = true;
+
     const fetchCourse = async () => {
-      setIsLoading(true);
+      if (alive) setIsLoading(true);
       const result = await getCourseById(courseId);
 
       if (result.success && result.course) {
-        setCourseData(result.course);
+        if (alive) setCourseData(result.course);
       } else {
         toast.error(result.error || "Fehler beim Laden des Kurses");
-        router.push("/courses/myCourses");
+        router.push("/courses");
       }
-      setIsLoading(false);
+      if (alive) setIsLoading(false);
     };
 
     fetchCourse();
+    return () => {
+      alive = false;
+    };
   }, [courseId, router]);
 
   if (isLoading) {
