@@ -201,6 +201,171 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
 }
 
 /**
+ * Ruft einen einzelnen Kurs nach ID ab
+ *
+ * Diese Funktion gibt einen Kurs zurück, wenn der eingeloggte Manager
+ * der Ersteller des Kurses ist.
+ *
+ * @param courseId - Die eindeutige ID des Kurses
+ * @returns Ein Objekt mit success-Flag und dem Kurs oder Fehler
+ */
+export async function getCourseById(courseId: string) {
+  try {
+    // Schritt 1: Aktuellen Benutzer abrufen
+    const userData = await getUserData();
+
+    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
+    if (!userData || !isManager(userData)) {
+      return {
+        success: false,
+        error: "Nur Manager können Kurse bearbeiten",
+      };
+    }
+
+    // Schritt 3: Kurs aus der Datenbank abrufen
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    // Schritt 4: Überprüfen, ob Kurs existiert
+    if (!course) {
+      return {
+        success: false,
+        error: "Kurs nicht gefunden",
+      };
+    }
+
+    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Kurses ist
+    if (course.createdBy !== userData.id) {
+      return {
+        success: false,
+        error: "Sie können nur Ihre eigenen Kurse bearbeiten",
+      };
+    }
+
+    return {
+      success: true,
+      course,
+    };
+  } catch (error) {
+    console.error("Error fetching course:", error);
+    return {
+      success: false,
+      error: "Fehler beim Laden des Kurses",
+    };
+  }
+}
+
+/**
+ * Aktualisiert einen bestehenden Kurs
+ *
+ * Diese Funktion validiert die Eingabedaten, überprüft die Berechtigungen des Benutzers
+ * und aktualisiert einen bestehenden Kurs. Nur der Manager, der den Kurs erstellt hat,
+ * kann ihn bearbeiten.
+ *
+ * @param courseId - Die eindeutige ID des zu aktualisierenden Kurses
+ * @param data - Die aktualisierten Kursdaten aus dem Formular
+ * @param status - Der Status des Kurses ("draft" für Entwurf oder "published" für veröffentlicht)
+ * @returns Ein Objekt mit success-Flag und Nachricht oder Fehler
+ */
+export async function updateCourse(
+  courseId: string,
+  data: CourseFormData,
+  status: "draft" | "published"
+) {
+  try {
+    // Schritt 1: Aktuellen Benutzer abrufen
+    const userData = await getUserData();
+
+    // Schritt 2: Überprüfen, ob Benutzer angemeldet ist
+    if (!userData) {
+      return {
+        success: false,
+        error: "Sie müssen angemeldet sein, um einen Kurs zu bearbeiten",
+      };
+    }
+
+    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist
+    if (!isManager(userData)) {
+      return {
+        success: false,
+        error: "Nur Manager können Kurse bearbeiten",
+      };
+    }
+
+    // Schritt 4: Kurs aus der Datenbank abrufen
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    // Schritt 5: Überprüfen, ob Kurs existiert
+    if (!existingCourse) {
+      return {
+        success: false,
+        error: "Kurs nicht gefunden",
+      };
+    }
+
+    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Kurses ist
+    if (existingCourse.createdBy !== userData.id) {
+      return {
+        success: false,
+        error: "Sie können nur Ihre eigenen Kurse bearbeiten",
+      };
+    }
+
+    // Schritt 7: Formulardaten mit Zod-Schema validieren
+    const validation = courseSchema.safeParse(data);
+
+    if (!validation.success) {
+      return {
+        success: false,
+        error: "Validierungsfehler",
+        fieldErrors: validation.error.flatten().fieldErrors,
+      };
+    }
+
+    const validatedData = validation.data;
+
+    // Schritt 8: Kurs in der Datenbank aktualisieren
+    await prisma.course.update({
+      where: { id: courseId },
+      data: {
+        name: validatedData.name,
+        sport: validatedData.sport,
+        date: new Date(validatedData.date),
+        time: validatedData.time,
+        trainers: validatedData.trainers,
+        room: validatedData.room,
+        description: validatedData.description,
+        maxParticipants: validatedData.maxParticipants,
+        isStandingOrder: validatedData.isStandingOrder,
+        frequency: validatedData.frequency || null,
+        weekdays: validatedData.weekdays || [],
+        status,
+      },
+    });
+
+    // Schritt 9: Next.js Cache für /courses Seite invalidieren
+    revalidatePath("/courses");
+
+    return {
+      success: true,
+      message:
+        status === "published"
+          ? "Kurs erfolgreich aktualisiert und veröffentlicht"
+          : "Entwurf erfolgreich aktualisiert",
+    };
+  } catch (error) {
+    console.error("Error updating course:", error);
+    return {
+      success: false,
+      error: "Ein Fehler ist beim Aktualisieren des Kurses aufgetreten",
+    };
+  }
+}
+
+/**
  * Löscht einen Kurs aus der Datenbank
  *
  * Diese Funktion löscht einen Kurs, überprüft aber vorher:
