@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import InputComponent from "@/src/components/layout/InputComponent";
 import GenericDropdown from "@/src/components/layout/GenericDropdown";
@@ -8,8 +8,9 @@ import RichTextEditor from "@/src/components/layout/RichTextEditor";
 import { Button } from "@/src/components/ui/button";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
-import { createCourse } from "../../actions/course-actions";
+import { createCourse, updateCourse } from "../../actions/course-actions";
 import { toast } from "sonner";
+import { Course } from "../../types/course.types";
 
 // Hardcoded data
 const SPORTS = [
@@ -54,7 +55,17 @@ const WEEKDAYS = [
   { value: "sunday", label: "Sonntag" },
 ];
 
-const CourseCreateView = () => {
+interface CourseCreateViewProps {
+  mode?: "create" | "edit";
+  courseId?: string;
+  initialData?: Course;
+}
+
+const CourseCreateView = ({
+  mode = "create",
+  courseId,
+  initialData,
+}: CourseCreateViewProps = {}) => {
   const router = useRouter();
   const [courseName, setCourseName] = useState("");
   const [courseDate, setCourseDate] = useState("");
@@ -69,6 +80,34 @@ const CourseCreateView = () => {
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load initial data when in edit mode
+  useEffect(() => {
+    if (mode === "edit" && initialData) {
+      setCourseName(initialData.name || "");
+      setSelectedSport(initialData.sport || "");
+
+      // Format date for input field (YYYY-MM-DD)
+      if (initialData.date) {
+        const date = new Date(initialData.date);
+        const formattedDate = [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0"),
+        ].join("-");
+        setCourseDate(formattedDate);
+      }
+
+      setCourseTime(initialData.time || "");
+      setSelectedTrainers(initialData.trainers || []);
+      setSelectedRoom(initialData.room || "");
+      setDescription(initialData.description || "");
+      setMaxParticipants(initialData.maxParticipants?.toString() || "");
+      setIsStandingOrder(initialData.isStandingOrder || false);
+      setSelectedFrequency(initialData.frequency || "");
+      setSelectedWeekdays(initialData.weekdays || []);
+    }
+  }, [mode, initialData]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -110,22 +149,28 @@ const CourseCreateView = () => {
     setIsSubmitting(true);
 
     try {
-      const result = await createCourse(
-        {
-          name: courseName,
-          sport: selectedSport,
-          date: courseDate,
-          time: courseTime,
-          trainers: selectedTrainers,
-          room: selectedRoom,
-          description,
-          maxParticipants: parseInt(maxParticipants),
-          isStandingOrder,
-          frequency: selectedFrequency || undefined,
-          weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
-        },
-        status
-      );
+      const courseData = {
+        name: courseName,
+        sport: selectedSport,
+        date: courseDate,
+        time: courseTime,
+        trainers: selectedTrainers,
+        room: selectedRoom,
+        description,
+        maxParticipants: parseInt(maxParticipants),
+        isStandingOrder,
+        frequency: selectedFrequency || undefined,
+        weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
+      };
+
+      if (mode === "edit" && !courseId) {
+        throw new Error("Missing courseId in edit mode");
+      }
+
+      const result =
+        mode === "edit"
+          ? await updateCourse(courseId!, courseData, status)
+          : await createCourse(courseData, status);
 
       if (result.success) {
         toast.success(result.message);
@@ -152,9 +197,11 @@ const CourseCreateView = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Kurs anlegen </h1>
+      <h1 className="text-3xl font-bold">{mode === "edit" ? "Kurs bearbeiten" : "Kurs anlegen"}</h1>
       <p className="text-xl mt-2">
-        Alle Kurse können nach dem Speichern angepasst oder gelöscht werden
+        {mode === "edit"
+          ? "Ändern Sie die Kursdetails und speichern Sie Ihre Änderungen"
+          : "Alle Kurse können nach dem Speichern angepasst oder gelöscht werden"}
       </p>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
         <div>
@@ -285,7 +332,11 @@ const CourseCreateView = () => {
         )}
         <div className="flex gap-2">
           <Button onClick={() => handleSubmit("published")} disabled={isSubmitting}>
-            {isSubmitting ? "Wird gespeichert..." : "Veröffentlichen"}
+            {isSubmitting
+              ? "Wird gespeichert..."
+              : mode === "edit"
+                ? "Änderungen speichern"
+                : "Veröffentlichen"}
           </Button>
           <Button variant="outline" onClick={() => router.push("/courses")} disabled={isSubmitting}>
             Abbrechen
@@ -296,7 +347,7 @@ const CourseCreateView = () => {
           onClick={() => handleSubmit("draft")}
           disabled={isSubmitting}
         >
-          Entwurf speichern
+          {mode === "edit" ? "Als Entwurf speichern" : "Entwurf speichern"}
         </button>
       </div>
     </div>
