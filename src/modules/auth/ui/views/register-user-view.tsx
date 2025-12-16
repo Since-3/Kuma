@@ -141,6 +141,7 @@ const RegisterUserView = () => {
                 label="Geburtsdatum"
                 type="date"
                 id="register-user-birthday"
+                max={new Date().toISOString().split("T")[0]}
                 value={formData.birthday}
                 onChange={(e) => handleChange("birthday", e.target.value)}
                 error={errors.birthday}
@@ -196,7 +197,12 @@ const RegisterUserView = () => {
 
           <div className="flex flex-col sm:flex-row gap-2 items-center mt-8 text-sm">
             <p>Ich habe schon einen Account</p>
-            <p className="text-yellow hover:underline cursor-pointer">Login</p>
+            <p
+              onClick={() => router.push("/login")}
+              className="text-yellow hover:underline cursor-pointer"
+            >
+              Login
+            </p>
           </div>
         </div>
       </div>

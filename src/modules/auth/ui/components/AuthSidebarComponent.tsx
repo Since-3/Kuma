@@ -36,9 +36,12 @@ const AuthSidebarComponent: React.FC<AuthSidebarComponentProps> = ({
           <MultiStepProzess step={step} totalSteps={totalSteps} onStepChange={onStepChange} />
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="pointer-events-auto">
         <p className="text-yellow">
-          Bei Fragen: <span className=" cursor-pointer hover:underline">{footer}</span>
+          Bei Fragen:{" "}
+          <a href={`mailto:${footer}`} className="hover:underline">
+            {footer}
+          </a>
         </p>
       </CardFooter>
     </Card>

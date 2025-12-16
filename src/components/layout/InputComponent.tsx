@@ -1,5 +1,8 @@
+"use client";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface InputProps {
   label?: string;
@@ -10,6 +13,7 @@ interface InputProps {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   value?: string;
   error?: string;
+  max?: string;
 }
 
 const InputComponent: React.FC<InputProps> = ({
@@ -20,8 +24,13 @@ const InputComponent: React.FC<InputProps> = ({
   isLabel,
   onChange,
   value,
+  max,
   error,
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const isPassword = type === "password";
+
   return (
     <div>
       {isLabel && (
@@ -29,14 +38,28 @@ const InputComponent: React.FC<InputProps> = ({
           {label}
         </Label>
       )}
-      <Input
-        type={type}
-        id={id}
-        placeholder={placeholder}
-        onChange={onChange}
-        value={value}
-        className="h-[50px] border-blue rounded-xl w-full"
-      />
+
+      <div className="relative">
+        <Input
+          type={isPassword && showPassword ? "text" : type}
+          id={id}
+          placeholder={placeholder}
+          onChange={onChange}
+          value={value}
+          max={max}
+          className="h-[50px] border-blue rounded-xl w-full"
+        />
+
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+          >
+            {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+          </button>
+        )}
+      </div>
       {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
