@@ -74,11 +74,13 @@ const CourseCreateView = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rooms, setRooms] = useState<Array<{ value: string; label: string }>>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   // Load rooms from database
   useEffect(() => {
     const loadRooms = async () => {
       const result = await getAllRooms();
+      setIsLoadingRooms(true);
       if (result.success) {
         const roomOptions = result.rooms.map((room) => ({
           value: room.id,
@@ -86,8 +88,9 @@ const CourseCreateView = ({
         }));
         setRooms(roomOptions);
       } else {
-        toast.error("Fehler beim Laden der Räume");
+        toast.error("Fehler beim Laden der Räume. Bitte laden Sie die Seite neu.");
       }
+      setIsLoadingRooms(false);
     };
     loadRooms();
   }, []);
@@ -273,6 +276,8 @@ const CourseCreateView = ({
           onSelect={setSelectedRoom}
           options={rooms}
           error={errors.room}
+          disabled={isLoadingRooms}
+          placeholder={isLoadingRooms ? "Räume werden geladen..." : "Raum auswählen"}
         />
 
         <div>

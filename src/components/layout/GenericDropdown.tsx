@@ -17,6 +17,7 @@ interface GenericDropdownProps {
   options: { value: string; label: string }[];
   error?: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 const GenericDropdown: React.FC<GenericDropdownProps> = ({
@@ -26,12 +27,13 @@ const GenericDropdown: React.FC<GenericDropdownProps> = ({
   options,
   error,
   placeholder = "Auswählen...",
+  disabled,
 }) => {
   const displayValue = options.find((opt) => opt.value === selected)?.label || "";
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={disabled}>
         <div className="relative w-full">
           <Label className="p-1 mb-2 text-blue text-lg font-semibold">{label}</Label>
           <Input
