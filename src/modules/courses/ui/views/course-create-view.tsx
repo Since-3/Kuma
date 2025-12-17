@@ -9,6 +9,7 @@ import { Button } from "@/src/components/ui/button";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
 import { createCourse, updateCourse } from "../../actions/course-actions";
+import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
 
@@ -27,14 +28,6 @@ const TRAINERS = [
   { value: "trainer2", label: "Anna Schmidt" },
   { value: "trainer3", label: "Peter Weber" },
   { value: "trainer4", label: "Lisa Müller" },
-];
-
-const ROOMS = [
-  { value: "room1", label: "Sporthalle 1" },
-  { value: "room2", label: "Sporthalle 2" },
-  { value: "room3", label: "Gymnastikraum" },
-  { value: "room4", label: "Schwimmbad" },
-  { value: "room5", label: "Tennisplatz" },
 ];
 
 const FREQUENCIES = [
@@ -80,6 +73,27 @@ const CourseCreateView = ({
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rooms, setRooms] = useState<Array<{ value: string; label: string }>>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+
+  // Load rooms from database
+  useEffect(() => {
+    const loadRooms = async () => {
+      const result = await getAllRooms();
+      setIsLoadingRooms(true);
+      if (result.success) {
+        const roomOptions = result.rooms.map((room) => ({
+          value: room.id,
+          label: room.name,
+        }));
+        setRooms(roomOptions);
+      } else {
+        toast.error("Fehler beim Laden der Räume. Bitte laden Sie die Seite neu.");
+      }
+      setIsLoadingRooms(false);
+    };
+    loadRooms();
+  }, []);
 
   // Load initial data when in edit mode
   useEffect(() => {
@@ -260,8 +274,10 @@ const CourseCreateView = ({
           label="Raum"
           selected={selectedRoom}
           onSelect={setSelectedRoom}
-          options={ROOMS}
+          options={rooms}
           error={errors.room}
+          disabled={isLoadingRooms}
+          placeholder={isLoadingRooms ? "Räume werden geladen..." : "Raum auswählen"}
         />
 
         <div>
