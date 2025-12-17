@@ -146,7 +146,7 @@ export async function requireAuth() {
   return user!;
 }
 
-export async function requireAuthWithData() {
+export async function requireAuthWithData(): Promise<AuthUserData> {
   const user = await getUser();
   if (!user) {
     const { redirect } = await import("next/navigation");
@@ -158,7 +158,7 @@ export async function requireAuthWithData() {
     const { redirect } = await import("next/navigation");
     redirect("/login");
   }
-  return userData;
+  return userData as AuthUserData;
 }
 
 export async function requireGuest() {
