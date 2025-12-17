@@ -146,12 +146,19 @@ export async function requireAuth() {
   return user!;
 }
 
-export async function requireAuthWithData() {
+export async function requireAuthWithData(): Promise<AuthUserData> {
+  const user = await getUser();
+  if (!user) {
+    const { redirect } = await import("next/navigation");
+    redirect("/login");
+  }
+
   const userData = await getUserData();
   if (!userData) {
-    throw new Error("User or Manager not found");
+    const { redirect } = await import("next/navigation");
+    redirect("/login");
   }
-  return userData;
+  return userData as AuthUserData;
 }
 
 export async function requireGuest() {
@@ -160,6 +167,22 @@ export async function requireGuest() {
     const { redirect } = await import("next/navigation");
     redirect("/dashboard");
   }
+}
+
+/**
+ * Requires that the authenticated user is a Manager.
+ * Redirects to /dashboard if user is not a manager.
+ * Redirects to /login if not authenticated.
+ */
+export async function requireManager() {
+  const userData = await requireAuthWithData();
+
+  if (!isManager(userData)) {
+    const { redirect } = await import("next/navigation");
+    redirect("/dashboard");
+  }
+
+  return userData;
 }
 
 // Helper function to check if user is a manager

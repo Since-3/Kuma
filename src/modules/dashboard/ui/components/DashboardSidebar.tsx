@@ -69,7 +69,7 @@ const allMenuItems = [
   {
     icon: DoorOpen,
     label: "Räume",
-    href: "/raume",
+    href: "/rooms",
     roles: ["manager"],
   },
   {
