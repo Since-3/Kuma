@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getMyCourses, deleteCourse } from "../../actions/course-actions";
+import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ const CourseListView = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [roomsMap, setRoomsMap] = useState<Record<string, string>>({});
 
   // Date range state for infinite scroll
   const [loadedDateFrom, setLoadedDateFrom] = useState<Date | null>(null);
@@ -49,6 +51,21 @@ const CourseListView = () => {
   const [isLoadingNewer, setIsLoadingNewer] = useState(false);
   const [hasOlderCourses, setHasOlderCourses] = useState(true);
   const [hasNewerCourses, setHasNewerCourses] = useState(true);
+
+  // Load rooms once on mount
+  useEffect(() => {
+    const loadRooms = async () => {
+      const result = await getAllRooms();
+      if (result.success) {
+        const map: Record<string, string> = {};
+        result.rooms.forEach((room) => {
+          map[room.id] = room.name;
+        });
+        setRoomsMap(map);
+      }
+    };
+    loadRooms();
+  }, []);
 
   /**
    * Load courses with optional date range
@@ -442,7 +459,7 @@ const CourseListView = () => {
                     <CourseListItem
                       key={course.id}
                       courseName={course.name}
-                      room={course.room}
+                      room={roomsMap[course.room] || course.room}
                       time={course.time}
                       currentParticipants={0} // TODO: Implement participant tracking
                       maxParticipants={course.maxParticipants}
