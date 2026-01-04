@@ -28,8 +28,8 @@ const LoginView = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="hidden lg:flex lg:w-1/6 ">
-        <div className="fixed p-4 left-0 top-0 h-screen w-1/2 z-10">
+      <div className="hidden lg:block lg:w-[40%]">
+        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Deine Reise beginnt hier"
             description="Werde Teil einer Plattform, die Trainer und Lernende zusammenbringt."
@@ -39,7 +39,7 @@ const LoginView = () => {
       </div>
 
       {/* Login-Formular */}
-      <div className="w-full lg:w-5/6 lg:ml-auto flex justify-center items-center min-h-screen px-4">
+      <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8 ">Login</h1>
 
@@ -96,7 +96,7 @@ const LoginView = () => {
           <div className="flex flex-col sm:flex-row gap-2 items-center mt-16 text-sm">
             <p>Ich habe noch keinen Account</p>
             <p
-              className="text-yellow hover:underline cursor-pointer"
+              className="text-blue font-semibold underline cursor-pointer"
               onClick={() => router.push("/register/user")}
             >
               Sign Up

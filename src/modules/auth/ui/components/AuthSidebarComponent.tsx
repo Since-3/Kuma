@@ -23,23 +23,31 @@ const AuthSidebarComponent: React.FC<AuthSidebarComponentProps> = ({
   onStepChange,
 }) => {
   return (
-    <Card className="bg-blue border-0 w-fit h-full p-6 sm:p-12 flex flex-col justify-between">
-      <CardHeader>
+    <Card className="bg-blue border-0 w-full h-full p-6 lg:p-8 xl:p-12 flex flex-col justify-between">
+      <CardHeader className="p-0 pb-4">
         <CardTitle>
-          <Image src={Logo} width={150} height={150} alt="Logo" />
+          <Image
+            src={Logo}
+            width={150}
+            height={150}
+            alt="Logo"
+            className="w-auto h-auto max-w-[120px] lg:max-w-[150px]"
+          />
         </CardTitle>
       </CardHeader>
-      <CardContent className="text-yellow flex flex-col gap-12 min-h-[70vh]">
-        <h1 className="text-3xl lg:text-[40px] max-w-[300px] font-bold mt-8 lg:mt-12">{title}</h1>
-        <p className="text-base">{description}</p>
+      <CardContent className="text-yellow flex flex-col gap-4 lg:gap-6 xl:gap-8 flex-1 p-0">
+        <h1 className="text-2xl lg:text-3xl xl:text-[40px] max-w-full font-bold mt-2 lg:mt-4 xl:mt-8">
+          {title}
+        </h1>
+        {description && <p className="text-sm lg:text-base">{description}</p>}
         {isSteps && (
           <MultiStepProzess step={step} totalSteps={totalSteps} onStepChange={onStepChange} />
         )}
       </CardContent>
-      <CardFooter className="pointer-events-auto">
-        <p className="text-yellow">
+      <CardFooter className="pointer-events-auto p-0 pt-4 mt-auto">
+        <p className="text-yellow text-sm lg:text-base break-words">
           Bei Fragen:{" "}
-          <a href={`mailto:${footer}`} className="hover:underline">
+          <a href={`mailto:info@since3.de`} className="hover:underline">
             {footer}
           </a>
         </p>
