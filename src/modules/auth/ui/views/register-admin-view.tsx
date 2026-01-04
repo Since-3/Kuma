@@ -107,8 +107,8 @@ const RegisterAdmin = () => {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden lg:flex lg:w-1/6 ">
-        <div className="fixed p-4 left-0 top-0 h-screen w-1/2 z-10">
+      <div className="hidden lg:block lg:w-[40%]">
+        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Werde zur besten Version deiner selbst"
             footer="info@since3.de"
@@ -120,7 +120,7 @@ const RegisterAdmin = () => {
         </div>
       </div>
 
-      <div className="w-full lg:w-5/6 lg:ml-auto flex justify-center items-center min-h-screen px-4">
+      <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8 mt-8 ">Sign up for free</h1>
 
@@ -283,7 +283,7 @@ const RegisterAdmin = () => {
             <p>Ich habe schon einen Account</p>
             <p
               onClick={() => router.push("/login")}
-              className="text-yellow hover:underline cursor-pointer"
+              className="text-blue font-semibold underline cursor-pointer"
             >
               Login
             </p>
