@@ -133,6 +133,12 @@ const CourseCreateView = ({
     if (!courseDate) newErrors.date = "Datum ist erforderlich";
     if (!timeFrom) newErrors.timeFrom = "Anfangszeit ist erforderlich";
     if (!timeTo) newErrors.timeTo = "Endzeit ist erforderlich";
+
+    // Validate that timeFrom is before timeTo
+    if (timeFrom && timeTo && timeFrom >= timeTo) {
+      newErrors.timeTo = "Endzeit muss nach der Anfangszeit liegen";
+    }
+
     if (selectedTrainers.length === 0)
       newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
     if (!selectedRoom) newErrors.room = "Raum ist erforderlich";

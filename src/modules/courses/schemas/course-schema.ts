@@ -83,6 +83,19 @@ export const courseSchema = z
       message: "Mindestens ein Tag muss ausgewählt werden bei individueller Häufigkeit",
       path: ["weekdays"],
     }
+  )
+  .refine(
+    (data) => {
+      // Validierungsregel: Anfangszeit muss vor der Endzeit liegen
+      if (data.timeFrom && data.timeTo && data.timeFrom >= data.timeTo) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Endzeit muss nach der Anfangszeit liegen",
+      path: ["timeTo"],
+    }
   );
 
 /**
