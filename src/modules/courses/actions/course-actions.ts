@@ -182,6 +182,11 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     // Step 4: Fetch courses created by this manager with optional date filtering
     const courses = await prisma.course.findMany({
       where: whereClause,
+      include: {
+        _count: {
+          select: { bookings: true },
+        },
+      },
       orderBy: {
         date: "asc", // Sort by course date ascending (oldest first)
       },

@@ -32,6 +32,7 @@ model User {
   pbSrc String?
   isValid Boolean @default(false)
   trainings      UserTraining[]
+  courseBookings CourseBooking[]
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
 }
@@ -108,6 +109,7 @@ model Course {
   weekdays String[] // For custom frequency
   status String @default("draft") // draft, published
   createdBy String // Manager ID who created the course
+  bookings CourseBooking[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -118,4 +120,17 @@ model Room {
   createdBy String // Manager ID who created the room
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CourseBooking {
+  id String @id @default(uuid())
+  courseId String
+  userId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, userId]) // Ein User kann sich nur einmal pro Kurs anmelden
+  @@index([courseId])
+  @@index([userId])
 }

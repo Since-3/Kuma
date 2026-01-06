@@ -6,12 +6,14 @@
  * inklusive Teilnehmerzahl, Status und Bearbeitungsoption.
  */
 
-import { Pen, Trash2 } from "lucide-react";
+import { Pen, Trash2, Link } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Props für die CourseListItem Komponente
  */
 interface CourseListItemProps {
+  courseId?: string; // ID des Kurses für den Buchungslink
   courseName: string; // Name des Kurses
   room: string; // Raum, in dem der Kurs stattfindet
   timeFrom: string; // Uhrzeit am Start des Kurses
@@ -31,6 +33,7 @@ interface CourseListItemProps {
  * Zeigt Kursinformationen in einem visuell ansprechenden Karten-Layout
  */
 const CourseListItem: React.FC<CourseListItemProps> = ({
+  courseId,
   courseName,
   room,
   timeFrom,
@@ -46,6 +49,15 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
 }) => {
   // Prüfen, ob der Kurs voll belegt ist (für visuelle Hervorhebung)
   const isFull = currentParticipants >= maxParticipants;
+
+  // Funktion zum Kopieren des Buchungslinks
+  const handleCopyLink = () => {
+    if (!courseId) return;
+
+    const bookingUrl = `${window.location.origin}/courses/book/${courseId}`;
+    navigator.clipboard.writeText(bookingUrl);
+    toast.success("Link wurde in die Zwischenablage kopiert");
+  };
 
   return (
     <div
@@ -85,6 +97,15 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       <div className="flex justify-between items-center pt-3 border-t border-gray-200">
         <p className="text-gray-700">{trainerName}</p>
         <div className="flex gap-2">
+          {courseId && status === "published" && (
+            <button
+              onClick={handleCopyLink}
+              className="p-2 rounded-md hover:bg-blue-100 transition"
+              title="Buchungslink kopieren"
+            >
+              <Link size={20} className="text-blue-600" />
+            </button>
+          )}
           {showDeleteIcon && onDelete && (
             <button onClick={onDelete} className="p-2 rounded-md hover:bg-red-100 transition">
               <Trash2 size={20} className="text-red-600" />

@@ -27,6 +27,9 @@ type Course = {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  _count?: {
+    bookings: number;
+  };
 };
 
 const CourseListView = () => {
@@ -459,11 +462,12 @@ const CourseListView = () => {
                   {coursesForDate.map((course) => (
                     <CourseListItem
                       key={course.id}
+                      courseId={course.id}
                       courseName={course.name}
                       room={roomsMap[course.room] || course.room}
                       timeFrom={course.timeFrom}
                       timeTo={course.timeTo}
-                      currentParticipants={0} // TODO: Implement participant tracking
+                      currentParticipants={course._count?.bookings || 0}
                       maxParticipants={course.maxParticipants}
                       trainerName={getTrainerName(course.trainers)}
                       status={course.status}
