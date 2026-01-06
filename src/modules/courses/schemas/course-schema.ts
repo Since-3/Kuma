@@ -28,8 +28,11 @@ export const courseSchema = z
     // Kursdatum als String im Format YYYY-MM-DD
     date: z.string().min(1, "Datum ist erforderlich"),
 
-    // Kurszeit als String im Format HH:MM
-    time: z.string().min(1, "Uhrzeit ist erforderlich"),
+    // Anfangszeit als String im Format HH:MM
+    timeFrom: z.string().min(1, "Anfangszeit ist erforderlich"),
+
+    // Endzeit als String im Format HH:MM
+    timeTo: z.string().min(1, "Endzeit ist erforderlich"),
 
     // Array von Trainer-IDs (mindestens ein Trainer erforderlich)
     trainers: z.array(z.string()).min(1, "Mindestens ein Trainer muss ausgewählt werden"),
@@ -79,6 +82,19 @@ export const courseSchema = z
     {
       message: "Mindestens ein Tag muss ausgewählt werden bei individueller Häufigkeit",
       path: ["weekdays"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validierungsregel: Anfangszeit muss vor der Endzeit liegen
+      if (data.timeFrom && data.timeTo && data.timeFrom >= data.timeTo) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Endzeit muss nach der Anfangszeit liegen",
+      path: ["timeTo"],
     }
   );
 
