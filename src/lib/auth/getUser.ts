@@ -37,29 +37,42 @@ export type ManagerData = {
 
 export type AuthUserData = UserData | ManagerData;
 
-// Cache entry type
-type CacheEntry = {
-  data: AuthUserData;
-  timestamp: number;
-};
-
-// Simple in-memory cache with timestamp
-const userDataCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Note: We don't use in-memory caching because this app runs on Vercel (serverless)
+// Serverless functions are stateless - in-memory cache would be:
+// 1. Inconsistent across Lambda instances
+// 2. Lost on cold starts
+// 3. Not shared between requests
+// Instead, we rely on React's cache() for per-request deduplication only.
 
 let userDataCallCount = 0;
+let supabaseCallCount = 0;
 
-// Cache Supabase user (per request)
+// Get authenticated user from Supabase
+// Uses React's cache() for per-request deduplication
+// No cross-request caching due to serverless architecture
 export const getUser = cache(async () => {
+  supabaseCallCount++;
+  console.log(`🔐 [AUTH] getUser called (count: ${supabaseCallCount})`);
+
   const supabase = await createClient();
+
+  // Validate with Auth server (secure - always authenticates against Supabase)
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  console.log("🔐 [AUTH] getUser called - User:", user?.email || "none");
+
+  if (user) {
+    console.log("🔐 [AUTH] User authenticated:", user.email);
+  } else {
+    console.log("🔐 [AUTH] No authenticated user");
+  }
+
   return user;
 });
 
-// Cache user data from database with time-based cache
+// Get user data from database
+// Uses React's cache() for per-request deduplication
+// No cross-request caching due to serverless architecture
 export const getUserData = cache(async (): Promise<AuthUserData | null> => {
   userDataCallCount++;
   console.log(`📊 [DB] getUserData called (count: ${userDataCallCount})`);
@@ -67,18 +80,7 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
   const user = await getUser();
   if (!user) return null;
 
-  // Check in-memory cache
-  const cached = userDataCache.get(user.id);
-  const now = Date.now();
-
-  if (cached && now - cached.timestamp < CACHE_TTL) {
-    console.log(
-      `⚡ [CACHE] Using cached data (${Math.round((now - cached.timestamp) / 1000)}s old)`
-    );
-    return cached.data;
-  }
-
-  console.log("🗄️ [DB] Fetching user data from Prisma for:", user.email);
+  console.log("🗄️ [DB] Fetching user data from database for:", user.email);
 
   // Try to find in User table first
   const userData = await prisma.user.findUnique({
@@ -101,7 +103,6 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
   if (userData) {
     console.log("✅ [DB] User data fetched:", userData.name);
     const userWithRole: UserData = { ...userData, role: "user" };
-    userDataCache.set(user.id, { data: userWithRole, timestamp: now });
     return userWithRole;
   }
 
@@ -133,7 +134,6 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
       `${managerData.firstName} ${managerData.lastName}`
     );
     const managerWithRole: ManagerData = { ...managerData, role: "manager" };
-    userDataCache.set(user.id, { data: managerWithRole, timestamp: now });
     return managerWithRole;
   }
 

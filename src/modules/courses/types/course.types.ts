@@ -3,7 +3,8 @@ export type Course = {
   name: string;
   sport: string;
   date: Date;
-  time: string;
+  timeFrom: string;
+  timeTo: string;
   trainers: string[];
   room: string;
   description: string;

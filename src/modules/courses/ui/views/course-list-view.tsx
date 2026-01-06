@@ -14,7 +14,8 @@ type Course = {
   name: string;
   sport: string;
   date: Date;
-  time: string;
+  timeFrom: string;
+  timeTo: string;
   trainers: string[];
   room: string;
   description: string;
@@ -460,7 +461,8 @@ const CourseListView = () => {
                       key={course.id}
                       courseName={course.name}
                       room={roomsMap[course.room] || course.room}
-                      time={course.time}
+                      timeFrom={course.timeFrom}
+                      timeTo={course.timeTo}
                       currentParticipants={0} // TODO: Implement participant tracking
                       maxParticipants={course.maxParticipants}
                       trainerName={getTrainerName(course.trainers)}

@@ -62,7 +62,8 @@ const CourseCreateView = ({
   const router = useRouter();
   const [courseName, setCourseName] = useState("");
   const [courseDate, setCourseDate] = useState("");
-  const [courseTime, setCourseTime] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
   const [selectedSport, setSelectedSport] = useState("");
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
@@ -112,7 +113,8 @@ const CourseCreateView = ({
         setCourseDate(formattedDate);
       }
 
-      setCourseTime(initialData.time || "");
+      setTimeFrom(initialData.timeFrom || "");
+      setTimeTo(initialData.timeTo || "");
       setSelectedTrainers(initialData.trainers || []);
       setSelectedRoom(initialData.room || "");
       setDescription(initialData.description || "");
@@ -129,7 +131,8 @@ const CourseCreateView = ({
     if (!courseName.trim()) newErrors.name = "Kursname ist erforderlich";
     if (!selectedSport) newErrors.sport = "Sportart ist erforderlich";
     if (!courseDate) newErrors.date = "Datum ist erforderlich";
-    if (!courseTime) newErrors.time = "Uhrzeit ist erforderlich";
+    if (!timeFrom) newErrors.timeFrom = "Anfangszeit ist erforderlich";
+    if (!timeTo) newErrors.timeTo = "Endzeit ist erforderlich";
     if (selectedTrainers.length === 0)
       newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
     if (!selectedRoom) newErrors.room = "Raum ist erforderlich";
@@ -167,7 +170,8 @@ const CourseCreateView = ({
         name: courseName,
         sport: selectedSport,
         date: courseDate,
-        time: courseTime,
+        timeFrom: timeFrom,
+        timeTo: timeTo,
         trainers: selectedTrainers,
         room: selectedRoom,
         description,
@@ -253,13 +257,25 @@ const CourseCreateView = ({
         <div>
           <InputComponent
             isLabel
-            label="Uhrzeit"
+            label="Uhrzeit von"
             type="time"
-            id="course-create-time"
-            value={courseTime}
-            onChange={(e) => setCourseTime(e.target.value)}
+            id="course-create-time-from"
+            value={timeFrom}
+            onChange={(e) => setTimeFrom(e.target.value)}
           />
-          {errors.time && <p className="text-red-500 text-sm mt-1">{errors.time}</p>}
+          {errors.timeFrom && <p className="text-red-500 text-sm mt-1">{errors.timeFrom}</p>}
+        </div>
+
+        <div>
+          <InputComponent
+            isLabel
+            label="Uhrzeit bis"
+            type="time"
+            id="course-create-time-to"
+            value={timeTo}
+            onChange={(e) => setTimeTo(e.target.value)}
+          />
+          {errors.timeTo && <p className="text-red-500 text-sm mt-1">{errors.timeTo}</p>}
         </div>
 
         <MultiSelectDropdown

@@ -14,7 +14,8 @@ import { Pen, Trash2 } from "lucide-react";
 interface CourseListItemProps {
   courseName: string; // Name des Kurses
   room: string; // Raum, in dem der Kurs stattfindet
-  time: string; // Uhrzeit des Kurses (z.B. "14:00")
+  timeFrom: string; // Uhrzeit am Start des Kurses
+  timeTo: string; // Uhrzeit am Ende des Kurses
   currentParticipants: number; // Aktuelle Anzahl der Teilnehmer
   maxParticipants: number; // Maximale Anzahl der Teilnehmer
   trainerName: string; // Name(n) des/der Trainer
@@ -32,7 +33,8 @@ interface CourseListItemProps {
 const CourseListItem: React.FC<CourseListItemProps> = ({
   courseName,
   room,
-  time,
+  timeFrom,
+  timeTo,
   currentParticipants,
   maxParticipants,
   trainerName,
@@ -63,7 +65,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       <div>
         <h2 className="text-xl font-semibold text-gray-900">{courseName}</h2>
         <p className="text-gray-500">
-          {room} • {time}
+          {room} • {timeFrom} - {timeTo}
         </p>
       </div>
       <div>

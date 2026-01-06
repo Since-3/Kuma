@@ -97,7 +97,8 @@ model Course {
   name String
   sport String
   date DateTime
-  time String
+  timeFrom String // Anfangszeit
+  timeTo String // Endzeit
   trainers String[] // Array of trainer IDs
   room String
   description String // Rich text HTML content
