@@ -13,6 +13,8 @@ const menuTitles: Record<string, string> = {
   "/rooms": "Räume",
   "/rooms/create": "Erstelle einen Raum",
   "/rooms/edit": "Bearbeite den Raum",
+  "/employee": "Mitarbeiter Übersicht",
+  "/employee/create": "Mitarbeiter erstellen",
 };
 
 const dynamicRoutes: Array<{

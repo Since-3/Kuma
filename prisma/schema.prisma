@@ -39,17 +39,24 @@ model User {
 
 model Employee {
   id String @id @default(uuid())
-  firstName String
-  lastName String
+  firstName String?
+  lastName String?
   email String @unique
   is2FA Boolean @default(false)
   isSendingMail Boolean @default(false)
   pbSrc String?
   status String?
+  roles String[] @default([])
+  locations String[] @default([])
+  permissions Json?
   affiliation String?
   label String?
   qualification String?
   authorization Json?
+  onboardingToken String? @unique
+  onboardingTokenExpiry DateTime?
+  isOnboarded Boolean @default(false)
+  createdBy String? // Manager ID who created the employee
   trainings UserTraining[]
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt

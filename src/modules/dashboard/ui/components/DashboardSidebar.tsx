@@ -50,8 +50,8 @@ const allMenuItems = [
   },
   {
     icon: IdCardLanyard,
-    label: "Trainer",
-    href: "/trainer",
+    label: "Mitarbeiter",
+    href: "/employee",
     roles: ["manager"],
   },
   {

@@ -199,7 +199,7 @@ const RegisterUserView = () => {
             <p>Ich habe schon einen Account</p>
             <p
               onClick={() => router.push("/login")}
-              className="text-blue font-semibold underline cursor-pointer"
+              className="text-blue  underline cursor-pointer"
             >
               Login
             </p>
