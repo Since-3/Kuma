@@ -13,6 +13,8 @@ import { getUserData, isManager } from "@/src/lib/auth/getUser";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employee-schema";
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
+import { sendMail } from "@/src/lib/mail/nodemailer";
+import { generateOnboardingEmail } from "@/src/lib/mail/templates/employee-onboarding";
 
 /**
  * Generiert einen sicheren Onboarding-Token
@@ -107,7 +109,31 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       },
     });
 
-    // Schritt 8: Next.js Cache für /employee Seite invalidieren, damit neue Daten angezeigt werden
+    // Schritt 8: E-Mail versenden wenn veröffentlicht
+    if (status === "published" && onboardingToken) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const onboardingUrl = `${baseUrl}/employee/onboarding/${onboardingToken}`;
+
+      const { subject, html, text } = generateOnboardingEmail({
+        email: validatedData.email,
+        onboardingUrl,
+        companyName: process.env.COMPANY_NAME || "S3 Kuma",
+      });
+
+      // E-Mail asynchron versenden (nicht auf Antwort warten)
+      sendMail({
+        to: validatedData.email,
+        subject,
+        html,
+        text,
+      }).catch((error) => {
+        console.error("Fehler beim E-Mail-Versand:", error);
+        // E-Mail-Fehler wird nicht an den Benutzer weitergegeben
+        // Der Mitarbeiter wurde trotzdem erstellt
+      });
+    }
+
+    // Schritt 9: Next.js Cache für /employee Seite invalidieren, damit neue Daten angezeigt werden
     revalidatePath("/employee");
 
     return {
@@ -116,7 +142,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       onboardingToken: onboardingToken || undefined,
       message:
         status === "published"
-          ? "Mitarbeiter erfolgreich veröffentlicht. Onboarding-Link wurde generiert."
+          ? "Mitarbeiter erfolgreich veröffentlicht. Onboarding-E-Mail wurde versendet."
           : "Entwurf erfolgreich gespeichert",
     };
   } catch (error) {
@@ -304,11 +330,13 @@ export async function updateEmployee(
     // Schritt 8: Onboarding-Token generieren, falls noch nicht vorhanden und veröffentlicht
     let onboardingToken = existingEmployee.onboardingToken;
     let onboardingTokenExpiry = existingEmployee.onboardingTokenExpiry;
+    let shouldSendEmail = false;
 
     if (status === "published" && !existingEmployee.onboardingToken) {
       onboardingToken = generateOnboardingToken();
       onboardingTokenExpiry = new Date();
       onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
+      shouldSendEmail = true; // E-Mail nur senden wenn neuer Token generiert wurde
     }
 
     // Schritt 9: Mitarbeiter in der Datenbank aktualisieren
@@ -325,7 +353,30 @@ export async function updateEmployee(
       },
     });
 
-    // Schritt 10: Next.js Cache invalidieren
+    // Schritt 10: E-Mail versenden wenn neuer Token generiert wurde
+    if (shouldSendEmail && onboardingToken) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const onboardingUrl = `${baseUrl}/employee/onboarding/${onboardingToken}`;
+
+      const { subject, html, text } = generateOnboardingEmail({
+        email: validatedData.email,
+        onboardingUrl,
+        companyName: process.env.COMPANY_NAME || "S3 Kuma",
+      });
+
+      // E-Mail asynchron versenden (nicht auf Antwort warten)
+      sendMail({
+        to: validatedData.email,
+        subject,
+        html,
+        text,
+      }).catch((error) => {
+        console.error("Fehler beim E-Mail-Versand:", error);
+        // E-Mail-Fehler wird nicht an den Benutzer weitergegeben
+      });
+    }
+
+    // Schritt 11: Next.js Cache invalidieren
     revalidatePath("/employee");
     revalidatePath(`/employee/edit/${employeeId}`);
 
@@ -333,7 +384,9 @@ export async function updateEmployee(
       success: true,
       message:
         status === "published"
-          ? "Mitarbeiter erfolgreich aktualisiert und veröffentlicht"
+          ? shouldSendEmail
+            ? "Mitarbeiter erfolgreich aktualisiert. Onboarding-E-Mail wurde versendet."
+            : "Mitarbeiter erfolgreich aktualisiert und veröffentlicht"
           : "Entwurf erfolgreich aktualisiert",
     };
   } catch (error) {

@@ -1,0 +1,34 @@
+import "dotenv/config";
+import { sendMail, verifyMailConnection } from "@/src/lib/mail/nodemailer";
+
+async function testEmail() {
+  // Verbindung testen
+  console.log("Teste SMTP-Verbindung...");
+  console.log("SMTP HOST= ", process.env.SMTP_HOST);
+  console.log("SMTP PORT= ", process.env.SMTP_PORT);
+
+  const isConnected = await verifyMailConnection();
+
+  if (!isConnected) {
+    console.error("SMTP-Verbindung fehlgeschlagen!");
+    return;
+  }
+
+  console.log("SMTP-Verbindung erfolgreich!");
+
+  // Test-Mail senden
+  console.log("Sende Test-Mail...");
+  const result = await sendMail({
+    to: "ha.bye@gmx.de",
+    subject: "Test-Email von S3 Kuma",
+    html: "<h1>Test erfolgreich!</h1><p>Der E-Mail-Versand funktioniert.</p>",
+  });
+
+  if (result.success) {
+    console.log("Test-Mail erfolgreich gesendet!");
+  } else {
+    console.log("Fehler beim Senden:", result.error);
+  }
+}
+
+testEmail();
