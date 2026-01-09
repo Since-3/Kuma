@@ -8,8 +8,10 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
+import { useState } from "react";
+import { Button } from "../ui/button";
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -17,6 +19,8 @@ interface MultiSelectDropdownProps {
   onSelect: (values: string[]) => void;
   options: { value: string; label: string }[];
   error?: string;
+  allowCreate?: boolean;
+  onCreateOption?: (newOption: { value: string; label: string }) => void;
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -25,12 +29,28 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   onSelect,
   options,
   error,
+  allowCreate = false,
+  onCreateOption,
 }) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const [newOptionLabel, setNewOptionLabel] = useState("");
+
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
       onSelect(selected.filter((item) => item !== value));
     } else {
       onSelect([...selected, value]);
+    }
+  };
+
+  const handleCreateOption = () => {
+    if (newOptionLabel.trim() && onCreateOption) {
+      const newValue = newOptionLabel.toLowerCase().replace(/\s+/g, "-");
+      const newOption = { value: newValue, label: newOptionLabel.trim() };
+      onCreateOption(newOption);
+      onSelect([...selected, newValue]);
+      setNewOptionLabel("");
+      setIsCreating(false);
     }
   };
 
@@ -84,6 +104,58 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
               {option.label}
             </DropdownMenuItem>
           ))}
+          {allowCreate && !isCreating && (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setIsCreating(true);
+              }}
+              className="flex items-center gap-2 text-blue font-semibold"
+            >
+              <Plus size={16} />
+              Neue Rolle anlegen
+            </DropdownMenuItem>
+          )}
+          {allowCreate && isCreating && (
+            <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+              <Input
+                value={newOptionLabel}
+                onChange={(e) => setNewOptionLabel(e.target.value)}
+                placeholder="Neue Rolle eingeben..."
+                className="h-8"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleCreateOption();
+                  } else if (e.key === "Escape") {
+                    setIsCreating(false);
+                    setNewOptionLabel("");
+                  }
+                }}
+                autoFocus
+              />
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  onClick={handleCreateOption}
+                  className="h-7 text-xs"
+                  disabled={!newOptionLabel.trim()}
+                >
+                  Hinzufügen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreating(false);
+                    setNewOptionLabel("");
+                  }}
+                  className="h-7 text-xs"
+                >
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

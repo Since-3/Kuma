@@ -96,7 +96,7 @@ const LoginView = () => {
           <div className="flex flex-col sm:flex-row gap-2 items-center mt-16 text-sm">
             <p>Ich habe noch keinen Account</p>
             <p
-              className="text-blue font-semibold underline cursor-pointer"
+              className="text-blue underline cursor-pointer"
               onClick={() => router.push("/register/user")}
             >
               Sign Up
