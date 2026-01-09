@@ -7,6 +7,8 @@ import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createEmployee } from "../../actions/employee-actions";
+import { toast } from "sonner";
 
 const LOCATION = [
   { value: "hainburg", label: "Hainburg" },
@@ -21,18 +23,103 @@ const INITIAL_ROLES = [
   { value: "manager", label: "Manager" },
 ];
 
-const EmployeeCreateView = () => {
+interface EmployeeCreateViewProps {
+  customRoles: Array<{ value: string; label: string }>;
+}
+
+const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
   const router = useRouter();
   const [employeeMail, setEmplyoeeMail] = useState("");
   const [isMultipleLocation, setIsMultipleLocation] = useState(false);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [roles, setRoles] = useState(INITIAL_ROLES);
+
+  // Kombiniere Standard-Rollen mit custom Rollen (ohne Duplikate)
+  const allRoleValues = new Set([
+    ...INITIAL_ROLES.map((r) => r.value),
+    ...customRoles.map((r) => r.value),
+  ]);
+  const combinedRoles = Array.from(allRoleValues).map((value) => {
+    const customRole = customRoles.find((r) => r.value === value);
+    const initialRole = INITIAL_ROLES.find((r) => r.value === value);
+    return customRole || initialRole || { value, label: value };
+  });
+
+  const [roles, setRoles] = useState(combinedRoles);
   const [isPermissionCourseCreation, setIsPermissionCourseCreation] = useState(false);
   const [isPermissionEmplyoeeCreation, setIsPermissionEmplyoeeCreation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleCreateRole = (newRole: { value: string; label: string }) => {
     setRoles([...roles, newRole]);
+  };
+
+  const handlePublish = async () => {
+    setIsSubmitting(true);
+    setErrors({});
+
+    const data = {
+      email: employeeMail,
+      roles: selectedRoles,
+      isMultipleLocation,
+      locations: isMultipleLocation ? selectedLocations : [],
+      permissions: {
+        canCreateCourses: isPermissionCourseCreation,
+        canCreateEmployees: isPermissionEmplyoeeCreation,
+      },
+    };
+
+    const result = await createEmployee(data, "published");
+
+    if (result.success) {
+      toast.success(result.message);
+
+      if (result.onboardingToken) {
+        const onboardingUrl = `${window.location.origin}/employee/onboarding/${result.onboardingToken}`;
+        console.log("Onboarding URL:", onboardingUrl);
+        // TODO: Hier später die Mail-Versendung implementieren
+      }
+
+      router.push("/employee");
+    } else {
+      toast.error(result.error || "Ein Fehler ist aufgetreten");
+      if (result.fieldErrors) {
+        setErrors(result.fieldErrors);
+      }
+    }
+
+    setIsSubmitting(false);
+  };
+
+  const handleSaveDraft = async () => {
+    setIsSubmitting(true);
+    setErrors({});
+
+    const data = {
+      email: employeeMail,
+      roles: selectedRoles,
+      isMultipleLocation,
+      locations: isMultipleLocation ? selectedLocations : [],
+      permissions: {
+        canCreateCourses: isPermissionCourseCreation,
+        canCreateEmployees: isPermissionEmplyoeeCreation,
+      },
+    };
+
+    const result = await createEmployee(data, "draft");
+
+    if (result.success) {
+      toast.success(result.message);
+      router.push("/employee");
+    } else {
+      toast.error(result.error || "Ein Fehler ist aufgetreten");
+      if (result.fieldErrors) {
+        setErrors(result.fieldErrors);
+      }
+    }
+
+    setIsSubmitting(false);
   };
 
   const permissions = [
@@ -66,16 +153,20 @@ const EmployeeCreateView = () => {
             value={employeeMail}
             onChange={(e) => setEmplyoeeMail(e.target.value)}
           />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email[0]}</p>}
         </div>
 
-        <MultiSelectDropdown
-          label="Welche Rollen hat der Mitarbeiter?"
-          selected={selectedRoles}
-          onSelect={setSelectedRoles}
-          options={roles}
-          allowCreate={true}
-          onCreateOption={handleCreateRole}
-        />
+        <div>
+          <MultiSelectDropdown
+            label="Welche Rollen hat der Mitarbeiter?"
+            selected={selectedRoles}
+            onSelect={setSelectedRoles}
+            options={roles}
+            allowCreate={true}
+            onCreateOption={handleCreateRole}
+          />
+          {errors.roles && <p className="text-red-500 text-sm mt-1">{errors.roles[0]}</p>}
+        </div>
 
         <div className="flex items-center gap-2">
           <Checkbox
@@ -95,19 +186,20 @@ const EmployeeCreateView = () => {
         </div>
 
         {isMultipleLocation && (
-          <>
+          <div>
             <MultiSelectDropdown
               label="An welchen Standorten ist der Trainer aktiv?"
               selected={selectedLocations}
               onSelect={setSelectedLocations}
               options={LOCATION}
             />
-          </>
+            {errors.locations && <p className="text-red-500 text-sm mt-1">{errors.locations[0]}</p>}
+          </div>
         )}
 
         <div>
           <Label className="p-1 mb-2 text-blue text-lg font-semibold">
-            Welche Administrationsrechte soll der Trainer erhalten
+            Welche Administrationsrechte soll der Mitarbeiter erhalten
           </Label>
           <div className="grid grid-cols-3 gap-3">
             {permissions.map((p) => (
@@ -126,13 +218,23 @@ const EmployeeCreateView = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button>Veröffentlichen</Button>
-          <Button variant="outline" onClick={() => router.push("/employee")}>
+          <Button onClick={handlePublish} disabled={isSubmitting}>
+            {isSubmitting ? "Wird veröffentlicht..." : "Veröffentlichen"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/employee")}
+            disabled={isSubmitting}
+          >
             Abbrechen
           </Button>
         </div>
-        <button className="mt-6 w-fit cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
-          Entwurf speichern
+        <button
+          onClick={handleSaveDraft}
+          disabled={isSubmitting}
+          className="mt-6 w-fit cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Wird gespeichert..." : "Entwurf speichern"}
         </button>
       </div>
     </div>

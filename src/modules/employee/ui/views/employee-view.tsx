@@ -2,6 +2,7 @@
 
 import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
+import EmployeeListView from "./employee-list-view";
 
 const EmployeeView = () => {
   const router = useRouter();
@@ -19,7 +20,7 @@ const EmployeeView = () => {
           </Button>
         </div>
       </div>
-      {/* Mitarbeiter List View */}
+      <EmployeeListView />
     </div>
   );
 };
