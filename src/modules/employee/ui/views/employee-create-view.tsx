@@ -74,13 +74,6 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
 
     if (result.success) {
       toast.success(result.message);
-
-      if (result.onboardingToken) {
-        const onboardingUrl = `${window.location.origin}/employee/onboarding/${result.onboardingToken}`;
-        console.log("Onboarding URL:", onboardingUrl);
-        // TODO: Hier später die Mail-Versendung implementieren
-      }
-
       router.push("/employee");
     } else {
       toast.error(result.error || "Ein Fehler ist aufgetreten");
