@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import CourseListItem from "../components/CourseListItem";
 import { Filter, ChevronUp, ChevronDown } from "lucide-react";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import CourseFilter from "../components/CourseFilter";
 
 type Course = {
   id: string;
@@ -38,10 +39,12 @@ const CourseListView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "published">("all");
   const [filterSport, setFilterSport] = useState<string>("all");
-  const [showFilters, setShowFilters] = useState(false);
-  const [showPastCourses, setShowPastCourses] = useState(false);
+  const [filterTrainer, setFilterTrainer] = useState<string>("all");
+  const [filterRoom, setFilterRoom] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -230,8 +233,14 @@ const CourseListView = () => {
     if (filterStatus !== "all" && course.status !== filterStatus) return false;
     if (filterSport !== "all" && course.sport !== filterSport) return false;
 
-    // Hide past courses unless showPastCourses is enabled
-    if (!showPastCourses && isPastCourse(course.date)) return false;
+    // Trainer filter
+    if (filterTrainer !== "all" && !course.trainers.includes(filterTrainer)) return false;
+
+    // Room filter (compare by room name, not ID)
+    if (filterRoom !== "all") {
+      const roomName = roomsMap[course.room] || course.room;
+      if (roomName !== filterRoom) return false;
+    }
 
     // Date range filter (additional client-side filter on top of server-side)
     if (dateFrom) {
@@ -249,6 +258,10 @@ const CourseListView = () => {
       courseDate.setHours(0, 0, 0, 0);
       if (courseDate > toDate) return false;
     }
+
+    // Time range filter
+    if (timeFrom && course.timeFrom < timeFrom) return false;
+    if (timeTo && course.timeTo > timeTo) return false;
 
     return true;
   });
@@ -277,6 +290,12 @@ const CourseListView = () => {
   // Get unique sports for filter
   const uniqueSports = Array.from(new Set(courses.map((c) => c.sport)));
 
+  // Get unique trainers for filter (flatten trainers arrays)
+  const uniqueTrainers = Array.from(new Set(courses.flatMap((c) => c.trainers)));
+
+  // Get unique rooms for filter (using room names from roomsMap)
+  const uniqueRooms = Array.from(new Set(courses.map((c) => roomsMap[c.room] || c.room)));
+
   // Get first trainer name (for display)
   const getTrainerName = (trainers: string[]) => {
     if (trainers.length === 0) return "Kein Trainer";
@@ -292,18 +311,63 @@ const CourseListView = () => {
     );
   }
 
+  // Count active filters
+  const activeFiltersCount = [
+    filterStatus !== "all",
+    filterSport !== "all",
+    filterTrainer !== "all",
+    filterRoom !== "all",
+    !!dateFrom,
+    !!dateTo,
+    !!timeFrom,
+    !!timeTo,
+  ].filter(Boolean).length;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex w-full justify-end mr-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
+          <CourseFilter
+            filterStatus={filterStatus}
+            filterSport={filterSport}
+            filterTrainer={filterTrainer}
+            filterRoom={filterRoom}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            timeFrom={timeFrom}
+            timeTo={timeTo}
+            uniqueSports={uniqueSports}
+            uniqueTrainers={uniqueTrainers}
+            uniqueRooms={uniqueRooms}
+            setFilterStatus={setFilterStatus}
+            setFilterSport={setFilterSport}
+            setFilterTrainer={setFilterTrainer}
+            setFilterRoom={setFilterRoom}
+            setDateFrom={setDateFrom}
+            setDateTo={setDateTo}
+            setTimeFrom={setTimeFrom}
+            setTimeTo={setTimeTo}
+            onReset={() => {
+              setFilterStatus("all");
+              setFilterSport("all");
+              setFilterTrainer("all");
+              setFilterRoom("all");
+              setDateFrom("");
+              setDateTo("");
+              setTimeFrom("");
+              setTimeTo("");
+            }}
           >
-            <Filter size={18} />
-            Filter
-          </Button>
+            <Button variant="outline" className="flex items-center gap-2 relative">
+              <Filter size={18} />
+              Filter
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-yellow text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+          </CourseFilter>
           <Button
             variant={deleteMode ? "destructive" : "outline"}
             onClick={() => setDeleteMode(!deleteMode)}
@@ -313,106 +377,6 @@ const CourseListView = () => {
           </Button>
         </div>
       </div>
-
-      {showFilters && (
-        <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold mb-4 text-gray-900">Filter</h2>
-
-          {/* Filter Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Status Filter */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as "all" | "draft" | "published")}
-                className="h-10 px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
-              >
-                <option value="all">Alle</option>
-                <option value="draft">Entwurf</option>
-                <option value="published">Veröffentlicht</option>
-              </select>
-            </div>
-
-            {/* Sportart Filter */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Sportart</label>
-              <select
-                value={filterSport}
-                onChange={(e) => setFilterSport(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
-              >
-                <option value="all">Alle</option>
-                {uniqueSports.map((sport) => (
-                  <option key={sport} value={sport}>
-                    {sport}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date From */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Von Datum</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
-              />
-            </div>
-
-            {/* Date To */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Bis Datum</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
-              />
-            </div>
-
-            {/* Show Past Courses Toggle */}
-            <div className="flex flex-col justify-end">
-              <label className="text-sm font-medium text-gray-700 mb-1">Vergangene Kurse</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={showPastCourses}
-                  onChange={(e) => setShowPastCourses(e.target.checked)}
-                  className="w-4 h-4 rounded cursor-pointer accent-blue-500"
-                />
-                <span className="text-sm text-gray-600">anzeigen</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Reset Button */}
-          {(filterStatus !== "all" ||
-            filterSport !== "all" ||
-            dateFrom ||
-            dateTo ||
-            showPastCourses) && (
-            <div className="mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFilterStatus("all");
-                  setFilterSport("all");
-                  setDateFrom("");
-                  setDateTo("");
-                  setShowPastCourses(false);
-                }}
-                className="border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-              >
-                Filter zurücksetzen
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Load Older Courses Button */}
       {hasOlderCourses && (
