@@ -141,7 +141,8 @@ const EmployeeListView = () => {
       <DeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        courseName={employeeToDelete?.name}
+        itemName={employeeToDelete?.name}
+        topicName="Mitarbeiter"
         onConfirm={confirmDelete}
         isLoading={isDeleting}
       />

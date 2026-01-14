@@ -13,7 +13,8 @@ import {
 interface DeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  courseName?: string;
+  itemName?: string;
+  topicName?: string;
   onConfirm: () => void;
   isLoading?: boolean;
 }
@@ -21,7 +22,8 @@ interface DeleteDialogProps {
 const DeleteDialog: React.FC<DeleteDialogProps> = ({
   open,
   onOpenChange,
-  courseName,
+  itemName,
+  topicName,
   onConfirm,
   isLoading,
 }) => {
@@ -30,10 +32,10 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex gap-4 items-center text-xl">
-            <AlertTriangle /> Kurs wirklich löschen?
+            <AlertTriangle /> {topicName} wirklich löschen?
           </DialogTitle>
           <DialogDescription className="mt-2 text-gray-600">
-            Der Kurs <span className="font-semibold text-gray-600">{courseName}</span> wird
+            Der {topicName}: <span className="font-semibold text-gray-600">{itemName}</span> wird
             dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
           </DialogDescription>
         </DialogHeader>
@@ -44,7 +46,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
             </Button>
           </DialogClose>
           <Button variant="destructive" className="mt-6" onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? "Lösche..." : "Kurs löschen"}
+            {isLoading ? "Lösche..." : `${topicName} löschen`}
           </Button>
         </DialogFooter>
       </DialogContent>

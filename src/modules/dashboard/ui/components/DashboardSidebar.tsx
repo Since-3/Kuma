@@ -17,7 +17,6 @@ import {
   Dumbbell,
   IdCardLanyard,
   LayoutDashboard,
-  MapPinned,
   User,
 } from "lucide-react";
 
@@ -76,12 +75,6 @@ const allMenuItems = [
     icon: ChartNoAxesCombined,
     label: "Marketing",
     href: "/marketing",
-    roles: ["manager"],
-  },
-  {
-    icon: MapPinned,
-    label: "Standorte",
-    href: "/standorte",
     roles: ["manager"],
   },
 ];

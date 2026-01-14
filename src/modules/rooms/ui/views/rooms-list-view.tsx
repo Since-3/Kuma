@@ -112,7 +112,8 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
           setDeleteDialogOpen(open);
           if (!open) setRoomToDelete(null);
         }}
-        courseName={roomToDelete?.name}
+        itemName={roomToDelete?.name}
+        topicName="Raum"
         onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
       />
