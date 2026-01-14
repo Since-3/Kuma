@@ -6,6 +6,8 @@
  * inklusive Teilnehmerzahl, Status und Bearbeitungsoption.
  */
 
+import AbstractTooltip from "@/src/components/layout/AbstractTooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar";
 import { Pen, Trash2, Link } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,7 +22,7 @@ interface CourseListItemProps {
   timeTo: string; // Uhrzeit am Ende des Kurses
   currentParticipants: number; // Aktuelle Anzahl der Teilnehmer
   maxParticipants: number; // Maximale Anzahl der Teilnehmer
-  trainerName: string; // Name(n) des/der Trainer
+  trainers: string[];
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
   onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
   status?: string; // Status des Kurses ("draft" oder "published")
@@ -40,7 +42,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   timeTo,
   currentParticipants,
   maxParticipants,
-  trainerName,
+  trainers,
   onEdit,
   onDelete,
   status,
@@ -59,43 +61,90 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
     toast.success("Link wurde in die Zwischenablage kopiert");
   };
 
+  const getInitials = (name: string) => {
+    if (!name) return "";
+
+    const parts = name.trim().split(" ");
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
   return (
     <div
       className={`bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4 relative ${
         isPast ? "opacity-60 bg-gray-50" : ""
       }`}
     >
-      {status && (
-        <span
-          className={`w-fit top-3 left-3 text-xs font-semibold px-2 py-1 rounded ${
-            status === "draft" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"
-          }`}
-        >
-          {status === "draft" ? "Entwurf" : "Veröffentlicht"}
+      <div className="flex items-center w-full">
+        {/*TODO: Avatar */}
+        {trainers.map((trainer, index) => (
+          <AbstractTooltip key={`${trainer}-${index}`} tooltipText={trainer}>
+            <div
+              className={`relative ${index !== 0 ? "-ml-3" : ""}`}
+              style={{ zIndex: trainers.length - index }}
+            >
+              <Avatar className="rounded-full border-2 border-white">
+                <AvatarImage src="https://github.com/shadcn.png" alt={trainer} />
+                <AvatarFallback>{getInitials(trainer)}</AvatarFallback>
+              </Avatar>
+            </div>
+          </AbstractTooltip>
+        ))}
+        {/* Time */}
+        <div className="w-full flex justify-end">
+          <p className="text-gray-500 text-lg">
+            {timeFrom} - {timeTo}
+          </p>
+        </div>
+      </div>
+
+      {/* Course Name */}
+      <h2 className="text-xl font-semibold text-gray-900">{courseName}</h2>
+
+      <div className="flex items-center justify-between w-full">
+        {/* Participant Number */}
+        <span className={isFull ? "text-red-600 font-semibold" : "text-gray-800"}>
+          {currentParticipants}/{maxParticipants} Teilnehmer
         </span>
-      )}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">{courseName}</h2>
-        <p className="text-gray-500">
-          {room} • {timeFrom} - {timeTo}
-        </p>
+
+        {/*TODO: Price */}
+        <h2 className="text-lg">15 €</h2>
       </div>
-      <div>
-        <div className="flex justify-between text-sm mb-1">
-          <span className="text-gray-600">Teilnehmer</span>
-          <span className={isFull ? "text-red-600 font-semibold" : "text-gray-800"}>
-            {currentParticipants}/{maxParticipants}
+
+      {/* Participant Bar */}
+      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${isFull ? "bg-red-500" : "bg-blue"}`}
+          style={{
+            width: `${maxParticipants > 0 ? (currentParticipants / maxParticipants) * 100 : 0}%`,
+          }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between w-full">
+        {/*TODO: Level Label */}
+        <span className={`w-fit top-3 left-3 text-xs  px-2 py-1 round bg-yellow rounded-lg`}>
+          Fortgeschritten
+        </span>
+        {/* Room */}
+        <p className="text-gray-500">{room}</p>
+      </div>
+
+      <hr />
+
+      <div className="flex items-center justify-between w-full">
+        {/* Status */}
+        {status && (
+          <span
+            className={`w-fit top-3 left-3 text-xs font-semibold px-2 py-1 rounded ${
+              status === "draft" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"
+            }`}
+          >
+            {status === "draft" ? "Entwurf" : "Veröffentlicht"}
           </span>
-        </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full ${isFull ? "bg-red-500" : "bg-blue-500"}`}
-            style={{ width: `${(currentParticipants / maxParticipants) * 100}%` }}
-          />
-        </div>
-      </div>
-      <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-        <p className="text-gray-700">{trainerName}</p>
+        )}
+        {/* Actions */}
         <div className="flex gap-2">
           {courseId && status === "published" && (
             <button

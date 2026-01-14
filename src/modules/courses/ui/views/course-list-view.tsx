@@ -296,13 +296,6 @@ const CourseListView = () => {
   // Get unique rooms for filter (using room names from roomsMap)
   const uniqueRooms = Array.from(new Set(courses.map((c) => roomsMap[c.room] || c.room)));
 
-  // Get first trainer name (for display)
-  const getTrainerName = (trainers: string[]) => {
-    if (trainers.length === 0) return "Kein Trainer";
-    // For now, using trainer ID as name - in real app, you'd fetch trainer names
-    return trainers.length > 1 ? `${trainers[0]} +${trainers.length - 1}` : trainers[0];
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -433,7 +426,7 @@ const CourseListView = () => {
                       timeTo={course.timeTo}
                       currentParticipants={course._count?.bookings || 0}
                       maxParticipants={course.maxParticipants}
-                      trainerName={getTrainerName(course.trainers)}
+                      trainers={course.trainers}
                       status={course.status}
                       isPast={isPastCourse(course.date)}
                       showDeleteIcon={deleteMode}
