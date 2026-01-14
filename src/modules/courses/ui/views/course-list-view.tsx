@@ -362,7 +362,7 @@ const CourseListView = () => {
               <Filter size={18} />
               Filter
               {activeFiltersCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-yellow text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 bg-yellow text-blue text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                   {activeFiltersCount}
                 </span>
               )}
@@ -466,7 +466,8 @@ const CourseListView = () => {
       <DeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        courseName={courseToDelete?.name}
+        itemName={courseToDelete?.name}
+        topicName="Kurs"
         onConfirm={confirmDelete}
         isLoading={isDeleting}
       />
