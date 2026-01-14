@@ -18,7 +18,8 @@ const LoginView = () => {
   const [remember, setRemember] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     const success = await loginUser(email, password, remember);
     if (success) {
       router.push("/dashboard");
@@ -42,49 +43,52 @@ const LoginView = () => {
       <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8 ">Login</h1>
-
-          <InputComponent
-            isLabel
-            label="E-mail Adresse"
-            type="email"
-            id="login-email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
-          />
-          <InputComponent
-            isLabel
-            label="Passwort"
-            type="password"
-            id="login-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-          />
-
-          <div className="flex flex-col sm:flex-row sm:justify-between w-full mt-6 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="remembering"
-                checked={remember}
-                onCheckedChange={(val: boolean) => setRemember(val)}
-                className="shadow-none h-5 w-5 bg-white border-blue cursor-pointer"
+          <form onSubmit={handleLogin}>
+            <div className="space-y-5">
+              <InputComponent
+                isLabel
+                label="E-mail Adresse"
+                type="email"
+                id="login-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={errors.email}
               />
-              <Label htmlFor="remembering" className="cursor-pointer">
-                Beim nächsten Mal an mich erinnern
-              </Label>
+              <InputComponent
+                isLabel
+                label="Passwort"
+                type="password"
+                id="login-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={errors.password}
+              />
             </div>
-            <p
-              className="hover:underline cursor-pointer text-blue"
-              onClick={() => router.push("/forgot-password")}
-            >
-              Passwort vergessen?
-            </p>
-          </div>
 
-          <Button onClick={handleLogin} disabled={loading} className="w-full mt-6">
-            {loading ? <Spinner /> : "Anmelden"}
-          </Button>
+            <div className="flex flex-col sm:flex-row sm:justify-between w-full mt-6 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remembering"
+                  checked={remember}
+                  onCheckedChange={(val: boolean) => setRemember(val)}
+                  className="shadow-none h-5 w-5 bg-white border-blue cursor-pointer"
+                />
+                <Label htmlFor="remembering" className="cursor-pointer">
+                  Beim nächsten Mal an mich erinnern
+                </Label>
+              </div>
+              <p
+                className="hover:underline cursor-pointer text-blue"
+                onClick={() => router.push("/forgot-password")}
+              >
+                Passwort vergessen?
+              </p>
+            </div>
+
+            <Button type="submit" disabled={loading} className="w-full mt-6">
+              {loading ? <Spinner /> : "Anmelden"}
+            </Button>
+          </form>
 
           <hr className="mt-6 border-blue" />
 

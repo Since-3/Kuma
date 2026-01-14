@@ -2,7 +2,7 @@
 import InputComponent from "@/src/components/layout/InputComponent";
 import AuthSidebarComponent from "../components/AuthSidebarComponent";
 import { Button } from "@/src/components/ui/button";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/src/components/ui/spinner";
 import { createClient } from "@/src/lib/supabase/client";
@@ -25,7 +25,9 @@ const ResetPasswordView = () => {
     });
   }, [router, supabase]);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     setLoading(true);
     setPasswordError("");
     setConfirmPasswordError("");
@@ -66,8 +68,8 @@ const ResetPasswordView = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="hidden lg:flex lg:w-1/6 ">
-        <div className="fixed p-4 left-0 top-0 h-screen w-1/2 z-10">
+      <div className="hidden lg:block lg:w-[40%] ">
+        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Neues Passwort setzen"
             description="Wählen Sie ein sicheres Passwort für Ihr Konto."
@@ -77,16 +79,16 @@ const ResetPasswordView = () => {
       </div>
 
       {/* Reset Password Formular */}
-      <div className="w-full lg:w-5/6 lg:ml-auto flex justify-center items-center min-h-screen px-4">
+      <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8">Passwort zurücksetzen</h1>
 
-          {!resetSuccess ? (
-            <>
-              <p className="text-sm text-gray-600 mb-4">
-                Bitte geben Sie Ihr neues Passwort ein. Es sollte mindestens 8 Zeichen lang sein.
-              </p>
+          <p className="text-sm text-gray-600 mb-4">
+            Bitte geben Sie Ihr neues Passwort ein. Es sollte mindestens 8 Zeichen lang sein.
+          </p>
 
+          {!resetSuccess ? (
+            <form onSubmit={handleResetPassword} className="space-y-5">
               <InputComponent
                 isLabel
                 label="Neues Passwort"
@@ -107,10 +109,10 @@ const ResetPasswordView = () => {
                 error={confirmPasswordError}
               />
 
-              <Button onClick={handleResetPassword} disabled={loading} className="w-full mt-6">
+              <Button type="submit" disabled={loading} className="w-full mt-6">
                 {loading ? <Spinner /> : "Passwort zurücksetzen"}
               </Button>
-            </>
+            </form>
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-lg p-6 mt-4">
               <h2 className="text-lg font-semibold text-green-800 mb-2">

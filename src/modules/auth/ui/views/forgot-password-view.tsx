@@ -15,7 +15,8 @@ const ForgotPasswordView = () => {
   const router = useRouter();
   const supabase = createClient();
 
-  const handleReset = async () => {
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
     setEmailError("");
     setLoading(true);
 
@@ -41,8 +42,8 @@ const ForgotPasswordView = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="hidden lg:flex lg:w-1/6 ">
-        <div className="fixed p-4 left-0 top-0 h-screen w-1/2 z-10">
+      <div className="hidden lg:block lg:w-[40%] ">
+        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Passwort zurücksetzen"
             description="Keine Sorge, wir helfen Ihnen dabei, wieder Zugang zu Ihrem Konto zu erhalten."
@@ -56,13 +57,13 @@ const ForgotPasswordView = () => {
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8">Passwort vergessen?</h1>
 
-          {!emailSent ? (
-            <>
-              <p className="text-sm text-gray-600 mb-4">
-                Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen
-                Ihres Passworts.
-              </p>
+          <p className="text-sm text-gray-600 mb-4">
+            Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres
+            Passworts.
+          </p>
 
+          {!emailSent ? (
+            <form onSubmit={handleReset} className="space-y-5">
               <InputComponent
                 isLabel
                 label="E-mail Adresse"
@@ -73,10 +74,10 @@ const ForgotPasswordView = () => {
                 error={emailError}
               />
 
-              <Button onClick={handleReset} disabled={loading} className="w-full mt-6">
+              <Button type="submit" disabled={loading} className="w-full mt-6">
                 {loading ? <Spinner /> : "Link zum Zurücksetzen senden"}
               </Button>
-            </>
+            </form>
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-lg p-6 mt-4">
               <h2 className="text-lg font-semibold text-green-800 mb-2">E-Mail wurde versendet!</h2>
