@@ -11,6 +11,11 @@ interface AbstractTooltipProps {
 const AbstractTooltip: React.FC<AbstractTooltipProps> = ({ tooltipText, children }) => {
   const isMobile = useIsMobile();
 
+  // Avoid hydration mismatch by not rendering tooltip until client-side detection completes
+  if (isMobile === undefined) {
+    return <>{children}</>;
+  }
+
   if (isMobile) {
     return (
       <Popover>

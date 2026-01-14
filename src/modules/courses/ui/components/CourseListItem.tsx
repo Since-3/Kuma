@@ -79,7 +79,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       <div className="flex items-center w-full">
         {/*TODO: Avatar */}
         {trainers.map((trainer, index) => (
-          <AbstractTooltip key={trainer} tooltipText={trainer}>
+          <AbstractTooltip key={`${trainer}-${index}`} tooltipText={trainer}>
             <div
               className={`relative ${index !== 0 ? "-ml-3" : ""}`}
               style={{ zIndex: trainers.length - index }}
@@ -116,7 +116,9 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
           className={`h-full ${isFull ? "bg-red-500" : "bg-blue"}`}
-          style={{ width: `${(currentParticipants / maxParticipants) * 100}%` }}
+          style={{
+            width: `${maxParticipants > 0 ? (currentParticipants / maxParticipants) * 100 : 0}%`,
+          }}
         />
       </div>
 
