@@ -23,7 +23,8 @@ const RegisterUserView = () => {
     formData.setField(field, value);
   };
 
-  const handleNext = () => {
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
     setErrors({});
     try {
       if (step === 1) {
@@ -49,7 +50,8 @@ const RegisterUserView = () => {
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     const success = await registerUser({
       fullName: formData.fullName,
       email: formData.email,
@@ -89,7 +91,7 @@ const RegisterUserView = () => {
           <h1 className="text-2xl font-extrabold text-blue mb-8 mt-8 ">Sign up for free</h1>
 
           {step === 1 && (
-            <>
+            <form onSubmit={handleNext} className="space-y-5">
               <InputComponent
                 isLabel
                 label="Vor- und Nachname"
@@ -128,14 +130,14 @@ const RegisterUserView = () => {
                 error={errors.passwordConfirm}
               />
 
-              <Button className="w-full mt-6" onClick={handleNext}>
+              <Button className="w-full mt-6" type="submit">
                 {loading ? <Spinner /> : "Weiter"}
               </Button>
-            </>
+            </form>
           )}
 
           {step === 2 && (
-            <>
+            <form onSubmit={handleRegister} className="space-y-5">
               <InputComponent
                 isLabel
                 label="Geburtsdatum"
@@ -182,10 +184,10 @@ const RegisterUserView = () => {
                 error={errors.gender}
               />
 
-              <Button onClick={handleRegister} disabled={loading} className="w-full mt-6">
+              <Button type="submit" disabled={loading} className="w-full mt-6">
                 {loading ? <Spinner /> : "Anmelden"}
               </Button>
-            </>
+            </form>
           )}
 
           <hr className="mt-6 border-blue" />

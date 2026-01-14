@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import AuthSidebarComponent from "../components/AuthSidebarComponent";
 import InputComponent from "@/src/components/layout/InputComponent";
 import { Button } from "@/src/components/ui/button";
@@ -24,7 +24,8 @@ const RegisterAdmin = () => {
     formData.setField(field, value);
   };
 
-  const handleNext = () => {
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
     setErrors({});
     try {
       if (step === 1) {
@@ -58,7 +59,8 @@ const RegisterAdmin = () => {
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrors({});
     try {
       adminRegisterStep3Schema.parse({
@@ -125,7 +127,7 @@ const RegisterAdmin = () => {
           <h1 className="text-2xl font-extrabold text-blue mb-8 mt-8 ">Sign up for free</h1>
 
           {step === 1 && (
-            <>
+            <form onSubmit={handleNext} className="space-y-5">
               <InputComponent
                 isLabel
                 label="Vor- und Nachname"
@@ -172,14 +174,14 @@ const RegisterAdmin = () => {
                 error={errors.passwordConfirm}
               />
 
-              <Button className="w-full mt-6" onClick={handleNext} disabled={loading}>
+              <Button className="w-full mt-6" type="submit" disabled={loading}>
                 {loading ? <Spinner /> : "Weiter"}
               </Button>
-            </>
+            </form>
           )}
 
           {step === 2 && (
-            <>
+            <form onSubmit={handleNext} className="space-y-5">
               <InputComponent
                 isLabel
                 label="PLZ"
@@ -209,14 +211,14 @@ const RegisterAdmin = () => {
                 error={errors.street}
               />
 
-              <Button className="w-full mt-6" onClick={handleNext} disabled={loading}>
+              <Button className="w-full mt-6" type="submit" disabled={loading}>
                 {loading ? <Spinner /> : "Weiter"}
               </Button>
-            </>
+            </form>
           )}
 
           {step === 3 && (
-            <>
+            <form onSubmit={handleRegister} className="space-y-5">
               <InputComponent
                 isLabel
                 label="Unternehmensname"
@@ -273,10 +275,10 @@ const RegisterAdmin = () => {
                 error={errors.companyNumber}
               />
 
-              <Button className="w-full mt-6" onClick={handleRegister} disabled={loading}>
+              <Button className="w-full mt-6" type="submit" disabled={loading}>
                 {loading ? <Spinner /> : "Anmelden"}
               </Button>
-            </>
+            </form>
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 items-center mt-8 text-sm">
