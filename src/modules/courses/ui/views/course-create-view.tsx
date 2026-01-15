@@ -72,6 +72,9 @@ const CourseCreateView = ({
   const [isStandingOrder, setIsStandingOrder] = useState(false);
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
+  const [price, setPrice] = useState("");
+  const [priceDisplay, setPriceDisplay] = useState("");
+  const [isPriceFocused, setIsPriceFocused] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rooms, setRooms] = useState<Array<{ value: string; label: string }>>([]);
@@ -119,6 +122,7 @@ const CourseCreateView = ({
       setSelectedRoom(initialData.room || "");
       setDescription(initialData.description || "");
       setMaxParticipants(initialData.maxParticipants?.toString() || "");
+      setPrice(initialData.price?.toString() || "");
       setIsStandingOrder(initialData.isStandingOrder || false);
       setSelectedFrequency(initialData.frequency || "");
       setSelectedWeekdays(initialData.weekdays || []);
@@ -149,6 +153,15 @@ const CourseCreateView = ({
       newErrors.maxParticipants = "Mindestens 1 Teilnehmer erforderlich";
     } else if (maxPart > 100) {
       newErrors.maxParticipants = "Maximal 100 Teilnehmer erlaubt";
+    }
+
+    const priceValue = parseFloat(price);
+    if (!price.trim()) {
+      newErrors.price = "Preis ist erforderlich";
+    } else if (isNaN(priceValue) || priceValue < 0) {
+      newErrors.price = "Preis muss eine gültige positive Zahl sein";
+    } else if (priceValue > 9999.99) {
+      newErrors.price = "Preis darf maximal 9.999,99 € betragen";
     }
 
     if (isStandingOrder) {
@@ -182,6 +195,7 @@ const CourseCreateView = ({
         room: selectedRoom,
         description,
         maxParticipants: parseInt(maxParticipants),
+        price: parseFloat(price),
         isStandingOrder,
         frequency: selectedFrequency || undefined,
         weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
@@ -282,6 +296,47 @@ const CourseCreateView = ({
             onChange={(e) => setTimeTo(e.target.value)}
           />
           {errors.timeTo && <p className="text-red-500 text-sm mt-1">{errors.timeTo}</p>}
+        </div>
+
+        <div>
+          <InputComponent
+            isLabel
+            label="Preis (€)"
+            type="text"
+            id="course-create-price"
+            value={
+              isPriceFocused
+                ? priceDisplay
+                : price
+                  ? parseFloat(price).toLocaleString("de-DE", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  : ""
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              // Remove all non-numeric characters except comma and dot
+              const cleanValue = value.replace(/[^\d,\.]/g, "");
+              // Replace comma with dot for internal storage
+              const normalizedValue = cleanValue.replace(",", ".");
+
+              setPriceDisplay(value);
+              // Allow empty string, numbers with optional decimal point and max 2 decimal places
+              if (normalizedValue === "" || /^\d*\.?\d{0,2}$/.test(normalizedValue)) {
+                setPrice(normalizedValue);
+              }
+            }}
+            onFocus={() => {
+              setIsPriceFocused(true);
+              setPriceDisplay(price.replace(".", ","));
+            }}
+            onBlur={() => {
+              setIsPriceFocused(false);
+            }}
+            placeholder="0,00"
+          />
+          {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
         </div>
 
         <MultiSelectDropdown

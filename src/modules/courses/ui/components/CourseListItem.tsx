@@ -22,6 +22,7 @@ interface CourseListItemProps {
   timeTo: string; // Uhrzeit am Ende des Kurses
   currentParticipants: number; // Aktuelle Anzahl der Teilnehmer
   maxParticipants: number; // Maximale Anzahl der Teilnehmer
+  price: number; // Preis in Euro
   trainers: string[];
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
   onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
@@ -42,6 +43,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   timeTo,
   currentParticipants,
   maxParticipants,
+  price,
   trainers,
   onEdit,
   onDelete,
@@ -108,8 +110,13 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
           {currentParticipants}/{maxParticipants} Teilnehmer
         </span>
 
-        {/*TODO: Price */}
-        <h2 className="text-lg">15 €</h2>
+        {/* Price */}
+        <h2 className="text-lg font-semibold">
+          {price.toLocaleString("de-DE", {
+            style: "currency",
+            currency: "EUR",
+          })}
+        </h2>
       </div>
 
       {/* Participant Bar */}

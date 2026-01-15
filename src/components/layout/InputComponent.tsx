@@ -11,6 +11,8 @@ interface InputProps {
   isLabel?: boolean;
   placeholder?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   value?: string;
   error?: string;
   max?: string;
@@ -23,6 +25,8 @@ const InputComponent: React.FC<InputProps> = ({
   placeholder,
   isLabel,
   onChange,
+  onBlur,
+  onFocus,
   value,
   max,
   error,
@@ -45,6 +49,8 @@ const InputComponent: React.FC<InputProps> = ({
           id={id}
           placeholder={placeholder}
           onChange={onChange}
+          onBlur={onBlur}
+          onFocus={onFocus}
           value={value}
           max={max}
           className="h-[50px] border-blue rounded-xl w-full"
