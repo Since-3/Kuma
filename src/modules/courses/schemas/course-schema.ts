@@ -49,6 +49,12 @@ export const courseSchema = z
       .min(1, "Mindestens 1 Teilnehmer erforderlich")
       .max(100, "Maximal 100 Teilnehmer erlaubt"),
 
+    // Preis in Euro (0-9999.99)
+    price: z
+      .number()
+      .min(0, "Preis muss eine gültige positive Zahl sein")
+      .max(9999.99, "Preis darf maximal 9.999,99 € betragen"),
+
     // Gibt an, ob der Kurs ein Dauerauftrag ist (regelmäßig wiederkehrend)
     isStandingOrder: z.boolean(),
 

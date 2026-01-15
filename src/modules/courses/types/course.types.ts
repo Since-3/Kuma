@@ -9,6 +9,7 @@ export type Course = {
   room: string;
   description: string;
   maxParticipants: number;
+  price: number;
   isStandingOrder: boolean;
   frequency: string | null;
   weekdays: string[];

@@ -21,6 +21,7 @@ type Course = {
   room: string;
   description: string;
   maxParticipants: number;
+  price: number;
   isStandingOrder: boolean;
   frequency: string | null;
   weekdays: string[];
@@ -433,6 +434,7 @@ const CourseListView = () => {
                       timeTo={course.timeTo}
                       currentParticipants={course._count?.bookings || 0}
                       maxParticipants={course.maxParticipants}
+                      price={course.price}
                       trainers={course.trainers}
                       status={course.status}
                       isPast={isPastCourse(course.date)}

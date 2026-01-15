@@ -111,6 +111,7 @@ model Course {
   room String
   description String // Rich text HTML content
   maxParticipants Int // Maximum number of participants
+  price Float @default(10.0) // Preis in Euro
   isStandingOrder Boolean @default(false)
   frequency String? // daily, weekly, biweekly, monthly, custom
   weekdays String[] // For custom frequency
