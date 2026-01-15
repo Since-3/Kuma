@@ -249,6 +249,13 @@ const CourseListView = () => {
       const courseDate = new Date(course.date);
       courseDate.setHours(0, 0, 0, 0);
       if (courseDate < fromDate) return false;
+    } else {
+      // If no dateFrom filter is set, only show courses from today onwards
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const courseDate = new Date(course.date);
+      courseDate.setHours(0, 0, 0, 0);
+      if (courseDate < today) return false;
     }
 
     if (dateTo) {
