@@ -9,7 +9,7 @@ import { Button } from "@/src/components/ui/button";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
 import { createCourse, updateCourse } from "../../actions/course-actions";
-import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
+import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
 
@@ -80,7 +80,7 @@ const CourseCreateView = ({
   // Load rooms from database
   useEffect(() => {
     const loadRooms = async () => {
-      const result = await getAllRooms();
+      const result = await getMyRooms();
       setIsLoadingRooms(true);
       if (result.success) {
         const roomOptions = result.rooms.map((room) => ({
