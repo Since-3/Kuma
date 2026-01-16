@@ -129,7 +129,7 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <DashboardFooter displayName={displayName} />
+        <DashboardFooter displayName={displayName} userData={userData} />
       </SidebarFooter>
     </Sidebar>
   );
