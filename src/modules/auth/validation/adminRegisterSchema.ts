@@ -1,11 +1,23 @@
 import { z } from "zod";
 
+// Helper function to validate international phone numbers
+const isValidPhoneNumber = (phone: string): boolean => {
+  // Check if phone starts with + and has at least country code and number
+  const phoneRegex = /^\+[1-9]\d{1,14}$/;
+  return phoneRegex.test(phone);
+};
+
 // Step 1: Personal Info
 export const adminRegisterStep1Schema = z
   .object({
     fullName: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
     email: z.string().email("Bitte eine gültige E-Mail-Adresse eingeben"),
-    tel: z.string().min(5, "Telefonnummer muss mindestens 5 Zeichen lang sein"),
+    tel: z
+      .string()
+      .min(1, "Telefonnummer ist erforderlich")
+      .refine((val) => isValidPhoneNumber(val), {
+        message: "Bitte eine gültige Telefonnummer eingeben",
+      }),
     password: z.string().min(8, "Passwort muss mindestens 8 Zeichen lang sein"),
     passwordConfirm: z.string(),
   })
@@ -35,7 +47,19 @@ export const adminRegisterStep3Schema = z.object({
     .email("Bitte eine gültige E-Mail-Adresse eingeben")
     .optional()
     .or(z.literal("")),
-  companyNumber: z.string().optional().or(z.literal("")),
+  companyNumber: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        return isValidPhoneNumber(val);
+      },
+      {
+        message: "Bitte eine gültige Telefonnummer eingeben",
+      }
+    ),
 });
 
 // Full schema for complete validation

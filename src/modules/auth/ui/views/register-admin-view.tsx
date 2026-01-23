@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import AuthSidebarComponent from "../components/AuthSidebarComponent";
 import InputComponent from "@/src/components/layout/InputComponent";
+import PhoneInputComponent from "@/src/components/layout/PhoneInputComponent";
 import { Button } from "@/src/components/ui/button";
 import { useAuthFormStore } from "../../store/authFormState";
 import { useAuth } from "@/src/hooks/useAuth";
@@ -146,13 +147,12 @@ const RegisterAdmin = () => {
                 onChange={(e) => handleChange("email", e.target.value)}
                 error={errors.email}
               />
-              <InputComponent
+              <PhoneInputComponent
                 isLabel
                 label="Telefonnummer"
-                type="text"
                 id="register-admin-tel"
                 value={formData.tel}
-                onChange={(e) => handleChange("tel", e.target.value)}
+                onChange={(value) => handleChange("tel", value || "")}
                 error={errors.tel}
               />
               <InputComponent
@@ -265,13 +265,12 @@ const RegisterAdmin = () => {
                 onChange={(e) => handleChange("companyMail", e.target.value)}
                 error={errors.companyMail}
               />
-              <InputComponent
+              <PhoneInputComponent
                 isLabel
                 label="Geschäftsnummer (falls unterschiedlich)"
-                type="text"
                 id="register-admin-companyNumber"
                 value={formData.companyNumber}
-                onChange={(e) => handleChange("companyNumber", e.target.value)}
+                onChange={(value) => handleChange("companyNumber", value || "")}
                 error={errors.companyNumber}
               />
 
