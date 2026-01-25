@@ -8,7 +8,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 import { useState } from "react";
 import { Button } from "../ui/button";
@@ -21,6 +21,8 @@ interface MultiSelectDropdownProps {
   error?: string;
   allowCreate?: boolean;
   onCreateOption?: (newOption: { value: string; label: string }) => void;
+  onDeleteOption?: (value: string) => void;
+  deletableValues?: string[];
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -31,6 +33,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   error,
   allowCreate = false,
   onCreateOption,
+  onDeleteOption,
+  deletableValues = [],
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newOptionLabel, setNewOptionLabel] = useState("");
@@ -98,10 +102,24 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 e.preventDefault();
                 toggleOption(option.value);
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 justify-between"
             >
-              <Checkbox checked={selected.includes(option.value)} className="h-4 w-4" />
-              {option.label}
+              <div className="flex items-center gap-2">
+                <Checkbox checked={selected.includes(option.value)} className="h-4 w-4" />
+                {option.label}
+              </div>
+              {deletableValues.includes(option.value) && onDeleteOption && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteOption(option.value);
+                  }}
+                  className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700"
+                  title="Rolle löschen"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </DropdownMenuItem>
           ))}
           {allowCreate && !isCreating && (
@@ -117,13 +135,18 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             </DropdownMenuItem>
           )}
           {allowCreate && isCreating && (
-            <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="p-2 space-y-2"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
               <Input
                 value={newOptionLabel}
                 onChange={(e) => setNewOptionLabel(e.target.value)}
                 placeholder="Neue Rolle eingeben..."
                 className="h-8"
                 onKeyDown={(e) => {
+                  e.stopPropagation();
                   if (e.key === "Enter") {
                     handleCreateOption();
                   } else if (e.key === "Escape") {

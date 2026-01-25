@@ -46,6 +46,7 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
   });
 
   const [roles, setRoles] = useState(combinedRoles);
+  const [newlyCreatedRoles, setNewlyCreatedRoles] = useState<string[]>([]);
   const [isPermissionCourseCreation, setIsPermissionCourseCreation] = useState(false);
   const [isPermissionEmplyoeeCreation, setIsPermissionEmplyoeeCreation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +54,13 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
 
   const handleCreateRole = (newRole: { value: string; label: string }) => {
     setRoles([...roles, newRole]);
+    setNewlyCreatedRoles([...newlyCreatedRoles, newRole.value]);
+  };
+
+  const handleDeleteRole = (valueToDelete: string) => {
+    setRoles(roles.filter((role) => role.value !== valueToDelete));
+    setNewlyCreatedRoles(newlyCreatedRoles.filter((v) => v !== valueToDelete));
+    setSelectedRoles(selectedRoles.filter((v) => v !== valueToDelete));
   };
 
   const handlePublish = async () => {
@@ -157,6 +165,8 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
             options={roles}
             allowCreate={true}
             onCreateOption={handleCreateRole}
+            onDeleteOption={handleDeleteRole}
+            deletableValues={newlyCreatedRoles}
           />
           {errors.roles && <p className="text-red-500 text-sm mt-1">{errors.roles[0]}</p>}
         </div>
