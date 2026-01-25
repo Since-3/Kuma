@@ -137,6 +137,49 @@ const CourseListView = () => {
   }, []);
 
   /**
+   * Extend loaded date range when filter dates are outside the current range
+   */
+  useEffect(() => {
+    if (!loadedDateFrom || !loadedDateTo || isLoading) return;
+
+    const extendRange = async () => {
+      let needsReload = false;
+      let newDateFrom = loadedDateFrom;
+      let newDateTo = loadedDateTo;
+
+      // Check if dateFrom filter is before loaded range
+      if (dateFrom) {
+        const filterFromDate = new Date(dateFrom);
+        filterFromDate.setHours(0, 0, 0, 0);
+        if (filterFromDate < loadedDateFrom) {
+          newDateFrom = filterFromDate;
+          needsReload = true;
+        }
+      }
+
+      // Check if dateTo filter is after loaded range
+      if (dateTo) {
+        const filterToDate = new Date(dateTo);
+        filterToDate.setHours(0, 0, 0, 0);
+        if (filterToDate > loadedDateTo) {
+          newDateTo = filterToDate;
+          needsReload = true;
+        }
+      }
+
+      if (needsReload) {
+        setIsLoading(true);
+        setLoadedDateFrom(newDateFrom);
+        setLoadedDateTo(newDateTo);
+        await loadCourses({ dateFrom: newDateFrom, dateTo: newDateTo }, "initial");
+        setIsLoading(false);
+      }
+    };
+
+    extendRange();
+  }, [dateFrom, dateTo, loadedDateFrom, loadedDateTo, isLoading]);
+
+  /**
    * Load older courses (extend the date range backwards by 4 weeks)
    */
   const loadOlderCourses = async () => {
@@ -340,14 +383,16 @@ const CourseListView = () => {
             uniqueSports={uniqueSports}
             uniqueTrainers={uniqueTrainers}
             uniqueRooms={uniqueRooms}
-            setFilterStatus={setFilterStatus}
-            setFilterSport={setFilterSport}
-            setFilterTrainer={setFilterTrainer}
-            setFilterRoom={setFilterRoom}
-            setDateFrom={setDateFrom}
-            setDateTo={setDateTo}
-            setTimeFrom={setTimeFrom}
-            setTimeTo={setTimeTo}
+            onApplyFilters={(filters) => {
+              setFilterStatus(filters.filterStatus);
+              setFilterSport(filters.filterSport);
+              setFilterTrainer(filters.filterTrainer);
+              setFilterRoom(filters.filterRoom);
+              setDateFrom(filters.dateFrom);
+              setDateTo(filters.dateTo);
+              setTimeFrom(filters.timeFrom);
+              setTimeTo(filters.timeTo);
+            }}
             onReset={() => {
               setFilterStatus("all");
               setFilterSport("all");

@@ -19,10 +19,21 @@ import React, { useState } from "react";
 
 type FilterStatus = "all" | "draft" | "published";
 
+interface FilterValues {
+  filterStatus: FilterStatus;
+  filterSport: string;
+  filterTrainer: string;
+  filterRoom: string;
+  dateFrom: string;
+  dateTo: string;
+  timeFrom: string;
+  timeTo: string;
+}
+
 interface CourseFilterProps {
   children: React.ReactNode;
 
-  // values
+  // current applied values
   filterStatus: FilterStatus;
   filterSport: string;
   filterTrainer: string;
@@ -35,15 +46,8 @@ interface CourseFilterProps {
   uniqueTrainers: string[];
   uniqueRooms: string[];
 
-  // setters
-  setFilterStatus: (v: FilterStatus) => void;
-  setFilterSport: (v: string) => void;
-  setFilterTrainer: (v: string) => void;
-  setFilterRoom: (v: string) => void;
-  setDateFrom: (v: string) => void;
-  setDateTo: (v: string) => void;
-  setTimeFrom: (v: string) => void;
-  setTimeTo: (v: string) => void;
+  // callback when filters are applied
+  onApplyFilters: (filters: FilterValues) => void;
 
   // actions
   onReset: () => void;
@@ -62,16 +66,36 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   uniqueSports,
   uniqueTrainers,
   uniqueRooms,
-  setFilterStatus,
-  setFilterSport,
-  setFilterTrainer,
-  setFilterRoom,
-  setDateFrom,
-  setDateTo,
-  setTimeFrom,
-  setTimeTo,
+  onApplyFilters,
   onReset,
 }) => {
+  // Local state for temporary filter values (before applying)
+  const [localStatus, setLocalStatus] = useState<FilterStatus>(filterStatus);
+  const [localSport, setLocalSport] = useState(filterSport);
+  const [localTrainer, setLocalTrainer] = useState(filterTrainer);
+  const [localRoom, setLocalRoom] = useState(filterRoom);
+  const [localDateFrom, setLocalDateFrom] = useState(dateFrom);
+  const [localDateTo, setLocalDateTo] = useState(dateTo);
+  const [localTimeFrom, setLocalTimeFrom] = useState(timeFrom);
+  const [localTimeTo, setLocalTimeTo] = useState(timeTo);
+  const [priceValue, setPriceValue] = useState([0, 50]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Sync local state when sheet opens
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setLocalStatus(filterStatus);
+      setLocalSport(filterSport);
+      setLocalTrainer(filterTrainer);
+      setLocalRoom(filterRoom);
+      setLocalDateFrom(dateFrom);
+      setLocalDateTo(dateTo);
+      setLocalTimeFrom(timeFrom);
+      setLocalTimeTo(timeTo);
+    }
+    setIsOpen(open);
+  };
+
   const hasActiveFilters =
     filterStatus !== "all" ||
     filterSport !== "all" ||
@@ -81,10 +105,34 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     !!dateTo ||
     !!timeFrom ||
     !!timeTo;
-  const [priceValue, setPriceValue] = useState([0, 50]);
+
+  const handleApplyFilters = () => {
+    onApplyFilters({
+      filterStatus: localStatus,
+      filterSport: localSport,
+      filterTrainer: localTrainer,
+      filterRoom: localRoom,
+      dateFrom: localDateFrom,
+      dateTo: localDateTo,
+      timeFrom: localTimeFrom,
+      timeTo: localTimeTo,
+    });
+  };
+
+  const handleReset = () => {
+    setLocalStatus("all");
+    setLocalSport("all");
+    setLocalTrainer("all");
+    setLocalRoom("all");
+    setLocalDateFrom("");
+    setLocalDateTo("");
+    setLocalTimeFrom("");
+    setLocalTimeTo("");
+    onReset();
+  };
 
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>{children}</SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
@@ -100,8 +148,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
             <label className="font-medium">Von</label>
             <input
               type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              value={localDateFrom}
+              onChange={(e) => setLocalDateFrom(e.target.value)}
               className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
             />
           </div>
@@ -111,8 +159,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
             <label className="font-medium">Bis</label>
             <input
               type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              value={localDateTo}
+              onChange={(e) => setLocalDateTo(e.target.value)}
               className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
             />
           </div>
@@ -121,8 +169,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
           <div className="space-y-1">
             <label className="font-medium">Trainer</label>
             <select
-              value={filterTrainer}
-              onChange={(e) => setFilterTrainer(e.target.value)}
+              value={localTrainer}
+              onChange={(e) => setLocalTrainer(e.target.value)}
               className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
             >
               <option value="all">Alle</option>
@@ -138,8 +186,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
           <div className="space-y-1">
             <label className="font-medium">Status</label>
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+              value={localStatus}
+              onChange={(e) => setLocalStatus(e.target.value as FilterStatus)}
               className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
             >
               <option value="all">Alle</option>
@@ -152,8 +200,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
           <div className="space-y-1">
             <label className="font-medium">Sportart</label>
             <select
-              value={filterSport}
-              onChange={(e) => setFilterSport(e.target.value)}
+              value={localSport}
+              onChange={(e) => setLocalSport(e.target.value)}
               className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
             >
               <option value="all">Alle</option>
@@ -192,8 +240,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                 <div className="space-y-1">
                   <label className="font-medium">Raum</label>
                   <select
-                    value={filterRoom}
-                    onChange={(e) => setFilterRoom(e.target.value)}
+                    value={localRoom}
+                    onChange={(e) => setLocalRoom(e.target.value)}
                     className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
                   >
                     <option value="all">Alle</option>
@@ -224,8 +272,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                   <label className="font-medium">Von</label>
                   <input
                     type="time"
-                    value={timeFrom}
-                    onChange={(e) => setTimeFrom(e.target.value)}
+                    value={localTimeFrom}
+                    onChange={(e) => setLocalTimeFrom(e.target.value)}
                     className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
                   />
                 </div>
@@ -235,8 +283,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                   <label className="font-medium">Bis</label>
                   <input
                     type="time"
-                    value={timeTo}
-                    onChange={(e) => setTimeTo(e.target.value)}
+                    value={localTimeTo}
+                    onChange={(e) => setLocalTimeTo(e.target.value)}
                     className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
                   />
                 </div>
@@ -247,14 +295,14 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
 
         <SheetFooter className="flex flex-row items-center w-full justify-end gap-2 border-t pt-4">
           {hasActiveFilters && (
-            <Button variant="outline" onClick={onReset}>
+            <Button variant="outline" onClick={handleReset}>
               Zurücksetzen
             </Button>
           )}
 
           {/* Schließt das Sheet */}
           <SheetClose asChild>
-            <Button>Filtern</Button>
+            <Button onClick={handleApplyFilters}>Filtern</Button>
           </SheetClose>
         </SheetFooter>
       </SheetContent>
