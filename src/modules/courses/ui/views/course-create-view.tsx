@@ -436,7 +436,7 @@ const CourseCreateView = ({
           </Button>
         </div>
         <button
-          className="mt-6 w-fit cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-6 mb-4 w-fit cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleSubmit("draft")}
           disabled={isSubmitting}
         >

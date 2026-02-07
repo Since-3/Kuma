@@ -28,6 +28,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Pflichtfelder fehlen" }, { status: 400 });
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "Ein User kann nicht gleichzeitig ein Manager sein" },
+        { status: 409 }
+      );
+    }
+
     const supabase = await createClient();
 
     // Create Manager in Supabase Auth
