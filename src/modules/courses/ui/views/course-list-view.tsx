@@ -46,6 +46,8 @@ const CourseListView = () => {
   const [dateTo, setDateTo] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
+  const [priceMin, setPriceMin] = useState<number | null>(null);
+  const [priceMax, setPriceMax] = useState<number | null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -314,6 +316,10 @@ const CourseListView = () => {
     if (timeFrom && course.timeFrom < timeFrom) return false;
     if (timeTo && course.timeTo > timeTo) return false;
 
+    // Price range filter
+    if (priceMin !== null && course.price < priceMin) return false;
+    if (priceMax !== null && course.price > priceMax) return false;
+
     return true;
   });
 
@@ -337,6 +343,12 @@ const CourseListView = () => {
       new Date(b.split(".").reverse().join("-")).getTime()
     );
   });
+
+  // Calculate price range from courses
+  const priceRangeMin =
+    courses.length > 0 ? Math.floor(Math.min(...courses.map((c) => c.price))) : 0;
+  const priceRangeMax =
+    courses.length > 0 ? Math.ceil(Math.max(...courses.map((c) => c.price))) : 0;
 
   // Get unique sports for filter
   const uniqueSports = Array.from(new Set(courses.map((c) => c.sport)));
@@ -365,6 +377,8 @@ const CourseListView = () => {
     !!dateTo,
     !!timeFrom,
     !!timeTo,
+    priceMin !== null && priceMin !== priceRangeMin,
+    priceMax !== null && priceMax !== priceRangeMax,
   ].filter(Boolean).length;
 
   return (
@@ -380,6 +394,10 @@ const CourseListView = () => {
             dateTo={dateTo}
             timeFrom={timeFrom}
             timeTo={timeTo}
+            priceMin={priceMin ?? priceRangeMin}
+            priceMax={priceMax ?? priceRangeMax}
+            priceRangeMin={priceRangeMin}
+            priceRangeMax={priceRangeMax}
             uniqueSports={uniqueSports}
             uniqueTrainers={uniqueTrainers}
             uniqueRooms={uniqueRooms}
@@ -392,6 +410,8 @@ const CourseListView = () => {
               setDateTo(filters.dateTo);
               setTimeFrom(filters.timeFrom);
               setTimeTo(filters.timeTo);
+              setPriceMin(filters.priceMin === priceRangeMin ? null : filters.priceMin);
+              setPriceMax(filters.priceMax === priceRangeMax ? null : filters.priceMax);
             }}
             onReset={() => {
               setFilterStatus("all");
@@ -402,6 +422,8 @@ const CourseListView = () => {
               setDateTo("");
               setTimeFrom("");
               setTimeTo("");
+              setPriceMin(null);
+              setPriceMax(null);
             }}
           >
             <Button variant="outline" className="flex items-center gap-2 relative">
