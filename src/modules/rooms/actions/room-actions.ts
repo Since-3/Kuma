@@ -352,7 +352,30 @@ export async function deleteRoom(roomId: string) {
       };
     }
 
-    // Schritt 6: Raum aus der Datenbank löschen
+    // Schritt 6: Prüfen, ob der Raum noch in zukünftigen Kursen verwendet wird
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureCourses = await prisma.course.findMany({
+      where: {
+        room: roomId,
+        date: { gte: today },
+        createdBy: userData.id,
+      },
+      select: { id: true, name: true },
+    });
+
+    if (futureCourses.length > 0) {
+      const courseNames = futureCourses.map((c) => c.name).join(", ");
+      return {
+        success: false,
+        error: `Raum kann nicht gelöscht werden, da er noch in ${futureCourses.length} zukünftigen Kursen verwendet wird: ${courseNames}`,
+        hasActiveCourses: true,
+        roomName: room.name,
+      };
+    }
+
+    // Schritt 7: Raum aus der Datenbank löschen
     await prisma.room.delete({
       where: { id: roomId },
     });

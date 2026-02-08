@@ -4,7 +4,7 @@ import { getMyCourses, deleteCourse } from "../../actions/course-actions";
 import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CourseListItem from "../components/CourseListItem";
 import { Filter, ChevronUp, ChevronDown } from "lucide-react";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
@@ -36,12 +36,13 @@ type Course = {
 
 const CourseListView = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "published">("all");
   const [filterSport, setFilterSport] = useState<string>("all");
   const [filterTrainer, setFilterTrainer] = useState<string>("all");
-  const [filterRoom, setFilterRoom] = useState<string>("all");
+  const [filterRoom, setFilterRoom] = useState<string>(searchParams.get("room") ?? "all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
