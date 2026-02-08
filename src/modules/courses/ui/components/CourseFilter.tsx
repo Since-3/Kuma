@@ -28,6 +28,8 @@ interface FilterValues {
   dateTo: string;
   timeFrom: string;
   timeTo: string;
+  priceMin: number;
+  priceMax: number;
 }
 
 interface CourseFilterProps {
@@ -42,6 +44,10 @@ interface CourseFilterProps {
   dateTo: string;
   timeFrom: string;
   timeTo: string;
+  priceMin: number;
+  priceMax: number;
+  priceRangeMin: number;
+  priceRangeMax: number;
   uniqueSports: string[];
   uniqueTrainers: string[];
   uniqueRooms: string[];
@@ -63,6 +69,10 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   dateTo,
   timeFrom,
   timeTo,
+  priceMin,
+  priceMax,
+  priceRangeMin,
+  priceRangeMax,
   uniqueSports,
   uniqueTrainers,
   uniqueRooms,
@@ -78,7 +88,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   const [localDateTo, setLocalDateTo] = useState(dateTo);
   const [localTimeFrom, setLocalTimeFrom] = useState(timeFrom);
   const [localTimeTo, setLocalTimeTo] = useState(timeTo);
-  const [priceValue, setPriceValue] = useState([0, 50]);
+  const [localPriceMin, setLocalPriceMin] = useState(priceMin);
+  const [localPriceMax, setLocalPriceMax] = useState(priceMax);
   const [isOpen, setIsOpen] = useState(false);
 
   // Sync local state when sheet opens
@@ -92,6 +103,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
       setLocalDateTo(dateTo);
       setLocalTimeFrom(timeFrom);
       setLocalTimeTo(timeTo);
+      setLocalPriceMin(priceMin);
+      setLocalPriceMax(priceMax);
     }
     setIsOpen(open);
   };
@@ -104,7 +117,9 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     !!dateFrom ||
     !!dateTo ||
     !!timeFrom ||
-    !!timeTo;
+    !!timeTo ||
+    priceMin !== priceRangeMin ||
+    priceMax !== priceRangeMax;
 
   const handleApplyFilters = () => {
     onApplyFilters({
@@ -116,6 +131,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
       dateTo: localDateTo,
       timeFrom: localTimeFrom,
       timeTo: localTimeTo,
+      priceMin: localPriceMin,
+      priceMax: localPriceMax,
     });
   };
 
@@ -128,6 +145,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     setLocalDateTo("");
     setLocalTimeFrom("");
     setLocalTimeTo("");
+    setLocalPriceMin(priceRangeMin);
+    setLocalPriceMax(priceRangeMax);
     onReset();
   };
 
@@ -213,19 +232,23 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
             </select>
           </div>
 
-          {/* TODO: Price */}
+          {/* Price */}
           <div className="space-y-1">
             <label className="font-medium">Preis</label>
             <Slider
               className="mt-1"
-              value={priceValue}
-              onValueChange={setPriceValue}
-              max={50}
+              value={[localPriceMin, localPriceMax]}
+              onValueChange={([min, max]) => {
+                setLocalPriceMin(min);
+                setLocalPriceMax(max);
+              }}
+              min={priceRangeMin}
+              max={priceRangeMax}
               step={1}
             />
             <div className="flex justify-between mt-2">
-              <span>{priceValue[0]}€</span>
-              <span>{priceValue[1]}€</span>
+              <span>{localPriceMin}€</span>
+              <span>{localPriceMax}€</span>
             </div>
           </div>
 
