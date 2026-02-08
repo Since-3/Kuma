@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import CourseListView from "./course-list-view";
@@ -20,7 +21,9 @@ const CourseView = () => {
           </Button>
         </div>
       </div>
-      <CourseListView />
+      <Suspense>
+        <CourseListView />
+      </Suspense>
     </div>
   );
 };

@@ -73,7 +73,7 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
         style: { maxWidth: "680px" },
         action: {
           label: "Kurse anzeigen",
-          onClick: () => router.push(`/courses?room=${result.roomName}`),
+          onClick: () => router.push(`/courses?room=${encodeURIComponent(result.roomName)}`),
         },
         actionButtonStyle: {
           backgroundColor: "#F4C00C",
