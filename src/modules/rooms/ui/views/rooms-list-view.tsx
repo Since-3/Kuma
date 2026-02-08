@@ -65,6 +65,24 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
       setRooms((prev) => prev.filter((room) => room.id !== roomToDelete.id));
       setDeleteDialogOpen(false);
       setRoomToDelete(null);
+    } else if (result.hasActiveCourses) {
+      setDeleteDialogOpen(false);
+      setRoomToDelete(null);
+      toast.error(result.error, {
+        duration: 8000,
+        style: { maxWidth: "680px" },
+        action: {
+          label: "Kurse anzeigen",
+          onClick: () => router.push(`/courses?room=${encodeURIComponent(result.roomName)}`),
+        },
+        actionButtonStyle: {
+          backgroundColor: "#F4C00C",
+          color: "#1E293B",
+          fontWeight: "600",
+          padding: "8px 14px",
+          borderRadius: "6px",
+        },
+      });
     } else {
       toast.error(result.error || "Fehler beim Löschen des Raumes");
     }
