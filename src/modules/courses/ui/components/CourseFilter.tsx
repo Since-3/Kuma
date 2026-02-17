@@ -24,6 +24,7 @@ interface FilterValues {
   filterSport: string;
   filterTrainer: string;
   filterRoom: string;
+  filterLevel: string;
   dateFrom: string;
   dateTo: string;
   timeFrom: string;
@@ -40,6 +41,7 @@ interface CourseFilterProps {
   filterSport: string;
   filterTrainer: string;
   filterRoom: string;
+  filterLevel: string;
   dateFrom: string;
   dateTo: string;
   timeFrom: string;
@@ -65,6 +67,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   filterSport,
   filterTrainer,
   filterRoom,
+  filterLevel,
   dateFrom,
   dateTo,
   timeFrom,
@@ -84,6 +87,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   const [localSport, setLocalSport] = useState(filterSport);
   const [localTrainer, setLocalTrainer] = useState(filterTrainer);
   const [localRoom, setLocalRoom] = useState(filterRoom);
+  const [localLevel, setLocalLevel] = useState(filterLevel);
   const [localDateFrom, setLocalDateFrom] = useState(dateFrom);
   const [localDateTo, setLocalDateTo] = useState(dateTo);
   const [localTimeFrom, setLocalTimeFrom] = useState(timeFrom);
@@ -99,6 +103,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
       setLocalSport(filterSport);
       setLocalTrainer(filterTrainer);
       setLocalRoom(filterRoom);
+      setLocalLevel(filterLevel);
       setLocalDateFrom(dateFrom);
       setLocalDateTo(dateTo);
       setLocalTimeFrom(timeFrom);
@@ -114,6 +119,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     filterSport !== "all" ||
     filterTrainer !== "all" ||
     filterRoom !== "all" ||
+    filterLevel !== "all" ||
     !!dateFrom ||
     !!dateTo ||
     !!timeFrom ||
@@ -127,6 +133,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
       filterSport: localSport,
       filterTrainer: localTrainer,
       filterRoom: localRoom,
+      filterLevel: localLevel,
       dateFrom: localDateFrom,
       dateTo: localDateTo,
       timeFrom: localTimeFrom,
@@ -141,6 +148,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     setLocalSport("all");
     setLocalTrainer("all");
     setLocalRoom("all");
+    setLocalLevel("all");
     setLocalDateFrom("");
     setLocalDateTo("");
     setLocalTimeFrom("");
@@ -276,14 +284,19 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                   </select>
                 </div>
 
-                {/* TODO: Niveau */}
+                {/* Niveau */}
                 <div className="space-y-1">
                   <label className="font-medium">Niveau</label>
-                  <select className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition">
-                    <option value="everyone">Jedes Niveau</option>
+                  <select
+                    value={localLevel}
+                    onChange={(e) => setLocalLevel(e.target.value)}
+                    className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
+                  >
+                    <option value="all">Alle</option>
+                    <option value="any">Jedes Niveau</option>
                     <option value="beginner">Anfänger</option>
-                    <option value="intermediate">Fortgeschritten</option>
-                    <option value="advanced">Profi</option>
+                    <option value="advanced">Fortgeschrittene</option>
+                    <option value="pro">Profi</option>
                   </select>
                 </div>
 
