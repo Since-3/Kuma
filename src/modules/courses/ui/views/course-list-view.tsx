@@ -44,6 +44,7 @@ const CourseListView = () => {
   const [filterSport, setFilterSport] = useState<string>("all");
   const [filterTrainer, setFilterTrainer] = useState<string>("all");
   const [filterRoom, setFilterRoom] = useState<string>(searchParams.get("room") ?? "all");
+  const [filterLevel, setFilterLevel] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
@@ -280,6 +281,7 @@ const CourseListView = () => {
   const filteredCourses = courses.filter((course) => {
     if (filterStatus !== "all" && course.status !== filterStatus) return false;
     if (filterSport !== "all" && !course.sport.includes(filterSport)) return false;
+    if (filterLevel !== "all" && course.level !== filterLevel) return false;
 
     // Trainer filter
     if (filterTrainer !== "all" && !course.trainers.includes(filterTrainer)) return false;
@@ -375,6 +377,7 @@ const CourseListView = () => {
     filterSport !== "all",
     filterTrainer !== "all",
     filterRoom !== "all",
+    filterLevel !== "all",
     !!dateFrom,
     !!dateTo,
     !!timeFrom,
@@ -392,6 +395,7 @@ const CourseListView = () => {
             filterSport={filterSport}
             filterTrainer={filterTrainer}
             filterRoom={filterRoom}
+            filterLevel={filterLevel}
             dateFrom={dateFrom}
             dateTo={dateTo}
             timeFrom={timeFrom}
@@ -408,6 +412,7 @@ const CourseListView = () => {
               setFilterSport(filters.filterSport);
               setFilterTrainer(filters.filterTrainer);
               setFilterRoom(filters.filterRoom);
+              setFilterLevel(filters.filterLevel);
               setDateFrom(filters.dateFrom);
               setDateTo(filters.dateTo);
               setTimeFrom(filters.timeFrom);
@@ -420,6 +425,7 @@ const CourseListView = () => {
               setFilterSport("all");
               setFilterTrainer("all");
               setFilterRoom("all");
+              setFilterLevel("all");
               setDateFrom("");
               setDateTo("");
               setTimeFrom("");
