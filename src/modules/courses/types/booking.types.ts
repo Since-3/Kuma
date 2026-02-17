@@ -8,7 +8,8 @@ export type CourseBooking = {
 export type CourseWithBookingCount = {
   id: string;
   name: string;
-  sport: string;
+  sport: string[];
+  level: string;
   date: Date;
   timeFrom: string;
   timeTo: string;

@@ -13,21 +13,18 @@ import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
 
-// Hardcoded data
-const SPORTS = [
-  { value: "football", label: "Fußball" },
-  { value: "basketball", label: "Basketball" },
-  { value: "volleyball", label: "Volleyball" },
-  { value: "tennis", label: "Tennis" },
-  { value: "boxing", label: "Boxen" },
-  { value: "yoga", label: "Yoga" },
-];
-
 const TRAINERS = [
   { value: "trainer1", label: "Max Mustermann" },
   { value: "trainer2", label: "Anna Schmidt" },
   { value: "trainer3", label: "Peter Weber" },
   { value: "trainer4", label: "Lisa Müller" },
+];
+
+const LEVELS = [
+  { value: "any", label: "Jedes Niveau" },
+  { value: "beginner", label: "Anfänger" },
+  { value: "advanced", label: "Fortgeschrittene" },
+  { value: "pro", label: "Profi" },
 ];
 
 const FREQUENCIES = [
@@ -52,19 +49,24 @@ interface CourseCreateViewProps {
   mode?: "create" | "edit";
   courseId?: string;
   initialData?: Course;
+  customSports?: Array<{ value: string; label: string }>;
 }
 
 const CourseCreateView = ({
   mode = "create",
   courseId,
   initialData,
+  customSports = [],
 }: CourseCreateViewProps = {}) => {
   const router = useRouter();
   const [courseName, setCourseName] = useState("");
   const [courseDate, setCourseDate] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
-  const [selectedSport, setSelectedSport] = useState("");
+  const [selectedSports, setSelectedSports] = useState<string[]>([]);
+  const [sports, setSports] = useState<Array<{ value: string; label: string }>>(customSports);
+  const [newlyCreatedSports, setNewlyCreatedSports] = useState<string[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState("");
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [description, setDescription] = useState("");
@@ -103,7 +105,15 @@ const CourseCreateView = ({
   useEffect(() => {
     if (mode === "edit" && initialData) {
       setCourseName(initialData.name || "");
-      setSelectedSport(initialData.sport || "");
+      const sportValues = initialData.sport || [];
+      setSelectedSports(sportValues);
+      // Merge initialData sports with customSports (no duplicates)
+      const existingValues = new Set(customSports.map((s) => s.value));
+      const newOptions = sportValues
+        .filter((s) => !existingValues.has(s))
+        .map((s) => ({ value: s, label: s }));
+      setSports([...customSports, ...newOptions]);
+      setSelectedLevel(initialData.level || "");
 
       // Format date for input field (YYYY-MM-DD)
       if (initialData.date) {
@@ -127,13 +137,13 @@ const CourseCreateView = ({
       setSelectedFrequency(initialData.frequency || "");
       setSelectedWeekdays(initialData.weekdays || []);
     }
-  }, [mode, initialData]);
+  }, [mode, initialData, customSports]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!courseName.trim()) newErrors.name = "Kursname ist erforderlich";
-    if (!selectedSport) newErrors.sport = "Sportart ist erforderlich";
+    if (selectedSports.length === 0) newErrors.sport = "Mindestens eine Sportart ist erforderlich";
     if (!courseDate) newErrors.date = "Datum ist erforderlich";
     if (!timeFrom) newErrors.timeFrom = "Anfangszeit ist erforderlich";
     if (!timeTo) newErrors.timeTo = "Endzeit ist erforderlich";
@@ -187,7 +197,8 @@ const CourseCreateView = ({
     try {
       const courseData = {
         name: courseName,
-        sport: selectedSport,
+        sport: selectedSports,
+        level: selectedLevel,
         date: courseDate,
         timeFrom: timeFrom,
         timeTo: timeTo,
@@ -254,12 +265,31 @@ const CourseCreateView = ({
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
         </div>
 
-        <GenericDropdown
+        <MultiSelectDropdown
           label="Sportart"
-          selected={selectedSport}
-          onSelect={setSelectedSport}
-          options={SPORTS}
+          labelButton="Neue Sportart anlegen"
+          selected={selectedSports}
+          onSelect={setSelectedSports}
+          options={sports}
+          allowCreate={true}
+          onCreateOption={(newSport) => {
+            setSports([...sports, newSport]);
+            setNewlyCreatedSports([...newlyCreatedSports, newSport.value]);
+          }}
+          onDeleteOption={(valueToDelete) => {
+            setSports(sports.filter((s) => s.value !== valueToDelete));
+            setNewlyCreatedSports(newlyCreatedSports.filter((v) => v !== valueToDelete));
+            setSelectedSports(selectedSports.filter((v) => v !== valueToDelete));
+          }}
+          deletableValues={newlyCreatedSports}
           error={errors.sport}
+        />
+
+        <GenericDropdown
+          label="Niveau"
+          selected={selectedLevel}
+          onSelect={setSelectedLevel}
+          options={LEVELS}
         />
 
         <div>

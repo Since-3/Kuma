@@ -8,9 +8,10 @@ import { Course } from "../../types/course.types";
 
 interface CourseEditViewProps {
   courseId: string;
+  customSports: Array<{ value: string; label: string }>;
 }
 
-const CourseEditView = ({ courseId }: CourseEditViewProps) => {
+const CourseEditView = ({ courseId, customSports }: CourseEditViewProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [courseData, setCourseData] = useState<Course | null>(null);
@@ -49,7 +50,14 @@ const CourseEditView = ({ courseId }: CourseEditViewProps) => {
     return null;
   }
 
-  return <CourseCreateView mode="edit" courseId={courseId} initialData={courseData} />;
+  return (
+    <CourseCreateView
+      mode="edit"
+      courseId={courseId}
+      initialData={courseData}
+      customSports={customSports}
+    />
+  );
 };
 
 export default CourseEditView;

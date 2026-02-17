@@ -23,6 +23,7 @@ interface CourseListItemProps {
   currentParticipants: number; // Aktuelle Anzahl der Teilnehmer
   maxParticipants: number; // Maximale Anzahl der Teilnehmer
   price: number; // Preis in Euro
+  level: string; // Level
   trainers: string[];
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
   onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
@@ -44,6 +45,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   currentParticipants,
   maxParticipants,
   price,
+  level,
   trainers,
   onEdit,
   onDelete,
@@ -53,6 +55,15 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
 }) => {
   // Prüfen, ob der Kurs voll belegt ist (für visuelle Hervorhebung)
   const isFull = currentParticipants >= maxParticipants;
+
+  const levelConfig: Record<string, { label: string; bg: string; text: string }> = {
+    any: { label: "Jedes Niveau", bg: "bg-gray-200", text: "text-gray-700" },
+    beginner: { label: "Anfänger", bg: "bg-blue-200", text: "text-blue-700" },
+    advanced: { label: "Fortgeschrittene", bg: "bg-orange-200", text: "text-orange-700" },
+    pro: { label: "Profi", bg: "bg-red-200", text: "text-red-700" },
+  };
+
+  const currentLevel = levelConfig[level] || levelConfig.any;
 
   // Funktion zum Kopieren des Buchungslinks
   const handleCopyLink = () => {
@@ -130,9 +141,10 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       </div>
 
       <div className="flex items-center justify-between w-full">
-        {/*TODO: Level Label */}
-        <span className={`w-fit top-3 left-3 text-xs  px-2 py-1 round bg-yellow rounded-lg`}>
-          Fortgeschritten
+        <span
+          className={`w-fit text-xs font-semibold px-2 py-1 rounded-lg ${currentLevel.bg} ${currentLevel.text}`}
+        >
+          {currentLevel.label}
         </span>
         {/* Room */}
         <p className="text-gray-500">{room}</p>

@@ -160,6 +160,7 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
         <div>
           <MultiSelectDropdown
             label="Welche Rollen hat der Mitarbeiter?"
+            labelButton="Neue Rolle anlegen"
             selected={selectedRoles}
             onSelect={setSelectedRoles}
             options={roles}

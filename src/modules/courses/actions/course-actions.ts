@@ -63,6 +63,7 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
       data: {
         name: validatedData.name,
         sport: validatedData.sport,
+        level: validatedData.level || "any",
         date: new Date(validatedData.date), // String zu Date konvertieren
         timeFrom: validatedData.timeFrom,
         timeTo: validatedData.timeTo,
@@ -340,6 +341,7 @@ export async function updateCourse(
       data: {
         name: validatedData.name,
         sport: validatedData.sport,
+        level: validatedData.level || "any",
         date: new Date(validatedData.date),
         timeFrom: validatedData.timeFrom,
         timeTo: validatedData.timeTo,
@@ -439,5 +441,36 @@ export async function deleteCourse(courseId: string) {
       success: false,
       error: "Fehler beim Löschen des Kurses",
     };
+  }
+}
+
+/**
+ * Alle verwendeten Sportarten des aktuellen Managers abrufen
+ */
+export async function getMySportTypes() {
+  try {
+    const userData = await getUserData();
+
+    if (!userData || !isManager(userData)) {
+      return { success: false, error: "Unauthorized", sports: [] };
+    }
+
+    const courses = await prisma.course.findMany({
+      where: { createdBy: userData.id },
+      select: { sport: true },
+    });
+
+    const allSports = courses.flatMap((course) => course.sport);
+    const uniqueSports = [...new Set(allSports)];
+
+    const formattedSports = uniqueSports.map((sport) => ({
+      value: sport,
+      label: sport.charAt(0).toUpperCase() + sport.slice(1),
+    }));
+
+    return { success: true, sports: formattedSports };
+  } catch (error) {
+    console.error("Error fetching sport types:", error);
+    return { success: false, error: "Fehler beim Laden der Sportarten", sports: [] };
   }
 }
