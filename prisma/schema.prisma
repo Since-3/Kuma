@@ -103,7 +103,8 @@ model Business {
 model Course {
   id String @id @default(uuid())
   name String
-  sport String
+  sport String[]
+  level String @default("any")
   date DateTime
   timeFrom String // Anfangszeit
   timeTo String // Endzeit

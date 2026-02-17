@@ -13,7 +13,8 @@ import CourseFilter from "../components/CourseFilter";
 type Course = {
   id: string;
   name: string;
-  sport: string;
+  sport: string[];
+  level: string;
   date: Date;
   timeFrom: string;
   timeTo: string;
@@ -278,7 +279,7 @@ const CourseListView = () => {
   // Filter courses (client-side filtering for status, sport, etc.)
   const filteredCourses = courses.filter((course) => {
     if (filterStatus !== "all" && course.status !== filterStatus) return false;
-    if (filterSport !== "all" && course.sport !== filterSport) return false;
+    if (filterSport !== "all" && !course.sport.includes(filterSport)) return false;
 
     // Trainer filter
     if (filterTrainer !== "all" && !course.trainers.includes(filterTrainer)) return false;
@@ -352,7 +353,7 @@ const CourseListView = () => {
     courses.length > 0 ? Math.ceil(Math.max(...courses.map((c) => c.price))) : 0;
 
   // Get unique sports for filter
-  const uniqueSports = Array.from(new Set(courses.map((c) => c.sport)));
+  const uniqueSports = Array.from(new Set(courses.flatMap((c) => c.sport)));
 
   // Get unique trainers for filter (flatten trainers arrays)
   const uniqueTrainers = Array.from(new Set(courses.flatMap((c) => c.trainers)));
@@ -503,6 +504,7 @@ const CourseListView = () => {
                       currentParticipants={course._count?.bookings || 0}
                       maxParticipants={course.maxParticipants}
                       price={course.price}
+                      level={course.level}
                       trainers={course.trainers}
                       status={course.status}
                       isPast={isPastCourse(course.date)}

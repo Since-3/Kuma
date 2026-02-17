@@ -1,7 +1,8 @@
 export type Course = {
   id: string;
   name: string;
-  sport: string;
+  sport: string[];
+  level: string;
   date: Date;
   timeFrom: string;
   timeTo: string;

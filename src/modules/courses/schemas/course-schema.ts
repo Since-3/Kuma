@@ -22,8 +22,11 @@ export const courseSchema = z
     // Kursname (Pflichtfeld, min. 1 Zeichen)
     name: z.string().min(1, "Kursname ist erforderlich"),
 
-    // Sportart (Pflichtfeld, z.B. Fußball, Basketball)
-    sport: z.string().min(1, "Sportart ist erforderlich"),
+    // Sportarten (Pflichtfeld, z.B. Fußball, Basketball)
+    sport: z.array(z.string()).min(1, "Mindestens eine Sportart ist erforderlich"),
+
+    // Niveau (optional, Standard: "any")
+    level: z.string().optional(),
 
     // Kursdatum als String im Format YYYY-MM-DD
     date: z.string().min(1, "Datum ist erforderlich"),

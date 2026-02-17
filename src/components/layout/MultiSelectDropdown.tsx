@@ -15,6 +15,7 @@ import { Button } from "../ui/button";
 
 interface MultiSelectDropdownProps {
   label: string;
+  labelButton?: string;
   selected: string[];
   onSelect: (values: string[]) => void;
   options: { value: string; label: string }[];
@@ -27,6 +28,7 @@ interface MultiSelectDropdownProps {
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   label,
+  labelButton,
   selected,
   onSelect,
   options,
@@ -131,7 +133,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
               className="flex items-center gap-2 text-blue font-semibold"
             >
               <Plus size={16} />
-              Neue Rolle anlegen
+              {labelButton}
             </DropdownMenuItem>
           )}
           {allowCreate && isCreating && (
