@@ -10,7 +10,7 @@ interface CourseBookingViewProps {
   course: {
     id: string;
     name: string;
-    sport: string;
+    sport: string[];
     date: Date;
     timeFrom: string;
     timeTo: string;
@@ -76,7 +76,7 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{course.name}</h1>
-          <p className="text-lg text-gray-600">{course.sport}</p>
+          <p className="text-lg text-gray-600">{course.sport.join(", ")}</p>
         </div>
 
         <div className="space-y-4 mb-6">
