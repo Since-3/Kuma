@@ -23,6 +23,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json({ error: "Dieser Nutzer existiert bereits." }, { status: 409 });
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signUp({
@@ -45,15 +53,6 @@ export async function POST(request: Request) {
     const supabaseUser = data.user;
     if (!supabaseUser) {
       return NextResponse.json({ error: "User konnte nicht erstellt werden" }, { status: 500 });
-    }
-
-    // Check if User exists in the DB
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return NextResponse.json({ user: existingUser }, { status: 200 });
     }
 
     const newUser = await prisma.user.create({
