@@ -127,10 +127,7 @@ const ResetPasswordView = () => {
 
           <div className="flex flex-col sm:flex-row gap-2 items-center mt-8 text-sm">
             <p>Zurück zum</p>
-            <p
-              className="text-yellow hover:underline cursor-pointer"
-              onClick={() => router.push("/login")}
-            >
+            <p className="text-blue underline cursor-pointer" onClick={() => router.push("/login")}>
               Login
             </p>
           </div>

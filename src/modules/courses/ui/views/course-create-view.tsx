@@ -12,6 +12,9 @@ import { createCourse, updateCourse } from "../../actions/course-actions";
 import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
+import { Trash2 } from "lucide-react";
+import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import { useDeleteCourse } from "../../hooks/useDeleteCourse";
 
 const TRAINERS = [
   { value: "trainer1", label: "Max Mustermann" },
@@ -81,6 +84,18 @@ const CourseCreateView = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rooms, setRooms] = useState<Array<{ value: string; label: string }>>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    courseToDelete,
+    setCourseToDelete,
+    isDeleting,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteCourse({
+    onSuccess: () => router.push("/courses"),
+  });
 
   // Load rooms from database
   useEffect(() => {
@@ -246,12 +261,23 @@ const CourseCreateView = ({
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">{mode === "edit" ? "Kurs bearbeiten" : "Kurs anlegen"}</h1>
-      <p className="text-xl mt-2">
-        {mode === "edit"
-          ? "Ändern Sie die Kursdetails und speichern Sie Ihre Änderungen"
-          : "Alle Kurse können nach dem Speichern angepasst oder gelöscht werden"}
-      </p>
+      <div className="w-full flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {mode === "edit" ? "Kurs bearbeiten" : "Kurs anlegen"}
+          </h1>
+          <p className="text-xl mt-2">
+            {mode === "edit"
+              ? "Ändern Sie die Kursdetails und speichern Sie Ihre Änderungen"
+              : "Alle Kurse können nach dem Speichern angepasst oder gelöscht werden"}
+          </p>
+        </div>
+        {mode === "edit" && (
+          <Button variant="destructive" onClick={() => handleDeleteClick(courseId!, courseName)}>
+            <Trash2 className="mb-1" /> Löschen
+          </Button>
+        )}
+      </div>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
         <div>
           <InputComponent
@@ -473,6 +499,18 @@ const CourseCreateView = ({
           {mode === "edit" ? "Als Entwurf speichern" : "Entwurf speichern"}
         </button>
       </div>
+
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setCourseToDelete(null);
+        }}
+        itemName={courseToDelete?.name}
+        topicName="Kurs"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

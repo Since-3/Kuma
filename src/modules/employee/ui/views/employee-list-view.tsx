@@ -1,10 +1,11 @@
 import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getMyEmployees, deleteEmployee } from "../../actions/employee-actions";
+import { getMyEmployees } from "../../actions/employee-actions";
 import EmployeeListItem from "../components/EmployeeListItem";
 import { toast } from "sonner";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import { useDeleteEmployee } from "../../hooks/useDeleteEmployee";
 
 type Employee = {
   id: string;
@@ -26,11 +27,18 @@ const EmployeeListView = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteMode, setDeleteMode] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState<{ id: string; name: string } | null>(
-    null
-  );
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    employeeToDelete,
+    setEmployeeToDelete,
+    isDeleting,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteEmployee({
+    onSuccess: (deletedId) => setEmployees((prev) => prev.filter((e) => e.id !== deletedId)),
+  });
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -46,34 +54,6 @@ const EmployeeListView = () => {
 
     loadEmployees();
   }, []);
-
-  const requestDelete = (employeeId: string, employeeName: string) => {
-    setEmployeeToDelete({ id: employeeId, name: employeeName });
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!employeeToDelete) return;
-
-    setIsDeleting(true);
-
-    const result = await deleteEmployee(employeeToDelete.id);
-
-    setIsDeleting(false);
-    setDeleteDialogOpen(false);
-    setEmployeeToDelete(null);
-
-    if (result.success) {
-      toast.success(result.message);
-      // Reload employees
-      const reloadResult = await getMyEmployees();
-      if (reloadResult.success) {
-        setEmployees(reloadResult.employees);
-      }
-    } else {
-      toast.error(result.error || "Fehler beim Löschen");
-    }
-  };
 
   const getEmployeeName = (employee: Employee) => {
     if (employee.firstName && employee.lastName) {
@@ -131,7 +111,7 @@ const EmployeeListView = () => {
               status={employee.status || "draft"}
               isOnboarded={employee.isOnboarded}
               showDeleteIcon={deleteMode}
-              onDelete={() => requestDelete(employee.id, getEmployeeName(employee))}
+              onDelete={() => handleDeleteClick(employee.id, getEmployeeName(employee))}
               onEdit={() => router.push(`/employee/edit/${employee.id}`)}
             />
           ))}
@@ -140,10 +120,13 @@ const EmployeeListView = () => {
 
       <DeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setEmployeeToDelete(null);
+        }}
         itemName={employeeToDelete?.name}
         topicName="Mitarbeiter"
-        onConfirm={confirmDelete}
+        onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
       />
     </div>
