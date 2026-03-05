@@ -79,5 +79,10 @@
       "./config/eslint.config.js"
     ]
   },
-  "prettier": "./config/prettier.config.js"
+  "prettier": "./config/prettier.config.js",
+  "overrides": {
+    "rollup": ">=4.59.0",
+    "fast-xml-parser": ">=5.3.6",
+    "minimatch": ">=3.1.3"
+  }
 }
