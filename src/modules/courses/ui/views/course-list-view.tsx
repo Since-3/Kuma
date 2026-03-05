@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getMyCourses, deleteCourse } from "../../actions/course-actions";
+import { getMyCourses } from "../../actions/course-actions";
+import { useDeleteCourse } from "../../hooks/useDeleteCourse";
 import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
@@ -52,10 +53,23 @@ const CourseListView = () => {
   const [priceMin, setPriceMin] = useState<number | null>(null);
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [roomsMap, setRoomsMap] = useState<Record<string, string>>({});
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    courseToDelete,
+    setCourseToDelete,
+    isDeleting,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteCourse({
+    onSuccess: async () => {
+      if (loadedDateFrom && loadedDateTo) {
+        await loadCourses({ dateFrom: loadedDateFrom, dateTo: loadedDateTo }, "initial");
+      }
+    },
+  });
 
   // Date range state for infinite scroll
   const [loadedDateFrom, setLoadedDateFrom] = useState<Date | null>(null);
@@ -226,33 +240,6 @@ const CourseListView = () => {
     // Update the loaded date range
     setLoadedDateTo(fourWeeksLater);
     setIsLoadingNewer(false);
-  };
-
-  const requestDelete = (courseId: string, courseName: string) => {
-    setCourseToDelete({ id: courseId, name: courseName });
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!courseToDelete) return;
-
-    setIsDeleting(true);
-
-    const result = await deleteCourse(courseToDelete.id);
-
-    setIsDeleting(false);
-    setDeleteDialogOpen(false);
-    setCourseToDelete(null);
-
-    if (result.success) {
-      toast.success(result.message);
-      // Reload courses with the current date range
-      if (loadedDateFrom && loadedDateTo) {
-        await loadCourses({ dateFrom: loadedDateFrom, dateTo: loadedDateTo }, "initial");
-      }
-    } else {
-      toast.error(result.error || "Fehler beim Löschen");
-    }
   };
 
   const formatDate = (date: Date) => {
@@ -515,7 +502,7 @@ const CourseListView = () => {
                       status={course.status}
                       isPast={isPastCourse(course.date)}
                       showDeleteIcon={deleteMode}
-                      onDelete={() => requestDelete(course.id, course.name)}
+                      onDelete={() => handleDeleteClick(course.id, course.name)}
                       onEdit={() => router.push(`/courses/edit/${course.id}`)}
                     />
                   ))}
@@ -543,10 +530,13 @@ const CourseListView = () => {
 
       <DeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setCourseToDelete(null);
+        }}
         itemName={courseToDelete?.name}
         topicName="Kurs"
-        onConfirm={confirmDelete}
+        onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
       />
     </div>

@@ -6,6 +6,9 @@ import { Button } from "@/src/components/ui/button";
 import { createRoom, updateRoom } from "../../actions/room-actions";
 import { toast } from "sonner";
 import { Room } from "../../types/room.types";
+import { Trash2 } from "lucide-react";
+import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import { useDeleteRoom } from "../../hooks/useDeleteRoom";
 
 interface RoomsCreateViewProps {
   mode?: "create" | "edit";
@@ -18,6 +21,18 @@ const RoomsCreateView = ({ mode = "create", roomId, initialData }: RoomsCreateVi
   const [roomName, setRoomName] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    roomToDelete,
+    setRoomToDelete,
+    isDeleting,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteRoom({
+    onSuccess: () => router.push("/rooms"),
+  });
 
   // Load initial data when in edit mode
   useEffect(() => {
@@ -80,12 +95,23 @@ const RoomsCreateView = ({ mode = "create", roomId, initialData }: RoomsCreateVi
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">{mode === "edit" ? "Raum bearbeiten" : "Raum anlegen"}</h1>
-      <p className="text-xl mt-2">
-        {mode === "edit"
-          ? "Ändern Sie den Raumnamen und speichern Sie Ihre Änderungen"
-          : "Alle Räume können nach dem Speichern angepasst oder gelöscht werden"}
-      </p>
+      <div className="flex w-full items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {mode === "edit" ? "Raum bearbeiten" : "Raum anlegen"}
+          </h1>
+          <p className="text-xl mt-2">
+            {mode === "edit"
+              ? "Ändern Sie den Raumnamen und speichern Sie Ihre Änderungen"
+              : "Alle Räume können nach dem Speichern angepasst oder gelöscht werden"}
+          </p>
+        </div>
+        {mode === "edit" && (
+          <Button variant="destructive" onClick={() => handleDeleteClick(roomId!, roomName)}>
+            <Trash2 size={20} className="mb-1" /> Löschen
+          </Button>
+        )}
+      </div>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
         <div>
           <InputComponent
@@ -111,6 +137,18 @@ const RoomsCreateView = ({ mode = "create", roomId, initialData }: RoomsCreateVi
           </Button>
         </div>
       </div>
+
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setRoomToDelete(null);
+        }}
+        itemName={roomToDelete?.name}
+        topicName="Raum"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

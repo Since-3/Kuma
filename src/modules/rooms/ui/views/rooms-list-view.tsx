@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getMyRooms, deleteRoom } from "../../actions/room-actions";
+import { getMyRooms } from "../../actions/room-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import RoomsListItem from "../components/RoomsListItem";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import { useDeleteRoom } from "../../hooks/useDeleteRoom";
 
 type Room = {
   id: string;
@@ -22,9 +23,18 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [roomToDelete, setRoomToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    roomToDelete,
+    setRoomToDelete,
+    isDeleting,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteRoom({
+    onSuccess: (deletedId) => setRooms((prev) => prev.filter((room) => room.id !== deletedId)),
+  });
 
   // Load rooms
   const loadRooms = async () => {
@@ -45,49 +55,6 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
     };
     fetchRooms();
   }, []);
-
-  // Handle delete click
-  const handleDeleteClick = (id: string, name: string) => {
-    setRoomToDelete({ id, name });
-    setDeleteDialogOpen(true);
-  };
-
-  // Confirm delete
-  const handleDeleteConfirm = async () => {
-    if (!roomToDelete) return;
-
-    setIsDeleting(true);
-    const result = await deleteRoom(roomToDelete.id);
-
-    if (result.success) {
-      toast.success(result.message);
-      // Remove the deleted room from the list
-      setRooms((prev) => prev.filter((room) => room.id !== roomToDelete.id));
-      setDeleteDialogOpen(false);
-      setRoomToDelete(null);
-    } else if (result.hasActiveCourses) {
-      setDeleteDialogOpen(false);
-      setRoomToDelete(null);
-      toast.error(result.error, {
-        duration: 8000,
-        style: { maxWidth: "680px" },
-        action: {
-          label: "Kurse anzeigen",
-          onClick: () => router.push(`/courses?room=${encodeURIComponent(result.roomName)}`),
-        },
-        actionButtonStyle: {
-          backgroundColor: "#F4C00C",
-          color: "#1E293B",
-          fontWeight: "600",
-          padding: "8px 14px",
-          borderRadius: "6px",
-        },
-      });
-    } else {
-      toast.error(result.error || "Fehler beim Löschen des Raumes");
-    }
-    setIsDeleting(false);
-  };
 
   // Handle edit click
   const handleEditClick = (id: string) => {
