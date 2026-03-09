@@ -1,6 +1,7 @@
 "use client";
 import { HelpCircle, Settings, Plus } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import type { AuthUserData } from "@/src/lib/auth/getUser";
 import {
@@ -24,6 +25,26 @@ const footerMenu = [
     href: "/help",
   },
 ];
+
+const getDiceBearUrl = (seed: string) =>
+  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
+const AvatarImage = ({
+  userData,
+  displayName,
+}: {
+  userData: AuthUserData;
+  displayName: string;
+}) => {
+  const pbSrc = "pbSrc" in userData ? userData.pbSrc : null;
+  const src = pbSrc || getDiceBearUrl(displayName);
+
+  return (
+    <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100">
+      <Image src={src} alt={displayName} fill className="object-cover" unoptimized />
+    </div>
+  );
+};
 
 interface DashboardFooterProps {
   displayName: string;
@@ -91,10 +112,10 @@ const DashboardFooter = ({ displayName, userData }: DashboardFooterProps) => {
         </div>
       )}
 
-      {/* DisplayName */}
+      {/* DisplayName + Avatar */}
       <div className="w-full flex items-center gap-4 p-2 mt-2">
-        <div className="w-10 h-10 bg-black rounded-full" />
-        <p>{displayName}</p>
+        <AvatarImage userData={userData} displayName={displayName} />
+        <p className="truncate text-sm font-medium">{displayName}</p>
       </div>
     </div>
   );

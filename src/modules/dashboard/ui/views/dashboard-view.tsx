@@ -1,13 +1,14 @@
 import { LogoutButton } from "@/src/components/layout/LogoutButton";
-import { isManager, requireAuthWithData, isUser } from "@/src/lib/auth/getUser";
+import { isManager, isEmployee, requireAuthWithData, isUser } from "@/src/lib/auth/getUser";
 
 const DashboardView = async () => {
   const userData = await requireAuthWithData();
 
-  // Get display name based on user type
   const displayName = isManager(userData)
     ? `${userData.firstName} ${userData.lastName}`
-    : userData.name || userData.email;
+    : isEmployee(userData)
+      ? `${userData.firstName ?? ""} ${userData.lastName ?? ""}`.trim() || userData.email
+      : userData.name || userData.email;
 
   return (
     <div className="space-y-6">
@@ -17,6 +18,11 @@ const DashboardView = async () => {
         {isManager(userData) && (
           <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
             Manager
+          </span>
+        )}
+        {isEmployee(userData) && (
+          <span className="inline-block mt-2 px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+            Mitarbeiter
           </span>
         )}
       </div>
@@ -34,6 +40,18 @@ const DashboardView = async () => {
               {userData.businesses.length}{" "}
               {userData.businesses.length === 1 ? "Business" : "Businesses"}
             </p>
+          </div>
+        ) : isEmployee(userData) ? (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-2">Meine Berechtigungen</h2>
+            <ul className="text-gray-600 text-sm space-y-1 mt-2">
+              {userData.permissions.canCreateCourses && <li>• Kurse erstellen</li>}
+              {userData.permissions.canCreateEmployees && <li>• Mitarbeiter anlegen</li>}
+              {!userData.permissions.canCreateCourses &&
+                !userData.permissions.canCreateEmployees && (
+                  <li className="text-gray-400">Keine erweiterten Berechtigungen</li>
+                )}
+            </ul>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow p-6">
@@ -132,6 +150,30 @@ const DashboardView = async () => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {isEmployee(userData) && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Mitarbeiter-Daten</h2>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Vorname</dt>
+              <dd className="mt-1 text-sm text-gray-900">{userData.firstName || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Nachname</dt>
+              <dd className="mt-1 text-sm text-gray-900">{userData.lastName || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">E-Mail</dt>
+              <dd className="mt-1 text-sm text-gray-900">{userData.email}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Qualifikation</dt>
+              <dd className="mt-1 text-sm text-gray-900">{userData.qualification || "—"}</dd>
+            </div>
+          </dl>
         </div>
       )}
 

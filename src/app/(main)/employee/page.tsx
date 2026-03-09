@@ -1,8 +1,8 @@
-import { requireManager } from "@/src/lib/auth/getUser";
+import { requireManagerOrPermission } from "@/src/lib/auth/getUser";
 import EmployeeView from "@/src/modules/employee/ui/views/employee-view";
 
 const Employee = async () => {
-  await requireManager();
+  await requireManagerOrPermission("canCreateEmployees");
   return <EmployeeView />;
 };
 

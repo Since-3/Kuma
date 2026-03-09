@@ -26,14 +26,22 @@ import { usePathname } from "next/navigation";
 import Logo from "@/src/public/logo-dark.png";
 import { cn } from "@/src/lib/utils";
 import DashboardFooter from "./DashboardFooter";
-import type { AuthUserData } from "@/src/lib/auth/getUser";
+import type { AuthUserData, EmployeeData } from "@/src/lib/auth/getUser";
 
-const allMenuItems = [
+type MenuItem = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  href: string;
+  roles?: string[];
+  permission?: keyof EmployeeData["permissions"];
+};
+
+const allMenuItems: MenuItem[] = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
     href: "/dashboard",
-    roles: ["manager", "user"],
+    roles: ["manager", "user", "employee"],
   },
   {
     icon: Dumbbell,
@@ -48,10 +56,24 @@ const allMenuItems = [
     roles: ["manager"],
   },
   {
+    icon: Dumbbell,
+    label: "Kurse",
+    href: "/courses",
+    roles: ["employee"],
+    permission: "canCreateCourses",
+  },
+  {
     icon: IdCardLanyard,
     label: "Mitarbeiter",
     href: "/employee",
     roles: ["manager"],
+  },
+  {
+    icon: IdCardLanyard,
+    label: "Mitarbeiter",
+    href: "/employee",
+    roles: ["employee"],
+    permission: "canCreateEmployees",
   },
   {
     icon: User,
@@ -88,8 +110,14 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
   const pathname = usePathname();
   const userRole = userData.role;
 
-  // Filter menu items based on user role
-  const menu = allMenuItems.filter((item) => item.roles.includes(userRole));
+  const menu = allMenuItems.filter((item) => {
+    if (!item.roles?.includes(userRole)) return false;
+    if (userRole === "employee" && item.permission) {
+      const employeeData = userData as EmployeeData;
+      return employeeData.permissions[item.permission] === true;
+    }
+    return true;
+  });
 
   return (
     <Sidebar>
@@ -104,7 +132,7 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
           <SidebarGroupContent>
             <SidebarMenu className="mt-10">
               {menu.map((item) => (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={item.href + item.label}>
                   <SidebarMenuButton
                     asChild
                     className={cn(

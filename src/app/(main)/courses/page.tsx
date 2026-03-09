@@ -1,8 +1,8 @@
-import { requireManager } from "@/src/lib/auth/getUser";
+import { requireManagerOrPermission } from "@/src/lib/auth/getUser";
 import CourseView from "@/src/modules/courses/ui/views/course-view";
 
 const Course = async () => {
-  await requireManager();
+  await requireManagerOrPermission("canCreateCourses");
   return <CourseView />;
 };
 
