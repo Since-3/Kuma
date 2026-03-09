@@ -376,7 +376,79 @@ const CourseListView = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <div className="flex w-full justify-end mr-2 gap-2">
+        <div className="flex flex-col w-full gap-2 mr-2 sm:flex-row sm:justify-end">
+          <div className="flex gap-2 sm:hidden">
+            <Button onClick={() => router.push("/courses/create")} className="flex-1">
+              Kurs anlegen
+            </Button>
+            <Button
+              variant={deleteMode ? "destructive" : "outline"}
+              onClick={() => setDeleteMode(!deleteMode)}
+              className="flex-1"
+            >
+              {deleteMode ? "Abbrechen" : "Kurs löschen"}
+            </Button>
+          </div>
+
+          {/* Mobile: Filter button below the two action buttons */}
+          <div className="sm:hidden">
+            <CourseFilter
+              filterStatus={filterStatus}
+              filterSport={filterSport}
+              filterTrainer={filterTrainer}
+              filterRoom={filterRoom}
+              filterLevel={filterLevel}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              timeFrom={timeFrom}
+              timeTo={timeTo}
+              priceMin={priceMin ?? priceRangeMin}
+              priceMax={priceMax ?? priceRangeMax}
+              priceRangeMin={priceRangeMin}
+              priceRangeMax={priceRangeMax}
+              uniqueSports={uniqueSports}
+              uniqueTrainers={uniqueTrainers}
+              uniqueRooms={uniqueRooms}
+              onApplyFilters={(filters) => {
+                setFilterStatus(filters.filterStatus);
+                setFilterSport(filters.filterSport);
+                setFilterTrainer(filters.filterTrainer);
+                setFilterRoom(filters.filterRoom);
+                setFilterLevel(filters.filterLevel);
+                setDateFrom(filters.dateFrom);
+                setDateTo(filters.dateTo);
+                setTimeFrom(filters.timeFrom);
+                setTimeTo(filters.timeTo);
+                setPriceMin(filters.priceMin === priceRangeMin ? null : filters.priceMin);
+                setPriceMax(filters.priceMax === priceRangeMax ? null : filters.priceMax);
+              }}
+              onReset={() => {
+                setFilterStatus("all");
+                setFilterSport("all");
+                setFilterTrainer("all");
+                setFilterRoom("all");
+                setFilterLevel("all");
+                setDateFrom("");
+                setDateTo("");
+                setTimeFrom("");
+                setTimeTo("");
+                setPriceMin(null);
+                setPriceMax(null);
+              }}
+            >
+              <Button variant="outline" className="flex w-full items-center gap-2 relative">
+                <Filter size={18} />
+                Filter
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-yellow text-blue text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+            </CourseFilter>
+          </div>
+
+          {/* Desktop: Filter + Kurs löschen nebeneinander */}
           <CourseFilter
             filterStatus={filterStatus}
             filterSport={filterSport}
@@ -421,7 +493,7 @@ const CourseListView = () => {
               setPriceMax(null);
             }}
           >
-            <Button variant="outline" className="flex items-center gap-2 relative">
+            <Button variant="outline" className="hidden sm:flex items-center gap-2 relative">
               <Filter size={18} />
               Filter
               {activeFiltersCount > 0 && (
@@ -434,7 +506,7 @@ const CourseListView = () => {
           <Button
             variant={deleteMode ? "destructive" : "outline"}
             onClick={() => setDeleteMode(!deleteMode)}
-            className="flex items-center gap-2"
+            className="hidden sm:flex items-center gap-2"
           >
             {deleteMode ? "Abbrechen" : "Kurs löschen"}
           </Button>

@@ -15,7 +15,7 @@ const CourseView = () => {
         <div className="flex flex-col gap-4 mt-2 md:flex-row md:mt-0">
           <Button
             onClick={() => router.push("/courses/create")}
-            className="text-sm tracking-wide font-normal"
+            className="hidden sm:flex text-sm tracking-wide font-normal"
           >
             Kurs anlegen
           </Button>
