@@ -9,7 +9,8 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
+import { createAdminClient } from "@/src/lib/supabase/admin";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employee-schema";
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
@@ -50,11 +51,13 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist (nur Manager dürfen Mitarbeiter erstellen)
-    if (!isManager(userData)) {
+    // Schritt 3: Manager oder Employee mit Berechtigung
+    const canManageEmployees =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+    if (!canManageEmployees) {
       return {
         success: false,
-        error: "Nur Manager können Mitarbeiter erstellen",
+        error: "Keine Berechtigung zum Erstellen von Mitarbeitern",
       };
     }
 
@@ -94,7 +97,14 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
     }
 
-    // Schritt 7: Mitarbeiter in der Datenbank erstellen
+    // Schritt 7: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 8: Mitarbeiter in der Datenbank erstellen
     const employee = await prisma.employee.create({
       data: {
         email: validatedData.email,
@@ -105,7 +115,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
         isOnboarded: false,
         onboardingToken,
         onboardingTokenExpiry,
-        createdBy: userData.id, // Manager-ID als Ersteller
+        createdBy: managerId,
       },
     });
 
@@ -167,8 +177,11 @@ export async function getMyEmployees() {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+    ) {
       return {
         success: false,
         error: "Unauthorized",
@@ -177,12 +190,20 @@ export async function getMyEmployees() {
     }
 
     // Schritt 3: Mitarbeiter aus der Datenbank abrufen
+    let whereClause: Record<string, unknown>;
+    if (isManager(userData)) {
+      // Manager sieht alle Mitarbeiter unter seiner ID
+      whereClause = { createdBy: userData.id };
+    } else {
+      // Employee: eigene Manager-ID ermitteln, dann alle unter diesem Manager anzeigen (außer sich selbst)
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      const managerId = selfRecord?.createdBy;
+      whereClause = { createdBy: managerId, NOT: { email: userData.email } };
+    }
     const employees = await prisma.employee.findMany({
-      where: {
-        createdBy: userData.id, // Filter nach Manager ID
-      },
+      where: whereClause,
       orderBy: {
-        createdAt: "desc", // Neueste zuerst
+        createdAt: "desc",
       },
     });
 
@@ -214,8 +235,11 @@ export async function getEmployeeById(employeeId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+    ) {
       return {
         success: false,
         error: "Nur Manager können Mitarbeiter bearbeiten",
@@ -235,8 +259,16 @@ export async function getEmployeeById(employeeId: string) {
       };
     }
 
+    // Schritt 4b: Employee darf eigenen Account nicht bearbeiten
+    if (isEmployee(userData) && employee.email === userData.email) {
+      return {
+        success: false,
+        error: "Sie können Ihren eigenen Account nicht bearbeiten",
+      };
+    }
+
     // Schritt 5: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (employee.createdBy !== userData.id) {
+    if (isManager(userData) && employee.createdBy !== userData.id) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Mitarbeiter bearbeiten",
@@ -285,8 +317,10 @@ export async function updateEmployee(
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist
-    if (!isManager(userData)) {
+    // Schritt 3: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    const canManageEmployees =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+    if (!canManageEmployees) {
       return {
         success: false,
         error: "Nur Manager können Mitarbeiter bearbeiten",
@@ -306,8 +340,16 @@ export async function updateEmployee(
       };
     }
 
+    // Schritt 5b: Employee darf eigenen Account nicht bearbeiten
+    if (isEmployee(userData) && existingEmployee.email === userData.email) {
+      return {
+        success: false,
+        error: "Sie können Ihren eigenen Account nicht bearbeiten",
+      };
+    }
+
     // Schritt 6: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (existingEmployee.createdBy !== userData.id) {
+    if (isManager(userData) && existingEmployee.createdBy !== userData.id) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Mitarbeiter bearbeiten",
@@ -471,8 +513,11 @@ export async function deleteEmployee(employeeId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+    ) {
       return {
         success: false,
         error: "Nur Manager können Mitarbeiter löschen",
@@ -492,8 +537,16 @@ export async function deleteEmployee(employeeId: string) {
       };
     }
 
+    // Schritt 4b: Employee darf eigenen Account nicht löschen
+    if (isEmployee(userData) && employee.email === userData.email) {
+      return {
+        success: false,
+        error: "Sie können Ihren eigenen Account nicht löschen",
+      };
+    }
+
     // Schritt 5: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (employee.createdBy !== userData.id) {
+    if (isManager(userData) && employee.createdBy !== userData.id) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Mitarbeiter löschen",
@@ -505,7 +558,22 @@ export async function deleteEmployee(employeeId: string) {
       where: { id: employeeId },
     });
 
-    // Schritt 7: Next.js Cache invalidieren
+    // Schritt 7: Supabase Auth User löschen (erzwingt automatisches Ausloggen)
+    if (employee.isOnboarded) {
+      try {
+        const adminClient = createAdminClient();
+        const { data: authUsers } = await adminClient.auth.admin.listUsers();
+        const authUser = authUsers?.users.find((u) => u.email === employee.email);
+        if (authUser) {
+          await adminClient.auth.admin.deleteUser(authUser.id);
+        }
+      } catch (err) {
+        // Auth-Löschung schlägt fehl wenn SERVICE_ROLE_KEY fehlt — DB ist bereits gelöscht
+        console.error("Supabase Auth User konnte nicht gelöscht werden:", err);
+      }
+    }
+
+    // Schritt 8: Next.js Cache invalidieren
     revalidatePath("/employee");
 
     return {
@@ -518,5 +586,108 @@ export async function deleteEmployee(employeeId: string) {
       success: false,
       error: "Fehler beim Löschen des Mitarbeiters",
     };
+  }
+}
+
+/**
+ * Ruft einen Mitarbeiter anhand des Onboarding-Tokens ab (öffentlich, kein Login nötig)
+ */
+export async function getEmployeeByOnboardingToken(token: string) {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { onboardingToken: token },
+    });
+
+    if (!employee) {
+      return { success: false, error: "Ungültiger Onboarding-Link" };
+    }
+
+    if (employee.isOnboarded) {
+      return { success: false, error: "Onboarding wurde bereits abgeschlossen" };
+    }
+
+    if (employee.onboardingTokenExpiry && employee.onboardingTokenExpiry < new Date()) {
+      return { success: false, error: "Dieser Onboarding-Link ist abgelaufen" };
+    }
+
+    return { success: true, employee };
+  } catch (error) {
+    console.error("Error fetching employee by token:", error);
+    return { success: false, error: "Fehler beim Laden der Mitarbeiterdaten" };
+  }
+}
+
+/**
+ * Schließt das Onboarding eines Mitarbeiters ab und erstellt einen Supabase-Account
+ */
+export async function completeEmployeeOnboarding(
+  token: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    tel: string;
+    password: string;
+    gender: string;
+    qualification: string;
+    pbSrc?: string;
+  }
+) {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { onboardingToken: token },
+    });
+
+    if (!employee) {
+      return { success: false, error: "Ungültiger Onboarding-Link" };
+    }
+
+    if (employee.isOnboarded) {
+      return { success: false, error: "Onboarding wurde bereits abgeschlossen" };
+    }
+
+    if (employee.onboardingTokenExpiry && employee.onboardingTokenExpiry < new Date()) {
+      return { success: false, error: "Dieser Onboarding-Link ist abgelaufen" };
+    }
+
+    // Supabase Account über API Route erstellen
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/auth/register/employee`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: employee.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        tel: data.tel,
+        gender: data.gender,
+        qualification: data.qualification,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      return { success: false, error: result.error || "Registrierung fehlgeschlagen" };
+    }
+
+    // Mitarbeiter in DB als onboarded markieren
+    await prisma.employee.update({
+      where: { onboardingToken: token },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        qualification: data.qualification,
+        pbSrc: data.pbSrc ?? null,
+        isOnboarded: true,
+        onboardingToken: null,
+        onboardingTokenExpiry: null,
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error completing onboarding:", error);
+    return { success: false, error: "Ein Fehler ist aufgetreten" };
   }
 }

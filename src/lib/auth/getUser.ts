@@ -35,7 +35,22 @@ export type ManagerData = {
   }>;
 };
 
-export type AuthUserData = UserData | ManagerData;
+export type EmployeeData = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  qualification: string | null;
+  pbSrc: string | null;
+  createdAt: Date | null;
+  role: "employee";
+  permissions: {
+    canCreateCourses: boolean;
+    canCreateEmployees: boolean;
+  };
+};
+
+export type AuthUserData = UserData | ManagerData | EmployeeData;
 
 // Note: We don't use in-memory caching because this app runs on Vercel (serverless)
 // Serverless functions are stateless - in-memory cache would be:
@@ -137,7 +152,43 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
     return managerWithRole;
   }
 
-  console.log("⚠️ [DB] No user or manager found for:", user.email);
+  // Try Employee table — match by email since Supabase ID is not stored in Employee
+  const employeeData = await prisma.employee.findUnique({
+    where: { email: user.email! },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      qualification: true,
+      pbSrc: true,
+      permissions: true,
+      createdAt: true,
+    },
+  });
+
+  if (employeeData) {
+    console.log(
+      "✅ [DB] Employee data fetched:",
+      `${employeeData.firstName} ${employeeData.lastName}`
+    );
+    const rawPermissions = employeeData.permissions as {
+      canCreateCourses?: boolean;
+      canCreateEmployees?: boolean;
+    } | null;
+
+    const employeeWithRole: EmployeeData = {
+      ...employeeData,
+      role: "employee",
+      permissions: {
+        canCreateCourses: rawPermissions?.canCreateCourses ?? false,
+        canCreateEmployees: rawPermissions?.canCreateEmployees ?? false,
+      },
+    };
+    return employeeWithRole;
+  }
+
+  console.log("⚠️ [DB] No user, manager or employee found for:", user.email);
   return null;
 });
 
@@ -193,4 +244,24 @@ export function isManager(userData: AuthUserData): userData is ManagerData {
 // Helper function to check if user is a regular user
 export function isUser(userData: AuthUserData): userData is UserData {
   return userData.role === "user";
+}
+
+// Helper function to check if user is an employee
+export function isEmployee(userData: AuthUserData): userData is EmployeeData {
+  return userData.role === "employee";
+}
+
+/**
+ * Requires that the authenticated user is a Manager OR an Employee with the given permission.
+ * Redirects to /dashboard if access is denied.
+ */
+export async function requireManagerOrPermission(permission: keyof EmployeeData["permissions"]) {
+  const userData = await requireAuthWithData();
+
+  if (isManager(userData)) return userData;
+
+  if (isEmployee(userData) && userData.permissions[permission]) return userData;
+
+  const { redirect } = await import("next/navigation");
+  redirect("/dashboard");
 }

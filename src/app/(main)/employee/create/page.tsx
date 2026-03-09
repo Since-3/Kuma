@@ -1,9 +1,9 @@
-import { requireManager } from "@/src/lib/auth/getUser";
+import { requireManagerOrPermission } from "@/src/lib/auth/getUser";
 import EmployeeCreateView from "@/src/modules/employee/ui/views/employee-create-view";
 import { getMyEmployeeRoles } from "@/src/modules/employee/actions/employee-actions";
 
 const EmployeeCreate = async () => {
-  await requireManager();
+  await requireManagerOrPermission("canCreateEmployees");
 
   // Lade alle bereits verwendeten custom Rollen
   const rolesResult = await getMyEmployeeRoles();

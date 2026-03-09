@@ -1,9 +1,9 @@
-import { requireManager } from "@/src/lib/auth/getUser";
+import { requireManagerOrPermission } from "@/src/lib/auth/getUser";
 import CourseEditView from "@/src/modules/courses/ui/views/course-edit-view";
 import { getMySportTypes } from "@/src/modules/courses/actions/course-actions";
 
 const CourseEdit = async ({ params }: { params: Promise<{ id: string }> }) => {
-  await requireManager();
+  await requireManagerOrPermission("canCreateCourses");
   const { id } = await params;
 
   const sportsResult = await getMySportTypes();
