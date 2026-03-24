@@ -306,7 +306,7 @@ export function isEmployee(userData: AuthUserData): userData is EmployeeData {
  */
 export async function requireManagerOrPermission(
   check: (permissions: EmployeeData["permissions"]) => boolean
-) {
+): Promise<ManagerData | EmployeeData> {
   const userData = await requireAuthWithData();
 
   if (isManager(userData)) return userData;
@@ -315,4 +315,5 @@ export async function requireManagerOrPermission(
 
   const { redirect } = await import("next/navigation");
   redirect("/dashboard");
+  throw new Error("unreachable");
 }

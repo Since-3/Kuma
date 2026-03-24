@@ -42,11 +42,18 @@ type PermissionsState = {
   rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
 };
 
+type CallerPermissions = {
+  employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+  courses: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+  rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+} | null;
+
 interface EmployeeCreateViewProps {
   customRoles: Array<{ value: string; label: string }>;
+  callerPermissions: CallerPermissions;
 }
 
-const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
+const EmployeeCreateView = ({ customRoles, callerPermissions }: EmployeeCreateViewProps) => {
   const router = useRouter();
   const [employeeMail, setEmplyoeeMail] = useState("");
   const [isMultipleLocation, setIsMultipleLocation] = useState(false);
@@ -115,29 +122,39 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
   const handlePublish = async () => {
     setIsSubmitting(true);
     setErrors({});
-    const result = await createEmployee(buildData(), "published");
-    if (result.success) {
-      toast.success(result.message);
-      router.push("/employee");
-    } else {
-      toast.error(result.error || "Ein Fehler ist aufgetreten");
-      if (result.fieldErrors) setErrors(result.fieldErrors);
+    try {
+      const result = await createEmployee(buildData(), "published");
+      if (result.success) {
+        toast.success(result.message);
+        router.push("/employee");
+      } else {
+        toast.error(result.error || "Ein Fehler ist aufgetreten");
+        if (result.fieldErrors) setErrors(result.fieldErrors);
+      }
+    } catch {
+      toast.error("Ein unerwarteter Fehler ist aufgetreten");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleSaveDraft = async () => {
     setIsSubmitting(true);
     setErrors({});
-    const result = await createEmployee(buildData(), "draft");
-    if (result.success) {
-      toast.success(result.message);
-      router.push("/employee");
-    } else {
-      toast.error(result.error || "Ein Fehler ist aufgetreten");
-      if (result.fieldErrors) setErrors(result.fieldErrors);
+    try {
+      const result = await createEmployee(buildData(), "draft");
+      if (result.success) {
+        toast.success(result.message);
+        router.push("/employee");
+      } else {
+        toast.error(result.error || "Ein Fehler ist aufgetreten");
+        if (result.fieldErrors) setErrors(result.fieldErrors);
+      }
+    } catch {
+      toast.error("Ein unerwarteter Fehler ist aufgetreten");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -211,14 +228,34 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
               id="all-permissions"
               className="shadow-none h-5 w-5 bg-white border-blue cursor-pointer"
               checked={PERMISSION_GROUPS.every((g) =>
-                PERMISSION_ACTIONS.every((a) => permissionsState[g.key][a.key])
+                PERMISSION_ACTIONS.every((a) => {
+                  if (callerPermissions && !callerPermissions[g.key][a.key]) return true;
+                  return permissionsState[g.key][a.key];
+                })
               )}
               onCheckedChange={(checked) => {
                 const value = checked === true;
                 setPermissionsState({
-                  employees: { view: value, create: value, edit: value, delete: value },
-                  courses: { view: value, create: value, edit: value, delete: value },
-                  rooms: { view: value, create: value, edit: value, delete: value },
+                  employees: {
+                    view: value && (callerPermissions ? callerPermissions.employees.view : true),
+                    create:
+                      value && (callerPermissions ? callerPermissions.employees.create : true),
+                    edit: value && (callerPermissions ? callerPermissions.employees.edit : true),
+                    delete:
+                      value && (callerPermissions ? callerPermissions.employees.delete : true),
+                  },
+                  courses: {
+                    view: value && (callerPermissions ? callerPermissions.courses.view : true),
+                    create: value && (callerPermissions ? callerPermissions.courses.create : true),
+                    edit: value && (callerPermissions ? callerPermissions.courses.edit : true),
+                    delete: value && (callerPermissions ? callerPermissions.courses.delete : true),
+                  },
+                  rooms: {
+                    view: value && (callerPermissions ? callerPermissions.rooms.view : true),
+                    create: value && (callerPermissions ? callerPermissions.rooms.create : true),
+                    edit: value && (callerPermissions ? callerPermissions.rooms.edit : true),
+                    delete: value && (callerPermissions ? callerPermissions.rooms.delete : true),
+                  },
                 });
               }}
             />
@@ -233,17 +270,23 @@ const EmployeeCreateView = ({ customRoles }: EmployeeCreateViewProps) => {
                 <div className="grid grid-cols-4 gap-2">
                   {PERMISSION_ACTIONS.map((action) => {
                     const id = `${group.key}-${action.key}`;
+                    const callerHas =
+                      callerPermissions === null || callerPermissions[group.key][action.key];
                     return (
                       <div key={id} className="grid grid-cols-[auto_1fr] items-center gap-2">
                         <Checkbox
                           id={id}
                           className="shadow-none h-5 w-5 bg-white border-blue cursor-pointer"
                           checked={permissionsState[group.key][action.key]}
+                          disabled={!callerHas}
                           onCheckedChange={(checked) =>
                             handlePermissionChange(group.key, action.key, checked === true)
                           }
                         />
-                        <Label htmlFor={id} className="cursor-pointer text-blue text-sm">
+                        <Label
+                          htmlFor={id}
+                          className={`text-blue text-sm ${callerHas ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
+                        >
                           {action.label}
                         </Label>
                       </div>

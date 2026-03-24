@@ -27,6 +27,31 @@ function generateOnboardingToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+type PermissionGroup = { view: boolean; create: boolean; edit: boolean; delete: boolean };
+type PermissionsObj = {
+  employees: PermissionGroup;
+  courses: PermissionGroup;
+  rooms: PermissionGroup;
+};
+
+/**
+ * Begrenzt die zu speichernden Berechtigungen auf das, was der Aufrufer selbst besitzt.
+ * Verhindert Privilege-Escalation: ein Employee kann nur Rechte vergeben, die er selbst hat.
+ */
+function clampPermissions(requested: PermissionsObj, ceiling: PermissionsObj): PermissionsObj {
+  const clamp = (req: PermissionGroup, ceil: PermissionGroup): PermissionGroup => ({
+    view: req.view && ceil.view,
+    create: req.create && ceil.create,
+    edit: req.edit && ceil.edit,
+    delete: req.delete && ceil.delete,
+  });
+  return {
+    employees: clamp(requested.employees, ceiling.employees),
+    courses: clamp(requested.courses, ceiling.courses),
+    rooms: clamp(requested.rooms, ceiling.rooms),
+  };
+}
+
 /**
  * Erstellt einen neuen Mitarbeiter in der Datenbank
  *
@@ -105,13 +130,18 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       managerId = selfRecord?.createdBy ?? userData.id;
     }
 
-    // Schritt 8: Mitarbeiter in der Datenbank erstellen
+    // Schritt 8: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    const finalPermissions = isEmployee(userData)
+      ? clampPermissions(validatedData.permissions, userData.permissions)
+      : validatedData.permissions;
+
+    // Schritt 9: Mitarbeiter in der Datenbank erstellen
     const employee = await prisma.employee.create({
       data: {
         email: validatedData.email,
         roles: validatedData.roles,
         locations: validatedData.locations || [],
-        permissions: validatedData.permissions,
+        permissions: finalPermissions,
         status: status,
         isOnboarded: false,
         onboardingToken,
@@ -387,14 +417,19 @@ export async function updateEmployee(
       shouldSendEmail = true; // E-Mail nur senden wenn neuer Token generiert wurde
     }
 
-    // Schritt 9: Mitarbeiter in der Datenbank aktualisieren
+    // Schritt 9: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    const finalPermissions = isEmployee(userData)
+      ? clampPermissions(validatedData.permissions, userData.permissions)
+      : validatedData.permissions;
+
+    // Schritt 10: Mitarbeiter in der Datenbank aktualisieren
     await prisma.employee.update({
       where: { id: employeeId },
       data: {
         email: validatedData.email,
         roles: validatedData.roles,
         locations: validatedData.locations || [],
-        permissions: validatedData.permissions,
+        permissions: finalPermissions,
         status,
         onboardingToken,
         onboardingTokenExpiry,

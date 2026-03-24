@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { getMyCourses } from "../../actions/course-actions";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
-import { getAllRooms } from "@/src/modules/rooms/actions/room-actions";
+import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -88,7 +88,7 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
   // Load rooms once on mount
   useEffect(() => {
     const loadRooms = async () => {
-      const result = await getAllRooms();
+      const result = await getMyRooms();
       if (result.success) {
         const map: Record<string, string> = {};
         result.rooms.forEach((room) => {
