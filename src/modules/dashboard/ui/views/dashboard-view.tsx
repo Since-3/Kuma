@@ -44,14 +44,39 @@ const DashboardView = async () => {
         ) : isEmployee(userData) ? (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-2">Meine Berechtigungen</h2>
-            <ul className="text-gray-600 text-sm space-y-1 mt-2">
-              {userData.permissions.canCreateCourses && <li>• Kurse erstellen</li>}
-              {userData.permissions.canCreateEmployees && <li>• Mitarbeiter anlegen</li>}
-              {!userData.permissions.canCreateCourses &&
-                !userData.permissions.canCreateEmployees && (
-                  <li className="text-gray-400">Keine erweiterten Berechtigungen</li>
-                )}
-            </ul>
+            {(() => {
+              const p = userData.permissions;
+              const RESOURCE_LABELS: Record<string, string> = {
+                employees: "Mitarbeiter",
+                courses: "Kurse",
+                rooms: "Räume",
+              };
+              const ACTION_LABELS: Record<string, string> = {
+                view: "ansehen",
+                create: "erstellen",
+                edit: "bearbeiten",
+                delete: "löschen",
+              };
+              const rows = (Object.entries(p) as [string, Record<string, boolean>][])
+                .map(([res, actions]) => {
+                  const active = Object.entries(actions)
+                    .filter(([, v]) => v)
+                    .map(([a]) => ACTION_LABELS[a] ?? a);
+                  return active.length > 0
+                    ? `${RESOURCE_LABELS[res] ?? res}: ${active.join(", ")}`
+                    : null;
+                })
+                .filter(Boolean);
+              return rows.length > 0 ? (
+                <ul className="text-gray-600 text-sm space-y-1 mt-2">
+                  {rows.map((row) => (
+                    <li key={row}>• {row}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-400 text-sm mt-2">Keine erweiterten Berechtigungen</p>
+              );
+            })()}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow p-6">

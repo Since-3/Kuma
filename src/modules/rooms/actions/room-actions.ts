@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
 import { roomSchema, type RoomFormData } from "../schemas/room-schema";
 import { revalidatePath } from "next/cache";
 
@@ -35,11 +35,13 @@ export async function createRoom(data: RoomFormData) {
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist (nur Manager dürfen Räume erstellen)
-    if (!isManager(userData)) {
+    // Schritt 3: Manager oder Employee mit Berechtigung
+    const canCreate =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.rooms.create);
+    if (!canCreate) {
       return {
         success: false,
-        error: "Nur Manager können Räume erstellen",
+        error: "Keine Berechtigung zum Erstellen von Räumen",
       };
     }
 
@@ -56,11 +58,18 @@ export async function createRoom(data: RoomFormData) {
 
     const validatedData = validation.data;
 
-    // Schritt 5: Raum in der Datenbank erstellen
+    // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    let creatorId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      creatorId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 6: Raum in der Datenbank erstellen
     const room = await prisma.room.create({
       data: {
         name: validatedData.name,
-        createdBy: userData.id, // Manager-ID als Ersteller
+        createdBy: creatorId,
       },
     });
 
@@ -125,8 +134,11 @@ export async function getMyRooms() {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer angemeldet ist und ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.rooms.view))
+    ) {
       return {
         success: false,
         error: "Unauthorized",
@@ -134,10 +146,17 @@ export async function getMyRooms() {
       };
     }
 
-    // Schritt 3: Räume abrufen, die von diesem Manager erstellt wurden
+    // Schritt 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Räume abrufen, die von diesem Manager erstellt wurden
     const rooms = await prisma.room.findMany({
       where: {
-        createdBy: userData.id, // Filtere nach Manager-ID
+        createdBy: managerId,
       },
       orderBy: {
         name: "asc", // Sortiere nach Name aufsteigend
@@ -172,20 +191,30 @@ export async function getRoomById(roomId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.rooms.view))
+    ) {
       return {
         success: false,
         error: "Nur Manager können Räume bearbeiten",
       };
     }
 
-    // Schritt 3: Raum aus der Datenbank abrufen
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({
       where: { id: roomId },
     });
 
-    // Schritt 4: Überprüfen, ob Raum existiert
+    // Schritt 5: Überprüfen, ob Raum existiert
     if (!room) {
       return {
         success: false,
@@ -193,8 +222,8 @@ export async function getRoomById(roomId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Raumes ist
-    if (room.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Raumes ist
+    if (room.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Räume bearbeiten",
@@ -239,20 +268,29 @@ export async function updateRoom(roomId: string, data: RoomFormData) {
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist
-    if (!isManager(userData)) {
+    // Schritt 3: Manager oder Employee mit Berechtigung
+    const canEdit =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.rooms.edit);
+    if (!canEdit) {
       return {
         success: false,
-        error: "Nur Manager können Räume bearbeiten",
+        error: "Keine Berechtigung zum Bearbeiten von Räumen",
       };
     }
 
-    // Schritt 4: Raum aus der Datenbank abrufen
+    // Schritt 4: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 5: Raum aus der Datenbank abrufen
     const existingRoom = await prisma.room.findUnique({
       where: { id: roomId },
     });
 
-    // Schritt 5: Überprüfen, ob Raum existiert
+    // Schritt 6: Überprüfen, ob Raum existiert
     if (!existingRoom) {
       return {
         success: false,
@@ -260,15 +298,15 @@ export async function updateRoom(roomId: string, data: RoomFormData) {
       };
     }
 
-    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Raumes ist
-    if (existingRoom.createdBy !== userData.id) {
+    // Schritt 7: Überprüfen, ob der Manager der Besitzer des Raumes ist
+    if (existingRoom.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Räume bearbeiten",
       };
     }
 
-    // Schritt 7: Formulardaten mit Zod-Schema validieren
+    // Schritt 8: Formulardaten mit Zod-Schema validieren
     const validation = roomSchema.safeParse(data);
 
     if (!validation.success) {
@@ -322,20 +360,30 @@ export async function deleteRoom(roomId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.rooms.delete))
+    ) {
       return {
         success: false,
-        error: "Nur Manager können Räume löschen",
+        error: "Keine Berechtigung zum Löschen von Räumen",
       };
     }
 
-    // Schritt 3: Raum aus der Datenbank abrufen
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({
       where: { id: roomId },
     });
 
-    // Schritt 4: Überprüfen, ob Raum existiert
+    // Schritt 5: Überprüfen, ob Raum existiert
     if (!room) {
       return {
         success: false,
@@ -343,16 +391,15 @@ export async function deleteRoom(roomId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Raumes ist
-    // (Sicherheit: Manager können nur ihre eigenen Räume löschen)
-    if (room.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Raumes ist
+    if (room.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Räume löschen",
       };
     }
 
-    // Schritt 6: Prüfen, ob der Raum noch in zukünftigen Kursen verwendet wird
+    // Schritt 7: Prüfen, ob der Raum noch in zukünftigen Kursen verwendet wird
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -360,7 +407,7 @@ export async function deleteRoom(roomId: string) {
       where: {
         room: roomId,
         date: { gte: today },
-        createdBy: userData.id,
+        createdBy: managerId,
       },
       select: { id: true, name: true },
     });
@@ -375,12 +422,12 @@ export async function deleteRoom(roomId: string) {
       };
     }
 
-    // Schritt 7: Raum aus der Datenbank löschen
+    // Schritt 8: Raum aus der Datenbank löschen
     await prisma.room.delete({
       where: { id: roomId },
     });
 
-    // Schritt 7: Next.js Cache invalidieren, damit gelöschter Raum nicht mehr angezeigt wird
+    // Schritt 9: Next.js Cache invalidieren, damit gelöschter Raum nicht mehr angezeigt wird
     revalidatePath("/rooms");
 
     return {

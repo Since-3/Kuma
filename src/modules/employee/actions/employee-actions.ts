@@ -54,7 +54,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
 
     // Schritt 3: Manager oder Employee mit Berechtigung
     const canManageEmployees =
-      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+      isManager(userData) || (isEmployee(userData) && userData.permissions.employees.create);
     if (!canManageEmployees) {
       return {
         success: false,
@@ -181,7 +181,7 @@ export async function getMyEmployees() {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
     ) {
       return {
         success: false,
@@ -239,7 +239,7 @@ export async function getEmployeeById(employeeId: string) {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
     ) {
       return {
         success: false,
@@ -320,7 +320,7 @@ export async function updateEmployee(
 
     // Schritt 3: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     const canManageEmployees =
-      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+      isManager(userData) || (isEmployee(userData) && userData.permissions.employees.edit);
     if (!canManageEmployees) {
       return {
         success: false,
@@ -349,11 +349,16 @@ export async function updateEmployee(
       };
     }
 
-    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (isManager(userData) && existingEmployee.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    let ownerManagerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      ownerManagerId = selfRecord?.createdBy ?? userData.id;
+    }
+    if (existingEmployee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Ihre eigenen Mitarbeiter bearbeiten",
+        error: "Sie können nur Mitarbeiter Ihres Managers bearbeiten",
       };
     }
 
@@ -455,8 +460,11 @@ export async function getMyEmployeeRoles() {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
+    ) {
       return {
         success: false,
         error: "Unauthorized",
@@ -464,10 +472,17 @@ export async function getMyEmployeeRoles() {
       };
     }
 
-    // Schritt 3: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
     const employees = await prisma.employee.findMany({
       where: {
-        createdBy: userData.id,
+        createdBy: managerId,
       },
       select: {
         roles: true,
@@ -517,7 +532,7 @@ export async function deleteEmployee(employeeId: string) {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.delete))
     ) {
       return {
         success: false,
@@ -546,11 +561,16 @@ export async function deleteEmployee(employeeId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (isManager(userData) && employee.createdBy !== userData.id) {
+    // Schritt 5: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    let ownerManagerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      ownerManagerId = selfRecord?.createdBy ?? userData.id;
+    }
+    if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Ihre eigenen Mitarbeiter löschen",
+        error: "Sie können nur Mitarbeiter Ihres Managers löschen",
       };
     }
 

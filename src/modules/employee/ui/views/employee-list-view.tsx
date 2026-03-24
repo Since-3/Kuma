@@ -14,15 +14,20 @@ type Employee = {
   email: string;
   roles: string[];
   locations: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  permissions: any;
+  permissions: unknown;
   status: string | null;
   isOnboarded: boolean;
   createdAt: Date | null;
   updatedAt: Date | null;
 };
 
-const EmployeeListView = () => {
+interface EmployeeListViewProps {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewProps) => {
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,23 +79,29 @@ const EmployeeListView = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex w-full justify-end mr-2 gap-2">
-          <Button
-            variant={deleteMode ? "destructive" : "outline"}
-            onClick={() => setDeleteMode(!deleteMode)}
-            className="flex items-center gap-2"
-          >
-            {deleteMode ? "Abbrechen" : "Mitarbeiter löschen"}
-          </Button>
+          {canDelete && (
+            <Button
+              variant={deleteMode ? "destructive" : "outline"}
+              onClick={() => setDeleteMode(!deleteMode)}
+              className="flex items-center gap-2"
+            >
+              {deleteMode ? "Abbrechen" : "Mitarbeiter löschen"}
+            </Button>
+          )}
         </div>
       </div>
 
       {employees.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-xl text-gray-600">Sie haben noch keinen Mitarbeiter erstellt</p>
-          <p className="text-gray-500 mt-2">Erstellen Sie Ihren ersten Mitarbeiter!</p>
-          <Button onClick={() => router.push("/employee/create")} className="mt-4">
-            Mitarbeiter anlegen
-          </Button>
+          <p className="text-xl text-gray-600">Keine Mitarbeiter vorhanden</p>
+          {canCreate && (
+            <>
+              <p className="text-gray-500 mt-2">Erstellen Sie Ihren ersten Mitarbeiter!</p>
+              <Button onClick={() => router.push("/employee/create")} className="mt-4">
+                Mitarbeiter anlegen
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -104,15 +115,20 @@ const EmployeeListView = () => {
               locations={employee.locations}
               permissions={
                 employee.permissions as {
-                  canCreateCourses: boolean;
-                  canCreateEmployees: boolean;
+                  employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+                  courses: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+                  rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
                 } | null
               }
               status={employee.status || "draft"}
               isOnboarded={employee.isOnboarded}
-              showDeleteIcon={deleteMode}
-              onDelete={() => handleDeleteClick(employee.id, getEmployeeName(employee))}
-              onEdit={() => router.push(`/employee/edit/${employee.id}`)}
+              showDeleteIcon={deleteMode && canDelete}
+              onDelete={
+                canDelete
+                  ? () => handleDeleteClick(employee.id, getEmployeeName(employee))
+                  : undefined
+              }
+              onEdit={canEdit ? () => router.push(`/employee/edit/${employee.id}`) : undefined}
             />
           ))}
         </div>

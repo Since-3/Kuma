@@ -36,7 +36,13 @@ type Course = {
   };
 };
 
-const CourseListView = () => {
+interface CourseListViewProps {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -378,16 +384,20 @@ const CourseListView = () => {
       <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col w-full gap-2 mr-2 sm:flex-row sm:justify-end">
           <div className="flex gap-2 sm:hidden">
-            <Button onClick={() => router.push("/courses/create")} className="flex-1">
-              Kurs anlegen
-            </Button>
-            <Button
-              variant={deleteMode ? "destructive" : "outline"}
-              onClick={() => setDeleteMode(!deleteMode)}
-              className="flex-1"
-            >
-              {deleteMode ? "Abbrechen" : "Kurs löschen"}
-            </Button>
+            {canCreate && (
+              <Button onClick={() => router.push("/courses/create")} className="flex-1">
+                Kurs anlegen
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant={deleteMode ? "destructive" : "outline"}
+                onClick={() => setDeleteMode(!deleteMode)}
+                className="flex-1"
+              >
+                {deleteMode ? "Abbrechen" : "Kurs löschen"}
+              </Button>
+            )}
           </div>
 
           {/* Mobile: Filter button below the two action buttons */}
@@ -503,13 +513,15 @@ const CourseListView = () => {
               )}
             </Button>
           </CourseFilter>
-          <Button
-            variant={deleteMode ? "destructive" : "outline"}
-            onClick={() => setDeleteMode(!deleteMode)}
-            className="hidden sm:flex items-center gap-2"
-          >
-            {deleteMode ? "Abbrechen" : "Kurs löschen"}
-          </Button>
+          {canDelete && (
+            <Button
+              variant={deleteMode ? "destructive" : "outline"}
+              onClick={() => setDeleteMode(!deleteMode)}
+              className="hidden sm:flex items-center gap-2"
+            >
+              {deleteMode ? "Abbrechen" : "Kurs löschen"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -540,7 +552,7 @@ const CourseListView = () => {
               ? "Erstellen Sie Ihren ersten Kurs!"
               : "Ändern Sie die Filter oder setzen Sie sie zurück"}
           </p>
-          {courses.length === 0 && (
+          {courses.length === 0 && canCreate && (
             <Button onClick={() => router.push("/courses/create")} className="mt-4">
               Kurs anlegen
             </Button>
@@ -573,9 +585,11 @@ const CourseListView = () => {
                       trainers={course.trainers}
                       status={course.status}
                       isPast={isPastCourse(course.date)}
-                      showDeleteIcon={deleteMode}
-                      onDelete={() => handleDeleteClick(course.id, course.name)}
-                      onEdit={() => router.push(`/courses/edit/${course.id}`)}
+                      showDeleteIcon={deleteMode && canDelete}
+                      onDelete={
+                        canDelete ? () => handleDeleteClick(course.id, course.name) : undefined
+                      }
+                      onEdit={canEdit ? () => router.push(`/courses/edit/${course.id}`) : undefined}
                     />
                   ))}
                 </div>

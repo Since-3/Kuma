@@ -28,9 +28,11 @@ const RoomsListItem: React.FC<RoomsListItemProps> = ({
               <Trash2 size={20} className="text-red-600" />
             </button>
           )}
-          <button onClick={onEdit} className="p-2 rounded-md hover:bg-gray-100 transition">
-            <Pen size={20} className="text-gray-700" />
-          </button>
+          {onEdit && (
+            <button onClick={onEdit} className="p-2 rounded-md hover:bg-gray-100 transition">
+              <Pen size={20} className="text-gray-700" />
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -45,8 +45,9 @@ export type EmployeeData = {
   createdAt: Date | null;
   role: "employee";
   permissions: {
-    canCreateCourses: boolean;
-    canCreateEmployees: boolean;
+    employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+    courses: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+    rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
   };
 };
 
@@ -177,18 +178,61 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
       "✅ [DB] Employee data fetched:",
       `${employeeData.firstName} ${employeeData.lastName}`
     );
-    const rawPermissions = employeeData.permissions as {
-      canCreateCourses?: boolean;
-      canCreateEmployees?: boolean;
-    } | null;
+    const raw = employeeData.permissions as Record<string, unknown> | null;
+    const empty = () => ({ view: false, create: false, edit: false, delete: false });
+
+    let permissions: EmployeeData["permissions"];
+
+    if (raw && ("canCreateCourses" in raw || "canCreateEmployees" in raw)) {
+      // Backward-Kompatibilität: altes Format migrieren
+      const old = raw as { canCreateCourses?: boolean; canCreateEmployees?: boolean };
+      permissions = {
+        employees: {
+          view: old.canCreateEmployees ?? false,
+          create: old.canCreateEmployees ?? false,
+          edit: false,
+          delete: false,
+        },
+        courses: {
+          view: old.canCreateCourses ?? false,
+          create: old.canCreateCourses ?? false,
+          edit: false,
+          delete: false,
+        },
+        rooms: empty(),
+      };
+    } else {
+      const p = raw as {
+        employees?: Partial<EmployeeData["permissions"]["employees"]>;
+        courses?: Partial<EmployeeData["permissions"]["courses"]>;
+        rooms?: Partial<EmployeeData["permissions"]["rooms"]>;
+      } | null;
+      permissions = {
+        employees: {
+          view: p?.employees?.view ?? false,
+          create: p?.employees?.create ?? false,
+          edit: p?.employees?.edit ?? false,
+          delete: p?.employees?.delete ?? false,
+        },
+        courses: {
+          view: p?.courses?.view ?? false,
+          create: p?.courses?.create ?? false,
+          edit: p?.courses?.edit ?? false,
+          delete: p?.courses?.delete ?? false,
+        },
+        rooms: {
+          view: p?.rooms?.view ?? false,
+          create: p?.rooms?.create ?? false,
+          edit: p?.rooms?.edit ?? false,
+          delete: p?.rooms?.delete ?? false,
+        },
+      };
+    }
 
     const employeeWithRole: EmployeeData = {
       ...employeeData,
       role: "employee",
-      permissions: {
-        canCreateCourses: rawPermissions?.canCreateCourses ?? false,
-        canCreateEmployees: rawPermissions?.canCreateEmployees ?? false,
-      },
+      permissions,
     };
     return employeeWithRole;
   }
@@ -260,12 +304,14 @@ export function isEmployee(userData: AuthUserData): userData is EmployeeData {
  * Requires that the authenticated user is a Manager OR an Employee with the given permission.
  * Redirects to /dashboard if access is denied.
  */
-export async function requireManagerOrPermission(permission: keyof EmployeeData["permissions"]) {
+export async function requireManagerOrPermission(
+  check: (permissions: EmployeeData["permissions"]) => boolean
+) {
   const userData = await requireAuthWithData();
 
   if (isManager(userData)) return userData;
 
-  if (isEmployee(userData) && userData.permissions[permission]) return userData;
+  if (isEmployee(userData) && check(userData.permissions)) return userData;
 
   const { redirect } = await import("next/navigation");
   redirect("/dashboard");

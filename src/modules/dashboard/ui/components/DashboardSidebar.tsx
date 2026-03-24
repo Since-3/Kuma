@@ -33,7 +33,7 @@ type MenuItem = {
   label: string;
   href: string;
   roles?: string[];
-  permission?: keyof EmployeeData["permissions"];
+  permission?: (p: EmployeeData["permissions"]) => boolean;
 };
 
 const allMenuItems: MenuItem[] = [
@@ -60,7 +60,7 @@ const allMenuItems: MenuItem[] = [
     label: "Kurse",
     href: "/courses",
     roles: ["employee"],
-    permission: "canCreateCourses",
+    permission: (p) => p.courses.view,
   },
   {
     icon: IdCardLanyard,
@@ -73,7 +73,7 @@ const allMenuItems: MenuItem[] = [
     label: "Mitarbeiter",
     href: "/employee",
     roles: ["employee"],
-    permission: "canCreateEmployees",
+    permission: (p) => p.employees.view,
   },
   {
     icon: User,
@@ -92,6 +92,13 @@ const allMenuItems: MenuItem[] = [
     label: "Räume",
     href: "/rooms",
     roles: ["manager"],
+  },
+  {
+    icon: DoorOpen,
+    label: "Räume",
+    href: "/rooms",
+    roles: ["employee"],
+    permission: (p) => p.rooms.view,
   },
   {
     icon: ChartNoAxesCombined,
@@ -114,7 +121,7 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
     if (!item.roles?.includes(userRole)) return false;
     if (userRole === "employee" && item.permission) {
       const employeeData = userData as EmployeeData;
-      return employeeData.permissions[item.permission] === true;
+      return item.permission(employeeData.permissions);
     }
     return true;
   });

@@ -3,7 +3,7 @@ import EmployeeCreateView from "@/src/modules/employee/ui/views/employee-create-
 import { getMyEmployeeRoles } from "@/src/modules/employee/actions/employee-actions";
 
 const EmployeeCreate = async () => {
-  await requireManagerOrPermission("canCreateEmployees");
+  await requireManagerOrPermission((p) => p.employees.create);
 
   // Lade alle bereits verwendeten custom Rollen
   const rolesResult = await getMyEmployeeRoles();

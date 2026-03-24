@@ -18,8 +18,9 @@ interface EmployeeListItemProps {
   roles: string[]; // Rollen des Mitarbeiters
   locations: string[]; // Standorte
   permissions: {
-    canCreateCourses: boolean;
-    canCreateEmployees: boolean;
+    employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+    courses: { view: boolean; create: boolean; edit: boolean; delete: boolean };
+    rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
   } | null; // Administrationsrechte
   status: string; // Status ("draft" oder "published")
   isOnboarded: boolean; // Ob der Mitarbeiter das Onboarding abgeschlossen hat
@@ -113,26 +114,49 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
       )}
 
       {/* Administrationsrechte */}
-      {permissions && (permissions.canCreateCourses || permissions.canCreateEmployees) && (
-        <div>
-          <div className="flex items-center gap-2 text-gray-600 mb-2">
-            <Lock size={16} />
-            <span className="text-sm font-medium">Administrationsrechte</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {permissions.canCreateCourses && (
-              <span className="px-3 py-1 bg-purple-50 text-purple-700 text-sm rounded-full">
-                Kurse anlegen
-              </span>
-            )}
-            {permissions.canCreateEmployees && (
-              <span className="px-3 py-1 bg-purple-50 text-purple-700 text-sm rounded-full">
-                Trainer anlegen
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      {permissions &&
+        (() => {
+          const LABELS: Record<string, string> = {
+            "employees.view": "Mitarbeiter ansehen",
+            "employees.create": "Mitarbeiter erstellen",
+            "employees.edit": "Mitarbeiter bearbeiten",
+            "employees.delete": "Mitarbeiter löschen",
+            "courses.view": "Kurse ansehen",
+            "courses.create": "Kurse erstellen",
+            "courses.edit": "Kurse bearbeiten",
+            "courses.delete": "Kurse löschen",
+            "rooms.view": "Räume ansehen",
+            "rooms.create": "Räume erstellen",
+            "rooms.edit": "Räume bearbeiten",
+            "rooms.delete": "Räume löschen",
+          };
+          const active = (
+            Object.entries(permissions) as [string, Record<string, boolean>][]
+          ).flatMap(([res, actions]) =>
+            (Object.entries(actions) as [string, boolean][])
+              .filter(([, v]) => v)
+              .map(([action]) => `${res}.${action}`)
+          );
+          if (active.length === 0) return null;
+          return (
+            <div>
+              <div className="flex items-center gap-2 text-gray-600 mb-2">
+                <Lock size={16} />
+                <span className="text-sm font-medium">Administrationsrechte</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {active.map((key) => (
+                  <span
+                    key={key}
+                    className="px-3 py-1 bg-purple-50 text-purple-700 text-sm rounded-full"
+                  >
+                    {LABELS[key] ?? key}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
       {/* Action Buttons */}
       <div className="flex justify-end items-center pt-3 border-t border-gray-200">
