@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
 import { courseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -37,11 +37,13 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist (nur Manager dürfen Kurse erstellen)
-    if (!isManager(userData)) {
+    // Schritt 3: Manager oder Employee mit Berechtigung
+    const canCreate =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.courses.create);
+    if (!canCreate) {
       return {
         success: false,
-        error: "Nur Manager können Kurse erstellen",
+        error: "Keine Berechtigung zum Erstellen von Kursen",
       };
     }
 
@@ -58,13 +60,20 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
 
     const validatedData = validation.data;
 
-    // Schritt 5: Kurs in der Datenbank erstellen
+    // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    let creatorId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      creatorId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 6: Kurs in der Datenbank erstellen
     const course = await prisma.course.create({
       data: {
         name: validatedData.name,
         sport: validatedData.sport,
         level: validatedData.level || "any",
-        date: new Date(validatedData.date), // String zu Date konvertieren
+        date: new Date(validatedData.date),
         timeFrom: validatedData.timeFrom,
         timeTo: validatedData.timeTo,
         trainers: validatedData.trainers,
@@ -75,8 +84,8 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
         isStandingOrder: validatedData.isStandingOrder,
         frequency: validatedData.frequency || null,
         weekdays: validatedData.weekdays || [],
-        status, // "draft" oder "published"
-        createdBy: userData.id, // Manager-ID als Ersteller
+        status,
+        createdBy: creatorId,
       },
     });
 
@@ -152,8 +161,11 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     // Step 1: Get current user
     const userData = await getUserData();
 
-    // Step 2: Check if user is logged in and is a manager
-    if (!userData || !isManager(userData)) {
+    // Step 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.courses.view))
+    ) {
       return {
         success: false,
         error: "Unauthorized",
@@ -161,9 +173,16 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
       };
     }
 
-    // Step 3: Build the where clause with optional date filtering
+    // Step 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Step 4: Build the where clause with optional date filtering
     const whereClause: Prisma.CourseWhereInput = {
-      createdBy: userData.id, // Filter by manager ID
+      createdBy: managerId,
     };
 
     // Add date range filter if provided
@@ -222,20 +241,30 @@ export async function getCourseById(courseId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.courses.view))
+    ) {
       return {
         success: false,
         error: "Nur Manager können Kurse bearbeiten",
       };
     }
 
-    // Schritt 3: Kurs aus der Datenbank abrufen
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
       where: { id: courseId },
     });
 
-    // Schritt 4: Überprüfen, ob Kurs existiert
+    // Schritt 5: Überprüfen, ob Kurs existiert
     if (!course) {
       return {
         success: false,
@@ -243,8 +272,8 @@ export async function getCourseById(courseId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Kurses ist
-    if (course.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Kurses ist
+    if (course.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Kurse bearbeiten",
@@ -293,20 +322,29 @@ export async function updateCourse(
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager ist
-    if (!isManager(userData)) {
+    // Schritt 3: Manager oder Employee mit Berechtigung
+    const canEdit =
+      isManager(userData) || (isEmployee(userData) && userData.permissions.courses.edit);
+    if (!canEdit) {
       return {
         success: false,
-        error: "Nur Manager können Kurse bearbeiten",
+        error: "Keine Berechtigung zum Bearbeiten von Kursen",
       };
     }
 
-    // Schritt 4: Kurs aus der Datenbank abrufen
+    // Schritt 4: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 5: Kurs aus der Datenbank abrufen
     const existingCourse = await prisma.course.findUnique({
       where: { id: courseId },
     });
 
-    // Schritt 5: Überprüfen, ob Kurs existiert
+    // Schritt 6: Überprüfen, ob Kurs existiert
     if (!existingCourse) {
       return {
         success: false,
@@ -314,15 +352,15 @@ export async function updateCourse(
       };
     }
 
-    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Kurses ist
-    if (existingCourse.createdBy !== userData.id) {
+    // Schritt 7: Überprüfen, ob der Manager der Besitzer des Kurses ist
+    if (existingCourse.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Kurse bearbeiten",
       };
     }
 
-    // Schritt 7: Formulardaten mit Zod-Schema validieren
+    // Schritt 8: Formulardaten mit Zod-Schema validieren
     const validation = courseSchema.safeParse(data);
 
     if (!validation.success) {
@@ -393,20 +431,30 @@ export async function deleteCourse(courseId: string) {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.courses.delete))
+    ) {
       return {
         success: false,
-        error: "Nur Manager können Kurse löschen",
+        error: "Keine Berechtigung zum Löschen von Kursen",
       };
     }
 
-    // Schritt 3: Kurs aus der Datenbank abrufen
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
       where: { id: courseId },
     });
 
-    // Schritt 4: Überprüfen, ob Kurs existiert
+    // Schritt 5: Überprüfen, ob Kurs existiert
     if (!course) {
       return {
         success: false,
@@ -414,21 +462,20 @@ export async function deleteCourse(courseId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Kurses ist
-    // (Sicherheit: Manager können nur ihre eigenen Kurse löschen)
-    if (course.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Kurses ist
+    if (course.createdBy !== managerId) {
       return {
         success: false,
         error: "Sie können nur Ihre eigenen Kurse löschen",
       };
     }
 
-    // Schritt 6: Kurs aus der Datenbank löschen
+    // Schritt 7: Kurs aus der Datenbank löschen
     await prisma.course.delete({
       where: { id: courseId },
     });
 
-    // Schritt 7: Next.js Cache invalidieren, damit gelöschter Kurs nicht mehr angezeigt wird
+    // Schritt 8: Next.js Cache invalidieren, damit gelöschter Kurs nicht mehr angezeigt wird
     revalidatePath("/courses");
 
     return {
@@ -451,12 +498,21 @@ export async function getMySportTypes() {
   try {
     const userData = await getUserData();
 
-    if (!userData || !isManager(userData)) {
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.courses.view))
+    ) {
       return { success: false, error: "Unauthorized", sports: [] };
     }
 
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
     const courses = await prisma.course.findMany({
-      where: { createdBy: userData.id },
+      where: { createdBy: managerId },
       select: { sport: true },
     });
 

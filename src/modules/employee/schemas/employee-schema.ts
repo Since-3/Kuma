@@ -32,10 +32,24 @@ export const employeeSchema = z
 
     // Administrationsrechte
     permissions: z.object({
-      // Berechtigung zum Anzeigen/Verwalten von Kursen
-      canCreateCourses: z.boolean(),
-      // Berechtigung zum Anzeigen/Verwalten von Mitarbeitern
-      canCreateEmployees: z.boolean(),
+      employees: z.object({
+        view: z.boolean(),
+        create: z.boolean(),
+        edit: z.boolean(),
+        delete: z.boolean(),
+      }),
+      courses: z.object({
+        view: z.boolean(),
+        create: z.boolean(),
+        edit: z.boolean(),
+        delete: z.boolean(),
+      }),
+      rooms: z.object({
+        view: z.boolean(),
+        create: z.boolean(),
+        edit: z.boolean(),
+        delete: z.boolean(),
+      }),
     }),
   })
   .refine(

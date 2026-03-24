@@ -27,6 +27,31 @@ function generateOnboardingToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+type PermissionGroup = { view: boolean; create: boolean; edit: boolean; delete: boolean };
+type PermissionsObj = {
+  employees: PermissionGroup;
+  courses: PermissionGroup;
+  rooms: PermissionGroup;
+};
+
+/**
+ * Begrenzt die zu speichernden Berechtigungen auf das, was der Aufrufer selbst besitzt.
+ * Verhindert Privilege-Escalation: ein Employee kann nur Rechte vergeben, die er selbst hat.
+ */
+function clampPermissions(requested: PermissionsObj, ceiling: PermissionsObj): PermissionsObj {
+  const clamp = (req: PermissionGroup, ceil: PermissionGroup): PermissionGroup => ({
+    view: req.view && ceil.view,
+    create: req.create && ceil.create,
+    edit: req.edit && ceil.edit,
+    delete: req.delete && ceil.delete,
+  });
+  return {
+    employees: clamp(requested.employees, ceiling.employees),
+    courses: clamp(requested.courses, ceiling.courses),
+    rooms: clamp(requested.rooms, ceiling.rooms),
+  };
+}
+
 /**
  * Erstellt einen neuen Mitarbeiter in der Datenbank
  *
@@ -54,7 +79,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
 
     // Schritt 3: Manager oder Employee mit Berechtigung
     const canManageEmployees =
-      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+      isManager(userData) || (isEmployee(userData) && userData.permissions.employees.create);
     if (!canManageEmployees) {
       return {
         success: false,
@@ -105,13 +130,18 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       managerId = selfRecord?.createdBy ?? userData.id;
     }
 
-    // Schritt 8: Mitarbeiter in der Datenbank erstellen
+    // Schritt 8: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    const finalPermissions = isEmployee(userData)
+      ? clampPermissions(validatedData.permissions, userData.permissions)
+      : validatedData.permissions;
+
+    // Schritt 9: Mitarbeiter in der Datenbank erstellen
     const employee = await prisma.employee.create({
       data: {
         email: validatedData.email,
         roles: validatedData.roles,
         locations: validatedData.locations || [],
-        permissions: validatedData.permissions,
+        permissions: finalPermissions,
         status: status,
         isOnboarded: false,
         onboardingToken,
@@ -181,7 +211,7 @@ export async function getMyEmployees() {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
     ) {
       return {
         success: false,
@@ -239,7 +269,7 @@ export async function getEmployeeById(employeeId: string) {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
     ) {
       return {
         success: false,
@@ -320,7 +350,7 @@ export async function updateEmployee(
 
     // Schritt 3: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     const canManageEmployees =
-      isManager(userData) || (isEmployee(userData) && userData.permissions.canCreateEmployees);
+      isManager(userData) || (isEmployee(userData) && userData.permissions.employees.edit);
     if (!canManageEmployees) {
       return {
         success: false,
@@ -349,11 +379,16 @@ export async function updateEmployee(
       };
     }
 
-    // Schritt 6: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (isManager(userData) && existingEmployee.createdBy !== userData.id) {
+    // Schritt 6: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    let ownerManagerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      ownerManagerId = selfRecord?.createdBy ?? userData.id;
+    }
+    if (existingEmployee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Ihre eigenen Mitarbeiter bearbeiten",
+        error: "Sie können nur Mitarbeiter Ihres Managers bearbeiten",
       };
     }
 
@@ -382,14 +417,19 @@ export async function updateEmployee(
       shouldSendEmail = true; // E-Mail nur senden wenn neuer Token generiert wurde
     }
 
-    // Schritt 9: Mitarbeiter in der Datenbank aktualisieren
+    // Schritt 9: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    const finalPermissions = isEmployee(userData)
+      ? clampPermissions(validatedData.permissions, userData.permissions)
+      : validatedData.permissions;
+
+    // Schritt 10: Mitarbeiter in der Datenbank aktualisieren
     await prisma.employee.update({
       where: { id: employeeId },
       data: {
         email: validatedData.email,
         roles: validatedData.roles,
         locations: validatedData.locations || [],
-        permissions: validatedData.permissions,
+        permissions: finalPermissions,
         status,
         onboardingToken,
         onboardingTokenExpiry,
@@ -455,8 +495,11 @@ export async function getMyEmployeeRoles() {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager ist
-    if (!userData || !isManager(userData)) {
+    // Schritt 2: Manager oder Employee mit Berechtigung
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
+    ) {
       return {
         success: false,
         error: "Unauthorized",
@@ -464,10 +507,17 @@ export async function getMyEmployeeRoles() {
       };
     }
 
-    // Schritt 3: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
+    // Schritt 3: Effektive Manager-ID ermitteln
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    // Schritt 4: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
     const employees = await prisma.employee.findMany({
       where: {
-        createdBy: userData.id,
+        createdBy: managerId,
       },
       select: {
         roles: true,
@@ -517,7 +567,7 @@ export async function deleteEmployee(employeeId: string) {
     // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
     if (
       !userData ||
-      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.canCreateEmployees))
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.delete))
     ) {
       return {
         success: false,
@@ -546,11 +596,16 @@ export async function deleteEmployee(employeeId: string) {
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
-    if (isManager(userData) && employee.createdBy !== userData.id) {
+    // Schritt 5: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    let ownerManagerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      ownerManagerId = selfRecord?.createdBy ?? userData.id;
+    }
+    if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Ihre eigenen Mitarbeiter löschen",
+        error: "Sie können nur Mitarbeiter Ihres Managers löschen",
       };
     }
 

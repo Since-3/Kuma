@@ -17,9 +17,11 @@ type Room = {
 
 interface RoomsListViewProps {
   deleteMode: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
+const RoomsListView = ({ deleteMode, canEdit, canDelete }: RoomsListViewProps) => {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,9 +84,9 @@ const RoomsListView = ({ deleteMode }: RoomsListViewProps) => {
             <RoomsListItem
               key={room.id}
               roomName={room.name}
-              onEdit={() => handleEditClick(room.id)}
-              onDelete={() => handleDeleteClick(room.id, room.name)}
-              showDeleteIcon={deleteMode}
+              onEdit={canEdit ? () => handleEditClick(room.id) : undefined}
+              onDelete={canDelete ? () => handleDeleteClick(room.id, room.name) : undefined}
+              showDeleteIcon={deleteMode && canDelete}
             />
           ))}
         </div>
