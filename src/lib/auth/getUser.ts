@@ -153,8 +153,13 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
   }
 
   // Try Employee table — match by email since Supabase ID is not stored in Employee
+  if (!user.email) {
+    console.log("⚠️ [DB] User has no email, cannot lookup employee");
+    return null;
+  }
+
   const employeeData = await prisma.employee.findUnique({
-    where: { email: user.email! },
+    where: { email: user.email },
     select: {
       id: true,
       firstName: true,

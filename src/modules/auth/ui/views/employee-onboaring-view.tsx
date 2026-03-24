@@ -14,7 +14,6 @@ import {
   getEmployeeByOnboardingToken,
   completeEmployeeOnboarding,
 } from "@/src/modules/employee/actions/employee-actions";
-import { generateFilePath } from "@/src/lib/supabase/storage";
 import { toast } from "sonner";
 
 const step1Schema = z
@@ -124,10 +123,9 @@ const EmployeeOnboardingView = () => {
     let pbSrc: string | undefined;
     if (avatarFile) {
       try {
-        const filePath = generateFilePath(token, avatarFile.name, "employees");
         const formData = new FormData();
         formData.append("file", avatarFile);
-        formData.append("path", filePath);
+        formData.append("token", token);
         const res = await fetch("/api/upload/avatar", { method: "POST", body: formData });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
