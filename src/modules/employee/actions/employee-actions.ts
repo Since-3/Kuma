@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import { sendMail } from "@/src/lib/mail/nodemailer";
 import { generateOnboardingEmail } from "@/src/lib/mail/templates/employee-onboarding";
+import { generateOnboardingCompleteEmail } from "@/src/lib/mail/templates/onboarding-complete";
 
 /**
  * Generiert einen sicheren Onboarding-Token
@@ -684,6 +685,28 @@ export async function completeEmployeeOnboarding(
         onboardingTokenExpiry: null,
       },
     });
+
+    // Manager-Bestätigungs-E-Mail senden
+    if (employee.createdBy) {
+      const manager = await prisma.manager.findUnique({
+        where: { id: employee.createdBy },
+        select: { email: true, firstName: true, lastName: true },
+      });
+
+      if (manager) {
+        const { subject, html, text } = generateOnboardingCompleteEmail({
+          managerName: `${manager.firstName} ${manager.lastName}`,
+          employeeFirstName: data.firstName,
+          employeeLastName: data.lastName,
+          employeeEmail: employee.email,
+          companyName: process.env.COMPANY_NAME || "S3 Kuma",
+        });
+
+        sendMail({ to: manager.email, subject, html, text }).catch((error) => {
+          console.error("Fehler beim Senden der Manager-Benachrichtigung:", error);
+        });
+      }
+    }
 
     return { success: true };
   } catch (error) {
