@@ -642,20 +642,13 @@ export async function completeEmployeeOnboarding(
       return { success: false, error: "Ungültiger Onboarding-Link" };
     }
 
-    if (employee.isOnboarded) {
-      return { success: false, error: "Onboarding wurde bereits abgeschlossen" };
-    }
-
-    if (employee.onboardingTokenExpiry && employee.onboardingTokenExpiry < new Date()) {
-      return { success: false, error: "Dieser Onboarding-Link ist abgelaufen" };
-    }
-
     // Supabase Account über API Route erstellen
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/auth/register/employee`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        token,
         email: employee.email,
         password: data.password,
         firstName: data.firstName,
@@ -672,9 +665,13 @@ export async function completeEmployeeOnboarding(
       return { success: false, error: result.error || "Registrierung fehlgeschlagen" };
     }
 
-    // Mitarbeiter in DB als onboarded markieren
-    await prisma.employee.update({
-      where: { onboardingToken: token },
+    // Mitarbeiter atomisch als onboarded markieren — verhindert TOCTOU race condition
+    const updated = await prisma.employee.updateMany({
+      where: {
+        onboardingToken: token,
+        isOnboarded: false,
+        OR: [{ onboardingTokenExpiry: null }, { onboardingTokenExpiry: { gte: new Date() } }],
+      },
       data: {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -685,6 +682,13 @@ export async function completeEmployeeOnboarding(
         onboardingTokenExpiry: null,
       },
     });
+
+    if (updated.count === 0) {
+      return {
+        success: false,
+        error: "Onboarding wurde bereits abgeschlossen oder der Link ist abgelaufen",
+      };
+    }
 
     // Manager-Bestätigungs-E-Mail senden
     if (employee.createdBy) {
