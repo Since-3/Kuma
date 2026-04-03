@@ -178,7 +178,7 @@ const EmployeeOnboardingView = () => {
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:block lg:w-[40%]">
-        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
+        <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Werde Teil unseres Teams"
             footer="info@since3.de"

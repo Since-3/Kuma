@@ -30,7 +30,7 @@ const LoginView = () => {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <div className="hidden lg:block lg:w-[40%]">
-        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
+        <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Deine Reise beginnt hier"
             description="Werde Teil einer Plattform, die Trainer und Lernende zusammenbringt."
@@ -41,7 +41,7 @@ const LoginView = () => {
 
       {/* Login-Formular */}
       <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
-        <div className="w-full max-w-lg flex flex-col gap-4 z-20">
+        <div className="w-full max-w-lg flex flex-col gap-4 relative z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8 ">Login</h1>
           <form onSubmit={handleLogin}>
             <div className="space-y-5">

@@ -74,7 +74,7 @@ const RegisterUserView = () => {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <div className="hidden lg:block lg:w-[40%]">
-        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
+        <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Werde zur besten Version deiner selbst"
             footer="info@since3.de"

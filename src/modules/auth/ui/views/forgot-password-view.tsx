@@ -42,8 +42,8 @@ const ForgotPasswordView = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="hidden lg:block lg:w-[40%] ">
-        <div className="fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
+      <div className="hidden lg:block lg:w-[40%]">
+        <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
             title="Passwort zurücksetzen"
             description="Keine Sorge, wir helfen Ihnen dabei, wieder Zugang zu Ihrem Konto zu erhalten."

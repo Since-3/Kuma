@@ -27,6 +27,7 @@ import Logo from "@/src/public/logo-dark.png";
 import { cn } from "@/src/lib/utils";
 import DashboardFooter from "./DashboardFooter";
 import type { AuthUserData, EmployeeData } from "@/src/lib/auth/getUser";
+import { useSidebar } from "@/src/components/ui/sidebar";
 
 type MenuItem = {
   icon: React.ComponentType<{ className?: string }>;
@@ -115,6 +116,7 @@ interface DashboardSidebarProps {
 
 const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
   const userRole = userData.role;
 
   const menu = allMenuItems.filter((item) => {
@@ -148,7 +150,11 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
                     )}
                     isActive={pathname === item.href}
                   >
-                    <Link href={item.href} className="flex items-center gap-3 w-full">
+                    <Link
+                      href={item.href}
+                      className="flex items-center gap-3 w-full"
+                      onClick={() => setOpenMobile(false)}
+                    >
                       <item.icon className={cn(pathname === item.href && "text-blue")} />
                       <span
                         className={`${pathname === item.href && "text-blue font-semibold"} text-lg font-medium tracking-tight mt-1.5`}
