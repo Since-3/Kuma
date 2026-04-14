@@ -161,7 +161,11 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md flex flex-col"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle className="text-2xl">Kurse Filtern</SheetTitle>
         </SheetHeader>
@@ -177,7 +181,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
               type="date"
               value={localDateFrom}
               onChange={(e) => setLocalDateFrom(e.target.value)}
-              className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
+              className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition appearance-none [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0"
             />
           </div>
 
@@ -188,7 +192,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
               type="date"
               value={localDateTo}
               onChange={(e) => setLocalDateTo(e.target.value)}
-              className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
+              className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition appearance-none [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0"
             />
           </div>
 
@@ -301,7 +305,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                 </div>
 
                 {/* Uhrzeit */}
-                <h3 className=" font-medium mt-2">Uhrzeit</h3>
+                <h3 className="font-medium mt-2">Uhrzeit</h3>
 
                 {/* From */}
                 <div className="space-y-1">
@@ -310,7 +314,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                     type="time"
                     value={localTimeFrom}
                     onChange={(e) => setLocalTimeFrom(e.target.value)}
-                    className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
+                    className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition appearance-none [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0"
                   />
                 </div>
 
@@ -321,7 +325,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
                     type="time"
                     value={localTimeTo}
                     onChange={(e) => setLocalTimeTo(e.target.value)}
-                    className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition"
+                    className="h-10 w-full px-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-300 transition appearance-none [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0"
                   />
                 </div>
               </AccordionContent>

@@ -171,7 +171,6 @@ const CourseCreateView = ({
     if (selectedTrainers.length === 0)
       newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
     if (!selectedRoom) newErrors.room = "Raum ist erforderlich";
-    if (!description.trim()) newErrors.description = "Beschreibung ist erforderlich";
 
     const maxPart = parseInt(maxParticipants);
     if (!maxParticipants || isNaN(maxPart) || maxPart < 1) {
@@ -201,9 +200,20 @@ const CourseCreateView = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateDraft = () => {
+    const newErrors: Record<string, string> = {};
+    if (!courseName.trim()) newErrors.name = "Kursname ist erforderlich";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (status: "draft" | "published") => {
-    if (!validateForm()) {
+    if (status === "published" && !validateForm()) {
       toast.error("Bitte füllen Sie alle erforderlichen Felder aus");
+      return;
+    }
+    if (status === "draft" && !validateDraft()) {
+      toast.error("Bitte geben Sie mindestens einen Kursnamen ein");
       return;
     }
 
@@ -220,8 +230,8 @@ const CourseCreateView = ({
         trainers: selectedTrainers,
         room: selectedRoom,
         description,
-        maxParticipants: parseInt(maxParticipants),
-        price: parseFloat(price),
+        maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
+        price: price ? parseFloat(price) : undefined,
         isStandingOrder,
         frequency: selectedFrequency || undefined,
         weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
