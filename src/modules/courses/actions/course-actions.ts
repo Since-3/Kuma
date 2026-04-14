@@ -10,7 +10,7 @@
 
 import { prisma } from "@/src/lib/prisma";
 import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
-import { courseSchema, type CourseFormData } from "../schemas/course-schema";
+import { courseSchema, publishedCourseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
@@ -48,7 +48,8 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     }
 
     // Schritt 4: Formulardaten mit Zod-Schema validieren
-    const validation = courseSchema.safeParse(data);
+    const schema = status === "published" ? publishedCourseSchema : courseSchema;
+    const validation = schema.safeParse(data);
 
     if (!validation.success) {
       return {
@@ -70,17 +71,17 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     // Schritt 6: Kurs in der Datenbank erstellen
     const course = await prisma.course.create({
       data: {
-        name: validatedData.name,
-        sport: validatedData.sport,
+        name: validatedData.name || "",
+        sport: validatedData.sport || [],
         level: validatedData.level || "any",
-        date: new Date(validatedData.date),
-        timeFrom: validatedData.timeFrom,
-        timeTo: validatedData.timeTo,
-        trainers: validatedData.trainers,
-        room: validatedData.room,
-        description: validatedData.description,
-        maxParticipants: validatedData.maxParticipants,
-        price: validatedData.price,
+        date: new Date(validatedData.date || new Date()),
+        timeFrom: validatedData.timeFrom || "",
+        timeTo: validatedData.timeTo || "",
+        trainers: validatedData.trainers || [],
+        room: validatedData.room || "",
+        description: validatedData.description || "",
+        maxParticipants: validatedData.maxParticipants || 0,
+        price: validatedData.price ?? 0,
         isStandingOrder: validatedData.isStandingOrder,
         frequency: validatedData.frequency || null,
         weekdays: validatedData.weekdays || [],
@@ -361,7 +362,8 @@ export async function updateCourse(
     }
 
     // Schritt 8: Formulardaten mit Zod-Schema validieren
-    const validation = courseSchema.safeParse(data);
+    const schema = status === "published" ? publishedCourseSchema : courseSchema;
+    const validation = schema.safeParse(data);
 
     if (!validation.success) {
       return {
@@ -377,17 +379,17 @@ export async function updateCourse(
     await prisma.course.update({
       where: { id: courseId },
       data: {
-        name: validatedData.name,
-        sport: validatedData.sport,
+        name: validatedData.name || "",
+        sport: validatedData.sport || [],
         level: validatedData.level || "any",
-        date: new Date(validatedData.date),
-        timeFrom: validatedData.timeFrom,
-        timeTo: validatedData.timeTo,
-        trainers: validatedData.trainers,
-        room: validatedData.room,
-        description: validatedData.description,
-        maxParticipants: validatedData.maxParticipants,
-        price: validatedData.price,
+        date: new Date(validatedData.date || new Date()),
+        timeFrom: validatedData.timeFrom || "",
+        timeTo: validatedData.timeTo || "",
+        trainers: validatedData.trainers || [],
+        room: validatedData.room || "",
+        description: validatedData.description || "",
+        maxParticipants: validatedData.maxParticipants || 0,
+        price: validatedData.price ?? 0,
         isStandingOrder: validatedData.isStandingOrder,
         frequency: validatedData.frequency || null,
         weekdays: validatedData.weekdays || [],
