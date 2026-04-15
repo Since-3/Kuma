@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getMyCourses } from "../../actions/course-actions";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
 import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
+import { getMyTrainers } from "@/src/modules/employee/actions/employee-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -60,6 +61,9 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
   const [roomsMap, setRoomsMap] = useState<Record<string, string>>({});
+  const [trainersMap, setTrainersMap] = useState<Record<string, { label: string; pbSrc?: string }>>(
+    {}
+  );
 
   const {
     deleteDialogOpen,
@@ -98,6 +102,21 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       }
     };
     loadRooms();
+  }, []);
+
+  // Load trainers once on mount
+  useEffect(() => {
+    const loadTrainers = async () => {
+      const result = await getMyTrainers();
+      if (result.success) {
+        const map: Record<string, { label: string; pbSrc?: string }> = {};
+        result.trainers.forEach((t) => {
+          map[t.value] = { label: t.label, pbSrc: t.pbSrc ?? undefined };
+        });
+        setTrainersMap(map);
+      }
+    };
+    loadTrainers();
   }, []);
 
   /**
@@ -583,6 +602,7 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
                       price={course.price}
                       level={course.level}
                       trainers={course.trainers}
+                      trainersMap={trainersMap}
                       status={course.status}
                       isPast={isPastCourse(course.date)}
                       showDeleteIcon={deleteMode && canDelete}

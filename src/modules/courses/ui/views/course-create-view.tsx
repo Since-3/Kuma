@@ -10,18 +10,12 @@ import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
 import { createCourse, updateCourse } from "../../actions/course-actions";
 import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
+import { getMyTrainers } from "@/src/modules/employee/actions/employee-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
 import { Trash2 } from "lucide-react";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
-
-const TRAINERS = [
-  { value: "trainer1", label: "Max Mustermann" },
-  { value: "trainer2", label: "Anna Schmidt" },
-  { value: "trainer3", label: "Peter Weber" },
-  { value: "trainer4", label: "Lisa Müller" },
-];
 
 const LEVELS = [
   { value: "any", label: "Jedes Niveau" },
@@ -84,6 +78,8 @@ const CourseCreateView = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rooms, setRooms] = useState<Array<{ value: string; label: string }>>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [trainers, setTrainers] = useState<Array<{ value: string; label: string }>>([]);
+  const [isLoadingTrainers, setIsLoadingTrainers] = useState(true);
 
   const {
     deleteDialogOpen,
@@ -114,6 +110,19 @@ const CourseCreateView = ({
       setIsLoadingRooms(false);
     };
     loadRooms();
+  }, []);
+
+  // Load trainers from database
+  useEffect(() => {
+    const loadTrainers = async () => {
+      setIsLoadingTrainers(true);
+      const result = await getMyTrainers();
+      if (result.success) {
+        setTrainers(result.trainers);
+      }
+      setIsLoadingTrainers(false);
+    };
+    loadTrainers();
   }, []);
 
   // Load initial data when in edit mode
@@ -168,7 +177,7 @@ const CourseCreateView = ({
       newErrors.timeTo = "Endzeit muss nach der Anfangszeit liegen";
     }
 
-    if (selectedTrainers.length === 0)
+    if (trainers.length > 0 && selectedTrainers.length === 0)
       newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
     if (!selectedRoom) newErrors.room = "Raum ist erforderlich";
 
@@ -405,13 +414,17 @@ const CourseCreateView = ({
           {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
         </div>
 
-        <MultiSelectDropdown
-          label="Trainer"
-          selected={selectedTrainers}
-          onSelect={setSelectedTrainers}
-          options={TRAINERS}
-          error={errors.trainers}
-        />
+        {!isLoadingTrainers && trainers.length > 0 && (
+          <div>
+            <MultiSelectDropdown
+              label="Trainer"
+              selected={selectedTrainers}
+              onSelect={setSelectedTrainers}
+              options={trainers}
+              error={errors.trainers}
+            />
+          </div>
+        )}
 
         <GenericDropdown
           label="Raum"

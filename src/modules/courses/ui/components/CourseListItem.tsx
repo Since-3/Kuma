@@ -25,6 +25,7 @@ interface CourseListItemProps {
   price: number; // Preis in Euro
   level: string; // Level
   trainers: string[];
+  trainersMap?: Record<string, { label: string; pbSrc?: string }>;
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
   onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
   status?: string; // Status des Kurses ("draft" oder "published")
@@ -47,6 +48,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   price,
   level,
   trainers,
+  trainersMap = {},
   onEdit,
   onDelete,
   status,
@@ -90,20 +92,24 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       }`}
     >
       <div className="flex items-center w-full">
-        {/*TODO: Avatar */}
-        {trainers.map((trainer, index) => (
-          <AbstractTooltip key={`${trainer}-${index}`} tooltipText={trainer}>
-            <div
-              className={`relative ${index !== 0 ? "-ml-3" : ""}`}
-              style={{ zIndex: trainers.length - index }}
-            >
-              <Avatar className="rounded-full border-2 border-white">
-                <AvatarImage src="https://github.com/shadcn.png" alt={trainer} />
-                <AvatarFallback>{getInitials(trainer)}</AvatarFallback>
-              </Avatar>
-            </div>
-          </AbstractTooltip>
-        ))}
+        {trainers.map((trainerId, index) => {
+          const trainerInfo = trainersMap[trainerId];
+          const displayName = trainerInfo?.label ?? trainerId;
+          const avatarSrc = trainerInfo?.pbSrc;
+          return (
+            <AbstractTooltip key={`${trainerId}-${index}`} tooltipText={displayName}>
+              <div
+                className={`relative ${index !== 0 ? "-ml-3" : ""}`}
+                style={{ zIndex: trainers.length - index }}
+              >
+                <Avatar className="rounded-full border-2 border-white">
+                  {avatarSrc && <AvatarImage src={avatarSrc} alt={displayName} />}
+                  <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                </Avatar>
+              </div>
+            </AbstractTooltip>
+          );
+        })}
         {/* Time */}
         <div className="w-full flex justify-end">
           <p className="text-gray-500 text-lg">
