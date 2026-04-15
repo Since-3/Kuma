@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import AuthSidebarComponent from "../components/AuthSidebarComponent";
 import InputComponent from "@/src/components/layout/InputComponent";
+import AddressAutocompleteComponent from "@/src/components/layout/AddressAutocompleteComponent";
 import PhoneInputComponent from "@/src/components/layout/PhoneInputComponent";
 import { Button } from "@/src/components/ui/button";
 import { useAuthFormStore } from "../../store/authFormState";
@@ -182,33 +183,22 @@ const RegisterAdmin = () => {
 
           {step === 2 && (
             <form onSubmit={handleNext} className="space-y-5">
-              <InputComponent
-                isLabel
-                label="PLZ"
-                type="text"
-                id="register-admin-plz"
-                value={formData.plz}
-                onChange={(e) => handleChange("plz", e.target.value)}
-                error={errors.plz}
-              />
-
-              <InputComponent
-                isLabel
-                label="Wohnort"
-                type="text"
-                id="register-admin-place"
-                value={formData.place}
-                onChange={(e) => handleChange("place", e.target.value)}
-                error={errors.place}
-              />
-              <InputComponent
-                isLabel
-                label="Straße und Hausnummer"
-                type="text"
-                id="register-admin-street"
-                value={formData.street}
-                onChange={(e) => handleChange("street", e.target.value)}
-                error={errors.street}
+              <AddressAutocompleteComponent
+                idPrefix="register-admin"
+                streetValue={formData.street}
+                plzValue={formData.plz}
+                placeValue={formData.place}
+                onStreetChange={(v) => handleChange("street", v)}
+                onPlzChange={(v) => handleChange("plz", v)}
+                onPlaceChange={(v) => handleChange("place", v)}
+                onSelect={({ street, plz, place }) => {
+                  handleChange("street", street);
+                  handleChange("plz", plz);
+                  handleChange("place", place);
+                }}
+                streetError={errors.street}
+                plzError={errors.plz}
+                placeError={errors.place}
               />
 
               <Button className="w-full mt-6" type="submit" disabled={loading}>
@@ -228,33 +218,22 @@ const RegisterAdmin = () => {
                 onChange={(e) => handleChange("companyName", e.target.value)}
                 error={errors.companyName}
               />
-              <InputComponent
-                isLabel
-                label="Unternehmenssitz"
-                type="text"
-                id="register-admin-companyPlace"
-                value={formData.companyPlace}
-                onChange={(e) => handleChange("companyPlace", e.target.value)}
-                error={errors.companyPlace}
-              />
-
-              <InputComponent
-                isLabel
-                label="PLZ"
-                type="text"
-                id="register-admin-companyPLZ"
-                value={formData.companyPLZ}
-                onChange={(e) => handleChange("companyPLZ", e.target.value)}
-                error={errors.companyPLZ}
-              />
-              <InputComponent
-                isLabel
-                label="Straße und Hausnummer"
-                type="text"
-                id="register-admin-companyStreet"
-                value={formData.companyStreet}
-                onChange={(e) => handleChange("companyStreet", e.target.value)}
-                error={errors.companyStreet}
+              <AddressAutocompleteComponent
+                idPrefix="register-admin-company"
+                streetValue={formData.companyStreet}
+                plzValue={formData.companyPLZ}
+                placeValue={formData.companyPlace}
+                onStreetChange={(v) => handleChange("companyStreet", v)}
+                onPlzChange={(v) => handleChange("companyPLZ", v)}
+                onPlaceChange={(v) => handleChange("companyPlace", v)}
+                onSelect={({ street, plz, place }) => {
+                  handleChange("companyStreet", street);
+                  handleChange("companyPLZ", plz);
+                  handleChange("companyPlace", place);
+                }}
+                streetError={errors.companyStreet}
+                plzError={errors.companyPLZ}
+                placeError={errors.companyPlace}
               />
               <InputComponent
                 isLabel

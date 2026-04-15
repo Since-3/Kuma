@@ -2,6 +2,7 @@
 import { useState } from "react";
 import AuthSidebarComponent from "../components/AuthSidebarComponent";
 import InputComponent from "@/src/components/layout/InputComponent";
+import AddressAutocompleteComponent from "@/src/components/layout/AddressAutocompleteComponent";
 import { Button } from "@/src/components/ui/button";
 import AuthButton from "../components/AuthButton";
 import { FaGoogle, FaFacebook } from "react-icons/fa";
@@ -148,33 +149,22 @@ const RegisterUserView = () => {
                 onChange={(e) => handleChange("birthday", e.target.value)}
                 error={errors.birthday}
               />
-              <InputComponent
-                isLabel
-                label="PLZ"
-                type="text"
-                id="register-user-plz"
-                value={formData.plz}
-                onChange={(e) => handleChange("plz", e.target.value)}
-                error={errors.plz}
-              />
-
-              <InputComponent
-                isLabel
-                label="Wohnort"
-                type="text"
-                id="register-user-place"
-                value={formData.place}
-                onChange={(e) => handleChange("place", e.target.value)}
-                error={errors.place}
-              />
-              <InputComponent
-                isLabel
-                label="Straße und Hausnummer"
-                type="text"
-                id="register-user-street"
-                value={formData.street}
-                onChange={(e) => handleChange("street", e.target.value)}
-                error={errors.street}
+              <AddressAutocompleteComponent
+                idPrefix="register-user"
+                streetValue={formData.street}
+                plzValue={formData.plz}
+                placeValue={formData.place}
+                onStreetChange={(v) => handleChange("street", v)}
+                onPlzChange={(v) => handleChange("plz", v)}
+                onPlaceChange={(v) => handleChange("place", v)}
+                onSelect={({ street, plz, place }) => {
+                  handleChange("street", street);
+                  handleChange("plz", plz);
+                  handleChange("place", place);
+                }}
+                streetError={errors.street}
+                plzError={errors.plz}
+                placeError={errors.place}
               />
 
               <DropdownComponent
