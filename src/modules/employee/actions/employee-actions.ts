@@ -196,6 +196,65 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
 }
 
 /**
+ * Ruft alle Trainer (Mitarbeiter mit Rolle "trainer") ab, die vom eingeloggten Manager erstellt wurden
+ *
+ * @returns Ein Objekt mit success-Flag und einem Array von Trainern im Format {value, label}
+ */
+export async function getMyTrainers() {
+  try {
+    const userData = await getUserData();
+
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
+    ) {
+      return {
+        success: false,
+        error: "Unauthorized",
+        trainers: [],
+      };
+    }
+
+    let managerId = userData.id;
+    if (isEmployee(userData)) {
+      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
+      managerId = selfRecord?.createdBy ?? userData.id;
+    }
+
+    const employees = await prisma.employee.findMany({
+      where: {
+        createdBy: managerId,
+        roles: { has: "trainer" },
+        isOnboarded: true,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        pbSrc: true,
+      },
+      orderBy: { firstName: "asc" },
+    });
+
+    const trainers = employees.map((e) => ({
+      value: e.id,
+      label: e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.email,
+      pbSrc: e.pbSrc ?? undefined,
+    }));
+
+    return { success: true, trainers };
+  } catch (error) {
+    console.error("Error fetching trainers:", error);
+    return {
+      success: false,
+      error: "Fehler beim Laden der Trainer",
+      trainers: [],
+    };
+  }
+}
+
+/**
  * Ruft alle Mitarbeiter ab, die vom eingeloggten Manager erstellt wurden
  *
  * Diese Funktion gibt alle Mitarbeiter zurück, die vom aktuellen Manager erstellt wurden,
