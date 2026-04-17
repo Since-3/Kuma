@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { deleteEmployee } from "../actions/employee-actions";
+import { deleteEmployee, getActiveCoursesCountByTrainer } from "../actions/employee-actions";
 import { toast } from "sonner";
 
 interface UseDeleteEmployeeOptions {
@@ -13,9 +13,12 @@ export function useDeleteEmployee({ onSuccess }: UseDeleteEmployeeOptions = {}) 
     null
   );
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeCourseCount, setActiveCourseCount] = useState(0);
 
-  const handleDeleteClick = (id: string, name: string) => {
+  const handleDeleteClick = async (id: string, name: string) => {
     setEmployeeToDelete({ id, name });
+    const result = await getActiveCoursesCountByTrainer(id);
+    setActiveCourseCount(result.success ? result.count : 0);
     setDeleteDialogOpen(true);
   };
 
@@ -31,9 +34,11 @@ export function useDeleteEmployee({ onSuccess }: UseDeleteEmployeeOptions = {}) 
       toast.success(result.message);
       const deletedId = employeeToDelete.id;
       setEmployeeToDelete(null);
+      setActiveCourseCount(0);
       onSuccess?.(deletedId);
     } else {
       setEmployeeToDelete(null);
+      setActiveCourseCount(0);
       toast.error(result.error || "Fehler beim Löschen des Mitarbeiters");
     }
   };
@@ -44,6 +49,7 @@ export function useDeleteEmployee({ onSuccess }: UseDeleteEmployeeOptions = {}) 
     employeeToDelete,
     setEmployeeToDelete,
     isDeleting,
+    activeCourseCount,
     handleDeleteClick,
     handleDeleteConfirm,
   };

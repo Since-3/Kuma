@@ -709,6 +709,38 @@ export async function deleteEmployee(employeeId: string) {
 }
 
 /**
+ * Prüft, ob ein Trainer noch in aktiven (zukünftigen) Kursen eingetragen ist.
+ * Gibt die Anzahl der betroffenen Kurse zurück.
+ */
+export async function getActiveCoursesCountByTrainer(employeeId: string) {
+  try {
+    const userData = await getUserData();
+
+    if (
+      !userData ||
+      (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.delete))
+    ) {
+      return { success: false, error: "Unauthorized", count: 0 };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const count = await prisma.course.count({
+      where: {
+        trainers: { has: employeeId },
+        date: { gte: today },
+      },
+    });
+
+    return { success: true, count };
+  } catch (error) {
+    console.error("Error checking active courses for trainer:", error);
+    return { success: false, error: "Fehler beim Prüfen der Kurse", count: 0 };
+  }
+}
+
+/**
  * Ruft einen Mitarbeiter anhand des Onboarding-Tokens ab (öffentlich, kein Login nötig)
  */
 export async function getEmployeeByOnboardingToken(token: string) {

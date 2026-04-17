@@ -6,6 +6,7 @@ import EmployeeListItem from "../components/EmployeeListItem";
 import { toast } from "sonner";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import { useDeleteEmployee } from "../../hooks/useDeleteEmployee";
+import Link from "next/link";
 
 type Employee = {
   id: string;
@@ -39,6 +40,7 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
     employeeToDelete,
     setEmployeeToDelete,
     isDeleting,
+    activeCourseCount,
     handleDeleteClick,
     handleDeleteConfirm,
   } = useDeleteEmployee({
@@ -144,6 +146,24 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
         topicName="Mitarbeiter"
         onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
+        warningContent={
+          activeCourseCount > 0 && employeeToDelete ? (
+            <p>
+              Dieser Trainer ist noch in{" "}
+              <strong>
+                {activeCourseCount} aktiven Kurs{activeCourseCount !== 1 ? "en" : ""}
+              </strong>{" "}
+              eingetragen.{" "}
+              <Link
+                href={`/courses?trainer=${employeeToDelete.id}`}
+                className="underline font-semibold"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
+                Kurse anzeigen
+              </Link>
+            </p>
+          ) : undefined
+        }
       />
     </div>
   );

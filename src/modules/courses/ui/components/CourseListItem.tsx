@@ -94,7 +94,7 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
       <div className="flex items-center w-full">
         {trainers.map((trainerId, index) => {
           const trainerInfo = trainersMap[trainerId];
-          const displayName = trainerInfo?.label ?? trainerId;
+          const displayName = trainerInfo?.label ?? "Ehemaliger Trainer";
           const avatarSrc = trainerInfo?.pbSrc;
           return (
             <AbstractTooltip key={`${trainerId}-${index}`} tooltipText={displayName}>

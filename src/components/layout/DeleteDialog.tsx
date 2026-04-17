@@ -17,6 +17,7 @@ interface DeleteDialogProps {
   topicName?: string;
   onConfirm: () => void;
   isLoading?: boolean;
+  warningContent?: React.ReactNode;
 }
 
 const DeleteDialog: React.FC<DeleteDialogProps> = ({
@@ -26,6 +27,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   topicName,
   onConfirm,
   isLoading,
+  warningContent,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,6 +41,11 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
             dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
           </DialogDescription>
         </DialogHeader>
+        {warningContent && (
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+            {warningContent}
+          </div>
+        )}
         <DialogFooter>
           <DialogClose className="mt-6 flex gap-2" asChild>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
