@@ -7,7 +7,7 @@ import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { createEmployee } from "../../actions/employee-actions";
+import { createEmployee, updateEmployee } from "../../actions/employee-actions";
 import { toast } from "sonner";
 
 const LOCATION = [
@@ -48,17 +48,55 @@ type CallerPermissions = {
   rooms: { view: boolean; create: boolean; edit: boolean; delete: boolean };
 } | null;
 
+type InitialEmployeeData = {
+  email: string;
+  roles: string[];
+  locations: string[];
+  permissions: unknown;
+  status: string | null;
+};
+
 interface EmployeeCreateViewProps {
   customRoles: Array<{ value: string; label: string }>;
   callerPermissions: CallerPermissions;
+  mode?: "create" | "edit";
+  employeeId?: string;
+  initialData?: InitialEmployeeData;
 }
 
-const EmployeeCreateView = ({ customRoles, callerPermissions }: EmployeeCreateViewProps) => {
+const EmployeeCreateView = ({
+  customRoles,
+  callerPermissions,
+  mode = "create",
+  employeeId,
+  initialData,
+}: EmployeeCreateViewProps) => {
   const router = useRouter();
-  const [employeeMail, setEmplyoeeMail] = useState("");
-  const [isMultipleLocation, setIsMultipleLocation] = useState(false);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+  const initialPermissions = (): PermissionsState => {
+    if (initialData?.permissions && typeof initialData.permissions === "object") {
+      const p = initialData.permissions as Partial<PermissionsState>;
+      return {
+        employees: p.employees ?? { view: false, create: false, edit: false, delete: false },
+        courses: p.courses ?? { view: false, create: false, edit: false, delete: false },
+        rooms: p.rooms ?? { view: false, create: false, edit: false, delete: false },
+      };
+    }
+    return {
+      employees: { view: false, create: false, edit: false, delete: false },
+      courses: { view: false, create: false, edit: false, delete: false },
+      rooms: { view: false, create: false, edit: false, delete: false },
+    };
+  };
+
+  const [employeeMail, setEmplyoeeMail] = useState(initialData?.email ?? "");
+  const [isMultipleLocation, setIsMultipleLocation] = useState(
+    (initialData?.locations?.length ?? 0) > 0
+  );
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(
+    initialData?.locations ?? []
+  );
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(initialData?.roles ?? []);
 
   // Kombiniere Standard-Rollen mit custom Rollen (ohne Duplikate)
   const allRoleValues = new Set([
@@ -73,11 +111,7 @@ const EmployeeCreateView = ({ customRoles, callerPermissions }: EmployeeCreateVi
 
   const [roles, setRoles] = useState(combinedRoles);
   const [newlyCreatedRoles, setNewlyCreatedRoles] = useState<string[]>([]);
-  const [permissionsState, setPermissionsState] = useState<PermissionsState>({
-    employees: { view: false, create: false, edit: false, delete: false },
-    courses: { view: false, create: false, edit: false, delete: false },
-    rooms: { view: false, create: false, edit: false, delete: false },
-  });
+  const [permissionsState, setPermissionsState] = useState<PermissionsState>(initialPermissions());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
@@ -119,17 +153,22 @@ const EmployeeCreateView = ({ customRoles, callerPermissions }: EmployeeCreateVi
     permissions: permissionsState,
   });
 
-  const handlePublish = async () => {
+  const handleSubmit = async (status: "draft" | "published") => {
     setIsSubmitting(true);
     setErrors({});
     try {
-      const result = await createEmployee(buildData(), "published");
+      const data = buildData();
+      const result =
+        mode === "edit" && employeeId
+          ? await updateEmployee(employeeId, data, status)
+          : await createEmployee(data, status);
       if (result.success) {
         toast.success(result.message);
         router.push("/employee");
       } else {
         toast.error(result.error || "Ein Fehler ist aufgetreten");
-        if (result.fieldErrors) setErrors(result.fieldErrors);
+        if ("fieldErrors" in result && result.fieldErrors)
+          setErrors(result.fieldErrors as Record<string, string[]>);
       }
     } catch {
       toast.error("Ein unerwarteter Fehler ist aufgetreten");
@@ -138,28 +177,14 @@ const EmployeeCreateView = ({ customRoles, callerPermissions }: EmployeeCreateVi
     }
   };
 
-  const handleSaveDraft = async () => {
-    setIsSubmitting(true);
-    setErrors({});
-    try {
-      const result = await createEmployee(buildData(), "draft");
-      if (result.success) {
-        toast.success(result.message);
-        router.push("/employee");
-      } else {
-        toast.error(result.error || "Ein Fehler ist aufgetreten");
-        if (result.fieldErrors) setErrors(result.fieldErrors);
-      }
-    } catch {
-      toast.error("Ein unerwarteter Fehler ist aufgetreten");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handlePublish = () => handleSubmit("published");
+  const handleSaveDraft = () => handleSubmit("draft");
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Mitarbeiter anlegen</h1>
+      <h1 className="text-3xl font-bold">
+        {mode === "edit" ? "Mitarbeiter bearbeiten" : "Mitarbeiter anlegen"}
+      </h1>
       <p className="text-xl mt-2">
         Alle Daten können nach dem Speichern geändert oder gelöscht werden.
       </p>

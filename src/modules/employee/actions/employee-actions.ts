@@ -469,7 +469,11 @@ export async function updateEmployee(
     let onboardingTokenExpiry = existingEmployee.onboardingTokenExpiry;
     let shouldSendEmail = false;
 
-    if (status === "published" && !existingEmployee.onboardingToken) {
+    if (
+      status === "published" &&
+      !existingEmployee.isOnboarded &&
+      !existingEmployee.onboardingToken
+    ) {
       onboardingToken = generateOnboardingToken();
       onboardingTokenExpiry = new Date();
       onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
