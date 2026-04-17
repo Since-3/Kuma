@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createEmployee, updateEmployee } from "../../actions/employee-actions";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
+import DeleteDialog from "@/src/components/layout/DeleteDialog";
+import { useDeleteEmployee } from "../../hooks/useDeleteEmployee";
 
 const LOCATION = [
   { value: "hainburg", label: "Hainburg" },
@@ -115,6 +118,19 @@ const EmployeeCreateView = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    employeeToDelete,
+    setEmployeeToDelete,
+    isDeleting,
+    activeCourseCount,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  } = useDeleteEmployee({
+    onSuccess: () => router.push("/employee"),
+  });
+
   const handleCreateRole = (newRole: { value: string; label: string }) => {
     setRoles([...roles, newRole]);
     setNewlyCreatedRoles([...newlyCreatedRoles, newRole.value]);
@@ -182,12 +198,24 @@ const EmployeeCreateView = ({
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">
-        {mode === "edit" ? "Mitarbeiter bearbeiten" : "Mitarbeiter anlegen"}
-      </h1>
-      <p className="text-xl mt-2">
-        Alle Daten können nach dem Speichern geändert oder gelöscht werden.
-      </p>
+      <div className="flex w-full items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {mode === "edit" ? "Mitarbeiter bearbeiten" : "Mitarbeiter anlegen"}
+          </h1>
+          <p className="text-xl mt-2">
+            Alle Daten können nach dem Speichern geändert oder gelöscht werden.
+          </p>
+        </div>
+        {mode === "edit" && employeeId && (
+          <Button
+            variant="destructive"
+            onClick={() => handleDeleteClick(employeeId, initialData?.email ?? employeeId)}
+          >
+            <Trash2 size={20} className="mb-1" /> Löschen
+          </Button>
+        )}
+      </div>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
         <div>
           <InputComponent
@@ -343,6 +371,29 @@ const EmployeeCreateView = ({
           {isSubmitting ? "Wird gespeichert..." : "Entwurf speichern"}
         </button>
       </div>
+
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setEmployeeToDelete(null);
+        }}
+        itemName={employeeToDelete?.name}
+        topicName="Mitarbeiter"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+        warningContent={
+          activeCourseCount > 0 && employeeToDelete ? (
+            <p>
+              Dieser Trainer ist noch in{" "}
+              <strong>
+                {activeCourseCount} aktiven Kurs{activeCourseCount !== 1 ? "en" : ""}
+              </strong>{" "}
+              eingetragen. Nach dem Löschen wird er in diesen Kursen nicht mehr angezeigt.
+            </p>
+          ) : undefined
+        }
+      />
     </div>
   );
 };
