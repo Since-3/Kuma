@@ -51,7 +51,7 @@ interface CourseFilterProps {
   priceRangeMin: number;
   priceRangeMax: number;
   uniqueSports: string[];
-  uniqueTrainers: string[];
+  uniqueTrainers: { value: string; label: string }[];
   uniqueRooms: string[];
 
   // callback when filters are applied
@@ -206,8 +206,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
             >
               <option value="all">Alle</option>
               {uniqueTrainers.map((trainer) => (
-                <option key={trainer} value={trainer}>
-                  {trainer}
+                <option key={trainer.value} value={trainer.value}>
+                  {trainer.label}
                 </option>
               ))}
             </select>

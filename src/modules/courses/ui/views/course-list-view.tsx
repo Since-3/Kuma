@@ -369,8 +369,11 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
   // Get unique sports for filter
   const uniqueSports = Array.from(new Set(courses.flatMap((c) => c.sport)));
 
-  // Get unique trainers for filter (flatten trainers arrays)
-  const uniqueTrainers = Array.from(new Set(courses.flatMap((c) => c.trainers)));
+  // Get unique trainers for filter (flatten trainer UIDs, map to labels)
+  const uniqueTrainers = Array.from(new Set(courses.flatMap((c) => c.trainers))).map((uid) => ({
+    value: uid,
+    label: trainersMap[uid]?.label ?? uid,
+  }));
 
   // Get unique rooms for filter (using room names from roomsMap)
   const uniqueRooms = Array.from(new Set(courses.map((c) => roomsMap[c.room] || c.room)));
