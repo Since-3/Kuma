@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
+const { mockRouterPush, mockSetUser, mockSupabaseSignIn } = vi.hoisted(() => ({
+  mockRouterPush: vi.fn(),
+  mockSetUser: vi.fn(),
+  mockSupabaseSignIn: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }));
@@ -17,10 +23,6 @@ vi.mock("@/src/lib/supabase/client", () => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
-
-const mockRouterPush = vi.fn();
-const mockSetUser = vi.fn();
-const mockSupabaseSignIn = vi.fn();
 
 import { useAuth } from "@/src/hooks/useAuth";
 

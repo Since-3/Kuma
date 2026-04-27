@@ -70,12 +70,14 @@ describe("POST /api/upload/avatar", () => {
     const res = await POST(makeRequest(null, "valid-token"));
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toContain("Token");
+    expect(data.error).toContain("Datei und Token erforderlich");
   });
 
   it("gibt 400 zurück wenn Token fehlt", async () => {
     const res = await POST(makeRequest(makeImageFile(), null));
     expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("Datei und Token erforderlich");
   });
 
   it("gibt 401 zurück bei ungültigem Token", async () => {
