@@ -59,11 +59,7 @@ export async function createRoom(data: RoomFormData) {
     const validatedData = validation.data;
 
     // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    let creatorId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      creatorId = selfRecord?.createdBy ?? userData.id;
-    }
+    const creatorId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 6: Raum in der Datenbank erstellen
     const room = await prisma.room.create({
@@ -147,11 +143,7 @@ export async function getMyRooms() {
     }
 
     // Schritt 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Räume abrufen, die von diesem Manager erstellt wurden
     const rooms = await prisma.room.findMany({
@@ -203,11 +195,7 @@ export async function getRoomById(roomId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({
@@ -279,11 +267,7 @@ export async function updateRoom(roomId: string, data: RoomFormData) {
     }
 
     // Schritt 4: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 5: Raum aus der Datenbank abrufen
     const existingRoom = await prisma.room.findUnique({
@@ -372,11 +356,7 @@ export async function deleteRoom(roomId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({

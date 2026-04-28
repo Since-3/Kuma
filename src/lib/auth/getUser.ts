@@ -1,6 +1,7 @@
 import { createClient } from "@/src/lib/supabase/server";
 import { prisma } from "@/src/lib/prisma";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 // Define the user data types
 export type UserData = {
@@ -43,6 +44,7 @@ export type EmployeeData = {
   qualification: string | null;
   pbSrc: string | null;
   createdAt: Date | null;
+  createdBy: string | null;
   role: "employee";
   permissions: {
     employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
@@ -53,192 +55,159 @@ export type EmployeeData = {
 
 export type AuthUserData = UserData | ManagerData | EmployeeData;
 
-// Note: We don't use in-memory caching because this app runs on Vercel (serverless)
-// Serverless functions are stateless - in-memory cache would be:
-// 1. Inconsistent across Lambda instances
-// 2. Lost on cold starts
-// 3. Not shared between requests
-// Instead, we rely on React's cache() for per-request deduplication only.
-
-let userDataCallCount = 0;
-let supabaseCallCount = 0;
-
 // Get authenticated user from Supabase
 // Uses React's cache() for per-request deduplication
-// No cross-request caching due to serverless architecture
 export const getUser = cache(async () => {
-  supabaseCallCount++;
-  console.log(`🔐 [AUTH] getUser called (count: ${supabaseCallCount})`);
-
   const supabase = await createClient();
 
-  // Validate with Auth server (secure - always authenticates against Supabase)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    console.log("🔐 [AUTH] User authenticated:", user.email);
-  } else {
-    console.log("🔐 [AUTH] No authenticated user");
-  }
-
   return user;
 });
 
-// Get user data from database
-// Uses React's cache() for per-request deduplication
-// No cross-request caching due to serverless architecture
+// Fetch user data from all three tables in parallel, return the first match.
+// Wrapped in unstable_cache (Next.js Data Cache, shared across serverless instances)
+// keyed by email with a 60s TTL. React.cache() deduplicates within a single request.
 export const getUserData = cache(async (): Promise<AuthUserData | null> => {
-  userDataCallCount++;
-  console.log(`📊 [DB] getUserData called (count: ${userDataCallCount})`);
-
   const user = await getUser();
-  if (!user) return null;
+  if (!user || !user.email) return null;
 
-  console.log("🗄️ [DB] Fetching user data from database for:", user.email);
+  return unstable_cache(
+    async (email: string, id: string): Promise<AuthUserData | null> => {
+      const [userData, managerData, employeeData] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            birthday: true,
+            plz: true,
+            city: true,
+            street: true,
+            houseNumber: true,
+            gender: true,
+            pbSrc: true,
+            createdAt: true,
+          },
+        }),
+        prisma.manager.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            tel: true,
+            pbSrc: true,
+            createdAt: true,
+            businesses: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                email: true,
+              },
+            },
+          },
+        }),
+        prisma.employee.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            qualification: true,
+            pbSrc: true,
+            permissions: true,
+            createdAt: true,
+            createdBy: true,
+          },
+        }),
+      ]);
 
-  // Try to find in User table first
-  const userData = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      birthday: true,
-      plz: true,
-      city: true,
-      street: true,
-      houseNumber: true,
-      gender: true,
-      pbSrc: true,
-      createdAt: true,
+      if (userData) {
+        const userWithRole: UserData = { ...userData, role: "user" };
+        return userWithRole;
+      }
+
+      if (managerData) {
+        const managerWithRole: ManagerData = { ...managerData, role: "manager" };
+        return managerWithRole;
+      }
+
+      if (employeeData) {
+        const raw = employeeData.permissions as Record<string, unknown> | null;
+        const empty = () => ({ view: false, create: false, edit: false, delete: false });
+
+        let permissions: EmployeeData["permissions"];
+
+        if (raw && ("canCreateCourses" in raw || "canCreateEmployees" in raw)) {
+          // Backward-Kompatibilität: altes Format migrieren
+          const old = raw as { canCreateCourses?: boolean; canCreateEmployees?: boolean };
+          permissions = {
+            employees: {
+              view: old.canCreateEmployees ?? false,
+              create: old.canCreateEmployees ?? false,
+              edit: false,
+              delete: false,
+            },
+            courses: {
+              view: old.canCreateCourses ?? false,
+              create: old.canCreateCourses ?? false,
+              edit: false,
+              delete: false,
+            },
+            rooms: empty(),
+          };
+        } else {
+          const p = raw as {
+            employees?: Partial<EmployeeData["permissions"]["employees"]>;
+            courses?: Partial<EmployeeData["permissions"]["courses"]>;
+            rooms?: Partial<EmployeeData["permissions"]["rooms"]>;
+          } | null;
+          permissions = {
+            employees: {
+              view: p?.employees?.view ?? false,
+              create: p?.employees?.create ?? false,
+              edit: p?.employees?.edit ?? false,
+              delete: p?.employees?.delete ?? false,
+            },
+            courses: {
+              view: p?.courses?.view ?? false,
+              create: p?.courses?.create ?? false,
+              edit: p?.courses?.edit ?? false,
+              delete: p?.courses?.delete ?? false,
+            },
+            rooms: {
+              view: p?.rooms?.view ?? false,
+              create: p?.rooms?.create ?? false,
+              edit: p?.rooms?.edit ?? false,
+              delete: p?.rooms?.delete ?? false,
+            },
+          };
+        }
+
+        const employeeWithRole: EmployeeData = {
+          ...employeeData,
+          role: "employee",
+          permissions,
+          createdBy: employeeData.createdBy,
+        };
+        return employeeWithRole;
+      }
+
+      return null;
     },
-  });
-
-  if (userData) {
-    console.log("✅ [DB] User data fetched:", userData.name);
-    const userWithRole: UserData = { ...userData, role: "user" };
-    return userWithRole;
-  }
-
-  // If not found in User table, try Manager table
-  const managerData = await prisma.manager.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      tel: true,
-      pbSrc: true,
-      createdAt: true,
-      businesses: {
-        select: {
-          id: true,
-          name: true,
-          address: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  if (managerData) {
-    console.log(
-      "✅ [DB] Manager data fetched:",
-      `${managerData.firstName} ${managerData.lastName}`
-    );
-    const managerWithRole: ManagerData = { ...managerData, role: "manager" };
-    return managerWithRole;
-  }
-
-  // Try Employee table — match by email since Supabase ID is not stored in Employee
-  if (!user.email) {
-    console.log("⚠️ [DB] User has no email, cannot lookup employee");
-    return null;
-  }
-
-  const employeeData = await prisma.employee.findUnique({
-    where: { email: user.email },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      qualification: true,
-      pbSrc: true,
-      permissions: true,
-      createdAt: true,
-    },
-  });
-
-  if (employeeData) {
-    console.log(
-      "✅ [DB] Employee data fetched:",
-      `${employeeData.firstName} ${employeeData.lastName}`
-    );
-    const raw = employeeData.permissions as Record<string, unknown> | null;
-    const empty = () => ({ view: false, create: false, edit: false, delete: false });
-
-    let permissions: EmployeeData["permissions"];
-
-    if (raw && ("canCreateCourses" in raw || "canCreateEmployees" in raw)) {
-      // Backward-Kompatibilität: altes Format migrieren
-      const old = raw as { canCreateCourses?: boolean; canCreateEmployees?: boolean };
-      permissions = {
-        employees: {
-          view: old.canCreateEmployees ?? false,
-          create: old.canCreateEmployees ?? false,
-          edit: false,
-          delete: false,
-        },
-        courses: {
-          view: old.canCreateCourses ?? false,
-          create: old.canCreateCourses ?? false,
-          edit: false,
-          delete: false,
-        },
-        rooms: empty(),
-      };
-    } else {
-      const p = raw as {
-        employees?: Partial<EmployeeData["permissions"]["employees"]>;
-        courses?: Partial<EmployeeData["permissions"]["courses"]>;
-        rooms?: Partial<EmployeeData["permissions"]["rooms"]>;
-      } | null;
-      permissions = {
-        employees: {
-          view: p?.employees?.view ?? false,
-          create: p?.employees?.create ?? false,
-          edit: p?.employees?.edit ?? false,
-          delete: p?.employees?.delete ?? false,
-        },
-        courses: {
-          view: p?.courses?.view ?? false,
-          create: p?.courses?.create ?? false,
-          edit: p?.courses?.edit ?? false,
-          delete: p?.courses?.delete ?? false,
-        },
-        rooms: {
-          view: p?.rooms?.view ?? false,
-          create: p?.rooms?.create ?? false,
-          edit: p?.rooms?.edit ?? false,
-          delete: p?.rooms?.delete ?? false,
-        },
-      };
+    ["user-data", user.email],
+    {
+      tags: [`user-data-${user.email}`],
+      revalidate: 60,
     }
-
-    const employeeWithRole: EmployeeData = {
-      ...employeeData,
-      role: "employee",
-      permissions,
-    };
-    return employeeWithRole;
-  }
-
-  console.log("⚠️ [DB] No user, manager or employee found for:", user.email);
-  return null;
+  )(user.email, user.id);
 });
 
 export async function requireAuth() {

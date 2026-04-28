@@ -62,11 +62,7 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     const validatedData = validation.data;
 
     // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    let creatorId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      creatorId = selfRecord?.createdBy ?? userData.id;
-    }
+    const creatorId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 6: Kurs in der Datenbank erstellen
     const course = await prisma.course.create({
@@ -175,11 +171,7 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     }
 
     // Step 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Step 4: Build the where clause with optional date filtering
     const whereClause: Prisma.CourseWhereInput = {
@@ -254,11 +246,7 @@ export async function getCourseById(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -334,11 +322,7 @@ export async function updateCourse(
     }
 
     // Schritt 4: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 5: Kurs aus der Datenbank abrufen
     const existingCourse = await prisma.course.findUnique({
@@ -445,11 +429,7 @@ export async function deleteCourse(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -507,11 +487,7 @@ export async function getMySportTypes() {
       return { success: false, error: "Unauthorized", sports: [] };
     }
 
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     const courses = await prisma.course.findMany({
       where: { createdBy: managerId },
