@@ -4,7 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
   // Protected routes
-  const protectedRoutes = ["/dashboard", "/profile", "/trainings", "/courses"];
+  const protectedRoutes = [
+    "/dashboard",
+    "/profile",
+    "/trainings",
+    "/courses",
+    "/settings",
+    "/employee",
+    "/rooms",
+  ];
   const authRoutes = ["/login", "/register", "/forgot-password"];
 
   const isProtectedRoute = protectedRoutes.some((route) =>

@@ -16,6 +16,7 @@ export type Course = {
   weekdays: string[];
   status: string;
   createdBy: string;
+  businessId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

@@ -8,7 +8,7 @@ import RichTextEditor from "@/src/components/layout/RichTextEditor";
 import { Button } from "@/src/components/ui/button";
 import { Checkbox } from "@/src/components/ui/checkbox";
 import { Label } from "@/src/components/ui/label";
-import { createCourse, updateCourse } from "../../actions/course-actions";
+import { createCourse, updateCourse, getMyBusinesses } from "../../actions/course-actions";
 import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { getMyTrainers } from "@/src/modules/employee/actions/employee-actions";
 import { toast } from "sonner";
@@ -80,6 +80,8 @@ const CourseCreateView = ({
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [trainers, setTrainers] = useState<Array<{ value: string; label: string }>>([]);
   const [isLoadingTrainers, setIsLoadingTrainers] = useState(true);
+  const [selectedBusinessId, setSelectedBusinessId] = useState("");
+  const [businesses, setBusinesses] = useState<Array<{ value: string; label: string }>>([]);
 
   const {
     deleteDialogOpen,
@@ -92,6 +94,19 @@ const CourseCreateView = ({
   } = useDeleteCourse({
     onSuccess: () => router.push("/courses"),
   });
+
+  // Load businesses from database
+  useEffect(() => {
+    const loadBusinesses = async () => {
+      const result = await getMyBusinesses();
+      if (result.success) {
+        const opts = result.businesses.map((b) => ({ value: b.id, label: b.name }));
+        setBusinesses(opts);
+        if (opts.length === 1) setSelectedBusinessId(opts[0].value);
+      }
+    };
+    loadBusinesses();
+  }, []);
 
   // Load rooms from database
   useEffect(() => {
@@ -160,6 +175,7 @@ const CourseCreateView = ({
       setIsStandingOrder(initialData.isStandingOrder || false);
       setSelectedFrequency(initialData.frequency || "");
       setSelectedWeekdays(initialData.weekdays || []);
+      setSelectedBusinessId(initialData.businessId ?? "");
     }
   }, [mode, initialData, customSports]);
 
@@ -244,6 +260,7 @@ const CourseCreateView = ({
         isStandingOrder,
         frequency: selectedFrequency || undefined,
         weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
+        businessId: selectedBusinessId || undefined,
       };
 
       if (mode === "edit" && !courseId) {
@@ -298,6 +315,15 @@ const CourseCreateView = ({
         )}
       </div>
       <div className="mt-6 flex flex-col gap-4 max-w-xl">
+        {businesses.length > 1 && (
+          <GenericDropdown
+            label="Standort"
+            selected={selectedBusinessId}
+            onSelect={setSelectedBusinessId}
+            options={businesses}
+            placeholder="Standort auswählen"
+          />
+        )}
         <div>
           <InputComponent
             isLabel

@@ -97,11 +97,15 @@ model Business {
   banking String?
   plan String?
   subscription Json?
+  slug     String?  @unique
+  isPublic Boolean  @default(false)
   manager         Manager  @relation(fields: [managerId], references: [id])
+  courses         Course[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([managerId])
+  @@index([slug])
 }
 
 model Course {
@@ -122,6 +126,8 @@ model Course {
   weekdays String[] // For custom frequency
   status String @default("draft") // draft, published
   createdBy String // Manager ID who created the course
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
   bookings CourseBooking[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,6 +135,7 @@ model Course {
   @@index([createdBy])
   @@index([date])
   @@index([status])
+  @@index([businessId])
 }
 
 model Room {

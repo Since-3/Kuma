@@ -17,6 +17,7 @@ export const courseSchema = z
     isStandingOrder: z.boolean(),
     frequency: z.string().optional(),
     weekdays: z.array(z.string()).optional(),
+    businessId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -54,6 +55,7 @@ export const publishedCourseSchema = z
     isStandingOrder: z.boolean(),
     frequency: z.string().optional(),
     weekdays: z.array(z.string()).optional(),
+    businessId: z.string().optional(),
   })
   .refine(
     (data) => {

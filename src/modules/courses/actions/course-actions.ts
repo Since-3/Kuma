@@ -13,6 +13,7 @@ import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
 import { courseSchema, publishedCourseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { generateUniqueSlug } from "@/src/lib/slug";
 
 /**
  * Erstellt einen neuen Kurs in der Datenbank
@@ -83,6 +84,7 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
         weekdays: validatedData.weekdays || [],
         status,
         createdBy: creatorId,
+        businessId: validatedData.businessId ?? null,
       },
     });
 
@@ -378,6 +380,9 @@ export async function updateCourse(
         frequency: validatedData.frequency || null,
         weekdays: validatedData.weekdays || [],
         status,
+        ...(validatedData.businessId !== undefined
+          ? { businessId: validatedData.businessId || null }
+          : {}),
       },
     });
 
@@ -506,5 +511,77 @@ export async function getMySportTypes() {
   } catch (error) {
     console.error("Error fetching sport types:", error);
     return { success: false, error: "Fehler beim Laden der Sportarten", sports: [] };
+  }
+}
+
+export async function getMyBusinesses() {
+  try {
+    const userData = await getUserData();
+
+    if (!userData || (!isManager(userData) && !isEmployee(userData))) {
+      return { success: false, error: "Unauthorized", businesses: [] };
+    }
+
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+
+    const businesses = await prisma.business.findMany({
+      where: { managerId },
+      select: { id: true, name: true, slug: true, isPublic: true },
+      orderBy: { name: "asc" },
+    });
+
+    return { success: true, businesses };
+  } catch (error) {
+    console.error("Error fetching businesses:", error);
+    return { success: false, error: "Fehler beim Laden der Businesses", businesses: [] };
+  }
+}
+
+export async function toggleBusinessPublic(businessId: string, isPublic: boolean) {
+  try {
+    const userData = await getUserData();
+
+    if (!userData || !isManager(userData)) {
+      return { success: false, error: "Keine Berechtigung" };
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { managerId: true, slug: true, name: true },
+    });
+
+    if (!business || business.managerId !== userData.id) {
+      return { success: false, error: "Business nicht gefunden" };
+    }
+
+    // Generate slug on first publish if missing
+    let slug = business.slug;
+    if (!slug) {
+      slug = await generateUniqueSlug(business.name, prisma);
+    }
+
+    await prisma.business.update({
+      where: { id: businessId },
+      data: { isPublic, slug },
+    });
+
+    // Auto-assign courses that belong to this manager but have no businessId yet.
+    // Only do this when there is exactly one business — if there are multiple,
+    // the manager must assign courses manually via the course edit form.
+    const totalBusinesses = await prisma.business.count({ where: { managerId: userData.id } });
+    if (totalBusinesses === 1) {
+      await prisma.course.updateMany({
+        where: { createdBy: userData.id, businessId: null },
+        data: { businessId },
+      });
+    }
+
+    revalidatePath("/settings");
+    revalidatePath(`/business/${slug}`);
+
+    return { success: true, slug };
+  } catch (error) {
+    console.error("Error toggling business public:", error);
+    return { success: false, error: "Fehler beim Aktualisieren" };
   }
 }
