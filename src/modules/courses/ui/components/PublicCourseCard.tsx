@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/src/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/ui/tooltip";
 import DOMPurify from "dompurify";
 import { bookCourse, checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
@@ -13,6 +15,13 @@ const levelConfig: Record<string, { label: string; bg: string; text: string }> =
   advanced: { label: "Fortgeschrittene", bg: "bg-orange-200", text: "text-orange-700" },
   pro: { label: "Profi", bg: "bg-red-200", text: "text-red-700" },
 };
+
+interface TrainerProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  pbSrc: string | null;
+}
 
 interface PublicCourse {
   id: string;
@@ -27,6 +36,7 @@ interface PublicCourse {
   currentParticipants: number;
   description?: string;
   room?: string;
+  trainerProfiles?: TrainerProfile[];
 }
 
 interface PublicCourseCardProps {
@@ -212,8 +222,6 @@ const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
 
         <h2 className="text-xl font-semibold text-gray-900">{course.name}</h2>
 
-        <p className="text-gray-500 text-sm">{course.sport.join(", ")}</p>
-
         <div className="flex items-center justify-between">
           <span
             className={`text-xs font-semibold px-2 py-1 rounded-lg ${currentLevel.bg} ${currentLevel.text}`}
@@ -235,6 +243,40 @@ const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
             style={{ width: `${fillPercent}%` }}
           />
         </div>
+
+        {course.trainerProfiles && course.trainerProfiles.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            {course.trainerProfiles.map((trainer) => {
+              const fullName =
+                [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+              const initials =
+                [trainer.firstName?.[0], trainer.lastName?.[0]]
+                  .filter(Boolean)
+                  .join("")
+                  .toUpperCase() || "T";
+              return (
+                <Tooltip key={trainer.id}>
+                  <TooltipTrigger asChild>
+                    <div className="size-8 rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center shrink-0 cursor-default">
+                      {trainer.pbSrc ? (
+                        <Image
+                          src={trainer.pbSrc}
+                          alt={fullName}
+                          width={32}
+                          height={32}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <span className="text-xs font-medium text-gray-600">{initials}</span>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{fullName}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        )}
 
         {isFull ? (
           <Button disabled variant="outline" className="w-full">

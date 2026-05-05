@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { CalendarIcon, X } from "lucide-react";
+import { useState, useTransition, useMemo } from "react";
 import PublicCourseCard from "../components/PublicCourseCard";
 import { getPublishedCoursesForBusiness } from "../../actions/booking-actions";
 import { Calendar } from "@/src/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
-import { Button } from "@/src/components/ui/button";
+import { de } from "date-fns/locale";
 
 interface Business {
   id: string;
@@ -15,6 +13,13 @@ interface Business {
   email: string;
   title: string;
   slug: string;
+}
+
+interface TrainerProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  pbSrc: string | null;
 }
 
 interface PublicCourse {
@@ -30,6 +35,7 @@ interface PublicCourse {
   currentParticipants: number;
   description?: string;
   room?: string;
+  trainerProfiles?: TrainerProfile[];
 }
 
 interface BusinessPublicViewProps {
@@ -38,6 +44,9 @@ interface BusinessPublicViewProps {
   initialWindow: { from: Date; to: Date };
 }
 
+const TODAY = new Date();
+TODAY.setHours(0, 0, 0, 0);
+
 const BusinessPublicView = ({
   business,
   initialCourses,
@@ -45,14 +54,11 @@ const BusinessPublicView = ({
 }: BusinessPublicViewProps) => {
   const [loadedCourses, setLoadedCourses] = useState<PublicCourse[]>(initialCourses);
   const [loadedWindow, setLoadedWindow] = useState(initialWindow);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(TODAY);
+  const [activeSport, setActiveSport] = useState<string>("Alle");
   const [isPending, startTransition] = useTransition();
 
   const handleDateSelect = (date: Date | undefined) => {
-    setCalendarOpen(false);
-    setSelectedDate(date);
-
     if (!date) return;
 
     const dayStart = new Date(date);
@@ -60,7 +66,9 @@ const BusinessPublicView = ({
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
-    // If within loaded window — filter client-side, no fetch needed
+    setSelectedDate(dayStart);
+
+    // Within loaded window — client-side filter, no fetch
     if (dayStart >= loadedWindow.from && dayEnd <= loadedWindow.to) {
       return;
     }
@@ -85,42 +93,43 @@ const BusinessPublicView = ({
     });
   };
 
-  const handleReset = () => {
-    setSelectedDate(undefined);
-    if (
-      loadedWindow.from.getTime() !== initialWindow.from.getTime() ||
-      loadedWindow.to.getTime() !== initialWindow.to.getTime()
-    ) {
-      startTransition(async () => {
-        const result = await getPublishedCoursesForBusiness(business.id, initialWindow);
-        if (result.success && result.courses) {
-          setLoadedCourses(result.courses as PublicCourse[]);
-          setLoadedWindow(initialWindow);
-        }
-      });
-    }
-  };
+  // Derive all distinct sports from loaded courses for tab list
+  const allSports = useMemo(() => {
+    const set = new Set<string>();
+    loadedCourses.forEach((c) => c.sport.forEach((s) => set.add(s)));
+    return ["Alle", ...Array.from(set).sort()];
+  }, [loadedCourses]);
 
-  const displayedCourses = selectedDate
-    ? loadedCourses.filter((c) => {
-        const d = new Date(c.date);
-        const dayStart = new Date(selectedDate);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(selectedDate);
-        dayEnd.setHours(23, 59, 59, 999);
-        return d >= dayStart && d <= dayEnd;
-      })
-    : loadedCourses;
+  // Reset active sport if it no longer exists after a window refetch
+  const resolvedSport = allSports.includes(activeSport) ? activeSport : "Alle";
 
-  const formattedSelectedDate = selectedDate
-    ? selectedDate.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })
-    : null;
+  const displayedCourses = useMemo(() => {
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    return loadedCourses.filter((c) => {
+      const d = new Date(c.date);
+      if (d < dayStart || d > dayEnd) return false;
+      if (resolvedSport !== "Alle" && !c.sport.includes(resolvedSport)) return false;
+      return true;
+    });
+  }, [loadedCourses, selectedDate, resolvedSport]);
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  const formattedSelectedDate = selectedDate.toLocaleDateString("de-DE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 py-10">
+        <div className="max-w-6xl mx-auto px-6 py-10">
           <h1 className="text-4xl font-bold text-gray-900">{business.name}</h1>
           {business.title && <p className="text-xl text-gray-500 mt-1">{business.title}</p>}
           <div className="mt-4 flex flex-col sm:flex-row gap-2 text-sm text-gray-600">
@@ -137,58 +146,64 @@ const BusinessPublicView = ({
         </div>
       </div>
 
-      {/* Courses Section */}
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Unsere Kurse</h2>
+      {/* Main content */}
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        {/* Datum + Sport-Tabs — über beiden Spalten */}
+        <div className="mb-4">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-1">{formattedSelectedDate}</h2>
+          {allSports.length > 1 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {allSports.map((sport) => (
+                <button
+                  key={sport}
+                  onClick={() => setActiveSport(sport)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    resolvedSport === sport
+                      ? "bg-gray-900 text-white"
+                      : "bg-white border border-gray-200 text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  {sport === "Alle" ? "Alle" : capitalize(sport)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <CalendarIcon size={16} />
-                  {formattedSelectedDate ?? "Datum filtern"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* Standing calendar */}
+          <div className="lg:sticky lg:top-6 shrink-0">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                disabled={{ before: TODAY }}
+                locale={de}
+                className="[--cell-size:--spacing(10)]"
+              />
+            </div>
+          </div>
 
-            {selectedDate && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
-                title="Filter zurücksetzen"
-              >
-                <X size={14} />
-              </button>
+          {/* Courses panel */}
+          <div className="flex-1 min-w-0">
+            {isPending ? (
+              <div className="flex justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              </div>
+            ) : displayedCourses.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                Für diesen Tag sind keine Kurse verfügbar.
+              </div>
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {displayedCourses.map((course) => (
+                  <PublicCourseCard key={course.id} course={course} />
+                ))}
+              </div>
             )}
           </div>
         </div>
-
-        {isPending ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-          </div>
-        ) : displayedCourses.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            {selectedDate
-              ? "Für diesen Tag sind keine Kurse verfügbar."
-              : "Aktuell sind keine Kurse verfügbar."}
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {displayedCourses.map((course) => (
-              <PublicCourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
