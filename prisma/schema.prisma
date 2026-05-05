@@ -60,6 +60,8 @@ model Employee {
   trainings UserTraining[]
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
+
+  @@index([createdBy])
 }
 
 model UserTraining {
@@ -98,6 +100,8 @@ model Business {
   manager         Manager  @relation(fields: [managerId], references: [id])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([managerId])
 }
 
 model Course {
@@ -121,6 +125,10 @@ model Course {
   bookings CourseBooking[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
+  @@index([date])
+  @@index([status])
 }
 
 model Room {
@@ -129,6 +137,8 @@ model Room {
   createdBy String // Manager ID who created the room
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
 }
 
 model CourseBooking {

@@ -12,7 +12,12 @@ import { prisma } from "@/src/lib/prisma";
 import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employee-schema";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+
+function invalidateUserDataCache(email: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)(`user-data-${email}`);
+}
 import { randomBytes } from "crypto";
 import { sendMail } from "@/src/lib/mail/nodemailer";
 import { generateOnboardingEmail } from "@/src/lib/mail/templates/employee-onboarding";
@@ -124,11 +129,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
     }
 
     // Schritt 7: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 8: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
     const finalPermissions = isEmployee(userData)
@@ -215,11 +216,7 @@ export async function getMyTrainers() {
       };
     }
 
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     const employees = await prisma.employee.findMany({
       where: {
@@ -286,8 +283,7 @@ export async function getMyEmployees() {
       whereClause = { createdBy: userData.id };
     } else {
       // Employee: eigene Manager-ID ermitteln, dann alle unter diesem Manager anzeigen (außer sich selbst)
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      const managerId = selfRecord?.createdBy;
+      const managerId = userData.createdBy;
       whereClause = { createdBy: managerId, NOT: { email: userData.email } };
     }
     const employees = await prisma.employee.findMany({
@@ -439,11 +435,7 @@ export async function updateEmployee(
     }
 
     // Schritt 6: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
-    let ownerManagerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      ownerManagerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const ownerManagerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
     if (existingEmployee.createdBy !== ownerManagerId) {
       return {
         success: false,
@@ -525,6 +517,7 @@ export async function updateEmployee(
     // Schritt 11: Next.js Cache invalidieren
     revalidatePath("/employee");
     revalidatePath(`/employee/edit/${employeeId}`);
+    invalidateUserDataCache(validatedData.email);
 
     return {
       success: true,
@@ -571,11 +564,7 @@ export async function getMyEmployeeRoles() {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    let managerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      managerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
 
     // Schritt 4: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
     const employees = await prisma.employee.findMany({
@@ -660,11 +649,7 @@ export async function deleteEmployee(employeeId: string) {
     }
 
     // Schritt 5: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
-    let ownerManagerId = userData.id;
-    if (isEmployee(userData)) {
-      const selfRecord = await prisma.employee.findUnique({ where: { email: userData.email } });
-      ownerManagerId = selfRecord?.createdBy ?? userData.id;
-    }
+    const ownerManagerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
     if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,
@@ -694,6 +679,7 @@ export async function deleteEmployee(employeeId: string) {
 
     // Schritt 8: Next.js Cache invalidieren
     revalidatePath("/employee");
+    invalidateUserDataCache(employee.email);
 
     return {
       success: true,
@@ -839,6 +825,8 @@ export async function completeEmployeeOnboarding(
         error: "Onboarding wurde bereits abgeschlossen oder der Link ist abgelaufen",
       };
     }
+
+    invalidateUserDataCache(employee.email);
 
     // Manager-Bestätigungs-E-Mail senden
     if (employee.createdBy) {
