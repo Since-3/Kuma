@@ -1,15 +1,17 @@
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { requireAuthWithData, isManager } from "@/src/lib/auth/getUser";
 import { prisma } from "@/src/lib/prisma";
 import BusinessPublicToggle from "../components/BusinessPublicToggle";
 
-const SettingsView = async () => {
+const SettingsPublicPageView = async () => {
   const userData = await requireAuthWithData();
 
   if (!isManager(userData)) {
     return (
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-2">Einstellungen</h1>
-        <p className="text-gray-500">Keine weiteren Einstellungen verfügbar.</p>
+      <div>
+        <h1 className="text-2xl font-bold mb-1">Öffentliche Seite</h1>
+        <p className="text-gray-500 text-sm">Keine Berechtigung.</p>
       </div>
     );
   }
@@ -21,17 +23,25 @@ const SettingsView = async () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Einstellungen</h1>
-        <p className="text-gray-500 mt-1">Verwalte die öffentlichen Seiten deiner Businesses</p>
+        <Link
+          href="/settings"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-3"
+        >
+          <ChevronLeft size={15} className="mb-1" />
+          Einstellungen
+        </Link>
+        <h1 className="text-2xl font-bold">Öffentliche Seite</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Steuere welche Kursseiten öffentlich sichtbar sind
+        </p>
       </div>
 
       {businesses.length === 0 ? (
-        <p className="text-gray-400">Noch kein Business angelegt.</p>
+        <p className="text-gray-400 text-sm">Noch kein Business angelegt.</p>
       ) : (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Öffentliche Seiten</h2>
+        <div className="space-y-3">
           {businesses.map((business) => (
             <BusinessPublicToggle
               key={business.id}
@@ -47,4 +57,4 @@ const SettingsView = async () => {
   );
 };
 
-export default SettingsView;
+export default SettingsPublicPageView;
