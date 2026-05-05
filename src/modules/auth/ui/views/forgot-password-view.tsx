@@ -8,13 +8,23 @@ import { Spinner } from "@/src/components/ui/spinner";
 import { createClient } from "@/src/lib/supabase/client";
 
 const ForgotPasswordView = () => {
+  // ------------- States -------------
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+
+  // ------------- Hooks -------------
   const router = useRouter();
   const supabase = createClient();
 
+  /**
+   * Sends a password reset email via Supabase
+   * Validates input and updates error/success state
+   *
+   * @param {React.FormEvent} e - Form submit event
+   * @returns {Promise<void>}
+   */
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmailError("");
@@ -27,6 +37,7 @@ const ForgotPasswordView = () => {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Redirects user to custom reset-password page after clicking email link
       redirectTo: `${window.location.origin}/reset-password`,
     });
 

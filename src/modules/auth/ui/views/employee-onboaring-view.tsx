@@ -16,6 +16,7 @@ import {
 } from "@/src/modules/employee/actions/employee-actions";
 import { toast } from "sonner";
 
+// Step 1: Personal + account data validation
 const step1Schema = z
   .object({
     firstName: z.string().min(2, "Vorname ist zu kurz"),
@@ -35,6 +36,7 @@ const step1Schema = z
     path: ["passwordConfirm"],
   });
 
+// Step 2: Additional profile data
 const step2Schema = z.object({
   gender: z
     .enum(["Men", "Woman", "Various"])
@@ -44,10 +46,8 @@ const step2Schema = z.object({
 });
 
 const EmployeeOnboardingView = () => {
-  const params = useParams();
-  const router = useRouter();
-  const token = params?.onboardingToken as string;
-
+  // ------------- States -------------
+  // Multi-step flow + UI states
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState(true);
@@ -55,6 +55,7 @@ const EmployeeOnboardingView = () => {
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Form states
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [tel, setTel] = useState("");
@@ -65,7 +66,18 @@ const EmployeeOnboardingView = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  // ------------- Hooks -------------
+  const params = useParams();
+  const router = useRouter();
+  const token = params?.onboardingToken as string;
+
   useEffect(() => {
+    /**
+     * Validates onboarding token on page load
+     *
+     * - Fetches employee data via token
+     * - Prevents access if token is invalid/expired
+     */
     const checkToken = async () => {
       if (!token) {
         setTokenError("Kein Onboarding-Token gefunden");
@@ -83,6 +95,11 @@ const EmployeeOnboardingView = () => {
     checkToken();
   }, [token]);
 
+  /**
+   * Handles step 1 validation and navigation
+   *
+   * @param {React.FormEvent} e - Form submit event
+   */
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -101,6 +118,16 @@ const EmployeeOnboardingView = () => {
     }
   };
 
+  /**
+   * Final onboarding submission
+   *
+   * - Validates step 2 data
+   * - Uploads avatar (optional)
+   * - Completes onboarding via backend
+   *
+   * @param {React.FormEvent} e - Form submit event
+   * @returns {Promise<boolean>}
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -120,6 +147,7 @@ const EmployeeOnboardingView = () => {
 
     setLoading(true);
 
+    // Optional avatar upload before completing onboarding
     let pbSrc: string | undefined;
     if (avatarFile) {
       try {
@@ -156,6 +184,7 @@ const EmployeeOnboardingView = () => {
     }
   };
 
+  // Loading state while validating token
   if (tokenLoading) {
     return (
       <div className="flex min-h-screen justify-center items-center">
@@ -164,6 +193,7 @@ const EmployeeOnboardingView = () => {
     );
   }
 
+  // Invalid or expired token
   if (tokenError) {
     return (
       <div className="flex min-h-screen justify-center items-center flex-col gap-4 px-4">
@@ -177,6 +207,7 @@ const EmployeeOnboardingView = () => {
 
   return (
     <div className="flex min-h-screen">
+      {/* Sidebar with onboarding steps */}
       <div className="hidden lg:block lg:w-[40%]">
         <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
@@ -190,11 +221,13 @@ const EmployeeOnboardingView = () => {
         </div>
       </div>
 
+      {/* Main onboarding form */}
       <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-2 mt-8">Herzlich Willkommen!</h1>
           <p className="text-gray-500 mb-6">{employeeEmail}</p>
 
+          {/* Step 1: Personal data + login data*/}
           {step === 1 && (
             <form onSubmit={handleNext} className="space-y-5">
               <div className="flex gap-4">
@@ -249,6 +282,7 @@ const EmployeeOnboardingView = () => {
             </form>
           )}
 
+          {/* Step 2: Addtional (optinal) Employee Data */}
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="flex flex-col items-center">

@@ -8,16 +8,21 @@ import { Spinner } from "@/src/components/ui/spinner";
 import { createClient } from "@/src/lib/supabase/client";
 
 const ResetPasswordView = () => {
+  // ------------- States -------------
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
+
+  // ------------- Hooks -------------
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
+    // Ensure user is authenticated via reset link session
+    // If not, redirect to login (invalid or expired link)
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) {
         router.replace("/login");
@@ -25,6 +30,17 @@ const ResetPasswordView = () => {
     });
   }, [router, supabase]);
 
+  /**
+   * Handles password reset submission
+   *
+   * - Validation password rules
+   * - Updates password via Supabase
+   * - Signs user out after success (security best practice)
+   * - Redirects to login after short delay
+   *
+   * @param {React.FormEvent} e - Form submit event
+   * @returns {Promise<void>}
+   */
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -32,6 +48,7 @@ const ResetPasswordView = () => {
     setPasswordError("");
     setConfirmPasswordError("");
 
+    // Basic Password validation
     if (password.length < 8) {
       setPasswordError("Mindestens 8 Zeichen");
       setLoading(false);
@@ -44,6 +61,7 @@ const ResetPasswordView = () => {
       return;
     }
 
+    // Update password for the currently authenticated user
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
@@ -54,12 +72,14 @@ const ResetPasswordView = () => {
 
     setResetSuccess(true);
 
+    // Force logout after password change to refresh session
     try {
       await supabase.auth.signOut();
     } catch (signOutError) {
       console.error("Sign out error:", signOutError);
     }
 
+    // Redirect to login after success feedback
     setTimeout(() => {
       router.push("/login");
     }, 2500);

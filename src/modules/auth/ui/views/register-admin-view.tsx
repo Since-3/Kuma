@@ -17,15 +17,28 @@ import { Spinner } from "@/src/components/ui/spinner";
 import { useRouter } from "next/navigation";
 
 const RegisterAdmin = () => {
+  // ------------- States -------------
+  // Controls multi-step registration flow
   const [step, setStep] = useState(1);
+
+  // ------------- Hooks -------------
   const { registerAdmin, loading, errors, setErrors } = useAuth();
   const router = useRouter();
   const formData = useAuthFormStore();
 
+  // Generic handler to update form state
   const handleChange = (field: string, value: string) => {
     formData.setField(field, value);
   };
 
+  /**
+   * Handles step 1 and 2 validation before moving to step 3
+   *
+   * Uses Zod schema to validate user input
+   * Maps validation errors to UI-friendly error-object.
+   *
+   * @param {React.FormEvent} e - Form submit event
+   */
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -48,6 +61,7 @@ const RegisterAdmin = () => {
         setStep(3);
       }
     } catch (err) {
+      // Transform Zod erros into field-based error object
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {};
         err.issues.forEach((issue) => {
@@ -61,6 +75,15 @@ const RegisterAdmin = () => {
     }
   };
 
+  /**
+   * Final step: validates company data and registers admin
+   *
+   * - Validates step 3 (company info)
+   * - Sends full dataset to backend
+   * - Resets form and redirects on success
+   *
+   * @param {React.FormEvent} e - Form submit event
+   */
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -92,6 +115,7 @@ const RegisterAdmin = () => {
       });
 
       if (success) {
+        // Clear persisted form state
         formData.resetForm();
         router.push("/login");
       }
@@ -111,6 +135,7 @@ const RegisterAdmin = () => {
 
   return (
     <div className="flex min-h-screen">
+      {/* Sidebar with step indicator */}
       <div className="hidden lg:block lg:w-[40%]">
         <div className="hidden lg:block fixed left-0 top-0 h-screen w-[40%] p-2 z-10">
           <AuthSidebarComponent
@@ -124,10 +149,12 @@ const RegisterAdmin = () => {
         </div>
       </div>
 
+      {/* Main form */}
       <div className="w-full lg:w-[60%] lg:ml-auto flex justify-center items-center min-h-screen px-4">
         <div className="w-full max-w-lg flex flex-col gap-4 z-20">
           <h1 className="text-2xl font-extrabold text-blue mb-8 mt-8 ">Sign up for free</h1>
 
+          {/* Step 1: Personal + login data */}
           {step === 1 && (
             <form onSubmit={handleNext} className="space-y-5">
               <InputComponent
@@ -169,7 +196,7 @@ const RegisterAdmin = () => {
                 isLabel
                 label="Passwort bestätigen"
                 type="password"
-                id="register-admin-passwordConform"
+                id="register-admin-passwordConfirm"
                 value={formData.passwordConfirm}
                 onChange={(e) => handleChange("passwordConfirm", e.target.value)}
                 error={errors.passwordConfirm}
@@ -181,6 +208,7 @@ const RegisterAdmin = () => {
             </form>
           )}
 
+          {/* Step 2: Private address */}
           {step === 2 && (
             <form onSubmit={handleNext} className="space-y-5">
               <AddressAutocompleteComponent
@@ -207,6 +235,7 @@ const RegisterAdmin = () => {
             </form>
           )}
 
+          {/* Step 3: Company data */}
           {step === 3 && (
             <form onSubmit={handleRegister} className="space-y-5">
               <InputComponent
