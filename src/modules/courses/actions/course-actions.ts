@@ -9,10 +9,11 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee, getEffectiveManagerId } from "@/src/lib/auth/getUser";
 import { courseSchema, publishedCourseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { generateUniqueSlug } from "@/src/lib/slug";
 
 /**
  * Erstellt einen neuen Kurs in der Datenbank
@@ -62,7 +63,9 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     const validatedData = validation.data;
 
     // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const creatorId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const creatorId = getEffectiveManagerId(userData);
+    if (!creatorId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 6: Kurs in der Datenbank erstellen
     const course = await prisma.course.create({
@@ -83,6 +86,7 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
         weekdays: validatedData.weekdays || [],
         status,
         createdBy: creatorId,
+        businessId: validatedData.businessId ?? null,
       },
     });
 
@@ -171,7 +175,13 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     }
 
     // Step 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        courses: [],
+      };
 
     // Step 4: Build the where clause with optional date filtering
     const whereClause: Prisma.CourseWhereInput = {
@@ -246,7 +256,9 @@ export async function getCourseById(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -322,7 +334,9 @@ export async function updateCourse(
     }
 
     // Schritt 4: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 5: Kurs aus der Datenbank abrufen
     const existingCourse = await prisma.course.findUnique({
@@ -378,6 +392,9 @@ export async function updateCourse(
         frequency: validatedData.frequency || null,
         weekdays: validatedData.weekdays || [],
         status,
+        ...(validatedData.businessId !== undefined
+          ? { businessId: validatedData.businessId || null }
+          : {}),
       },
     });
 
@@ -429,7 +446,9 @@ export async function deleteCourse(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -487,7 +506,13 @@ export async function getMySportTypes() {
       return { success: false, error: "Unauthorized", sports: [] };
     }
 
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        sports: [],
+      };
 
     const courses = await prisma.course.findMany({
       where: { createdBy: managerId },
@@ -506,5 +531,95 @@ export async function getMySportTypes() {
   } catch (error) {
     console.error("Error fetching sport types:", error);
     return { success: false, error: "Fehler beim Laden der Sportarten", sports: [] };
+  }
+}
+
+export async function getMyBusinesses() {
+  try {
+    const userData = await getUserData();
+
+    if (!userData || (!isManager(userData) && !isEmployee(userData))) {
+      return { success: false, error: "Unauthorized", businesses: [] };
+    }
+
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        businesses: [],
+      };
+
+    const businesses = await prisma.business.findMany({
+      where: { managerId },
+      select: { id: true, name: true, slug: true, isPublic: true },
+      orderBy: { name: "asc" },
+    });
+
+    return { success: true, businesses };
+  } catch (error) {
+    console.error("Error fetching businesses:", error);
+    return { success: false, error: "Fehler beim Laden der Businesses", businesses: [] };
+  }
+}
+
+export async function toggleBusinessPublic(businessId: string, isPublic: boolean) {
+  try {
+    const userData = await getUserData();
+
+    if (!userData || !isManager(userData)) {
+      return { success: false, error: "Keine Berechtigung" };
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { managerId: true, slug: true, name: true },
+    });
+
+    if (!business || business.managerId !== userData.id) {
+      return { success: false, error: "Business nicht gefunden" };
+    }
+
+    // Generate slug on first publish if missing, retry on P2002 race condition
+    let slug = business.slug;
+    let updated = false;
+    while (!updated) {
+      if (!slug) {
+        slug = await generateUniqueSlug(business.name, prisma);
+      }
+      try {
+        await prisma.business.update({
+          where: { id: businessId },
+          data: { isPublic, slug },
+        });
+        updated = true;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          // Another request claimed this slug concurrently — generate a new one and retry
+          slug = null;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // Auto-assign courses that belong to this manager but have no businessId yet.
+    // Only do this when there is exactly one business — if there are multiple,
+    // the manager must assign courses manually via the course edit form.
+    const totalBusinesses = await prisma.business.count({ where: { managerId: userData.id } });
+    if (totalBusinesses === 1) {
+      await prisma.course.updateMany({
+        where: { createdBy: userData.id, businessId: null },
+        data: { businessId },
+      });
+    }
+
+    revalidatePath("/settings");
+    revalidatePath(`/business/${slug}`);
+
+    return { success: true, slug };
+  } catch (error) {
+    console.error("Error toggling business public:", error);
+    return { success: false, error: "Fehler beim Aktualisieren" };
   }
 }

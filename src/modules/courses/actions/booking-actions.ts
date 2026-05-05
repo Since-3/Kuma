@@ -201,3 +201,56 @@ export async function checkUserBookingStatus(courseId: string) {
     };
   }
 }
+
+export async function getBusinessBySlug(slug: string) {
+  try {
+    const business = await prisma.business.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        email: true,
+        title: true,
+        slug: true,
+        isPublic: true,
+      },
+    });
+
+    if (!business || !business.isPublic) {
+      return { success: false, error: "Seite nicht gefunden" };
+    }
+
+    return { success: true, business };
+  } catch (error) {
+    console.error("Error fetching business by slug:", error);
+    return { success: false, error: "Fehler beim Laden" };
+  }
+}
+
+export async function getPublishedCoursesForBusiness(
+  businessId: string,
+  options: { from: Date; to: Date }
+) {
+  try {
+    const courses = await prisma.course.findMany({
+      where: {
+        businessId,
+        status: "published",
+        date: { gte: options.from, lte: options.to },
+      },
+      include: {
+        _count: { select: { bookings: true } },
+      },
+      orderBy: { date: "asc" },
+    });
+
+    return {
+      success: true,
+      courses: courses.map((c) => ({ ...c, currentParticipants: c._count.bookings })),
+    };
+  } catch (error) {
+    console.error("Error fetching courses for business:", error);
+    return { success: false, error: "Fehler beim Laden der Kurse", courses: [] };
+  }
+}
