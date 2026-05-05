@@ -105,7 +105,6 @@ model Business {
   updatedAt       DateTime @updatedAt
 
   @@index([managerId])
-  @@index([slug])
 }
 
 model Course {

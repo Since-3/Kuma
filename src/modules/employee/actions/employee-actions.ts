@@ -518,6 +518,10 @@ export async function updateEmployee(
     revalidatePath("/employee");
     revalidatePath(`/employee/edit/${employeeId}`);
     invalidateUserDataCache(validatedData.email);
+    // If email changed, also invalidate the old email's cache entry
+    if (existingEmployee.email !== validatedData.email) {
+      invalidateUserDataCache(existingEmployee.email);
+    }
 
     return {
       success: true,

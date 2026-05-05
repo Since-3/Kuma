@@ -554,16 +554,28 @@ export async function toggleBusinessPublic(businessId: string, isPublic: boolean
       return { success: false, error: "Business nicht gefunden" };
     }
 
-    // Generate slug on first publish if missing
+    // Generate slug on first publish if missing, retry on P2002 race condition
     let slug = business.slug;
-    if (!slug) {
-      slug = await generateUniqueSlug(business.name, prisma);
+    let updated = false;
+    while (!updated) {
+      if (!slug) {
+        slug = await generateUniqueSlug(business.name, prisma);
+      }
+      try {
+        await prisma.business.update({
+          where: { id: businessId },
+          data: { isPublic, slug },
+        });
+        updated = true;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          // Another request claimed this slug concurrently — generate a new one and retry
+          slug = null;
+        } else {
+          throw err;
+        }
+      }
     }
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: { isPublic, slug },
-    });
 
     // Auto-assign courses that belong to this manager but have no businessId yet.
     // Only do this when there is exactly one business — if there are multiple,

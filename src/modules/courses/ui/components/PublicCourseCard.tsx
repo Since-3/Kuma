@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
+import DOMPurify from "dompurify";
 import { bookCourse, checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
 
@@ -135,7 +136,7 @@ const BookingDialog = ({
           {course.description && (
             <div
               className="prose prose-sm max-w-none text-gray-600 pt-1"
-              dangerouslySetInnerHTML={{ __html: course.description }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
             />
           )}
         </div>

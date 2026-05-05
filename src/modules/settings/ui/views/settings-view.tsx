@@ -20,14 +20,6 @@ const SettingsView = async () => {
     orderBy: { name: "asc" },
   });
 
-  // If manager has exactly one business, auto-assign any unassigned courses to it
-  if (businesses.length === 1) {
-    await prisma.course.updateMany({
-      where: { createdBy: userData.id, businessId: null },
-      data: { businessId: businesses[0].id },
-    });
-  }
-
   return (
     <div className="space-y-6">
       <div>

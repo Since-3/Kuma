@@ -103,6 +103,8 @@ const CourseCreateView = ({
         const opts = result.businesses.map((b) => ({ value: b.id, label: b.name }));
         setBusinesses(opts);
         if (opts.length === 1) setSelectedBusinessId(opts[0].value);
+      } else {
+        toast.error("Fehler beim Laden der Standorte. Bitte laden Sie die Seite neu.");
       }
     };
     loadBusinesses();

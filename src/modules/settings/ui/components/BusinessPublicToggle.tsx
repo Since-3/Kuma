@@ -42,12 +42,16 @@ const BusinessPublicToggle = ({
     setIsLoading(false);
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!publicUrl) return;
-    navigator.clipboard.writeText(publicUrl);
-    setCopied(true);
-    toast.success("Link kopiert");
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      toast.success("Link kopiert");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Link konnte nicht kopiert werden");
+    }
   };
 
   return (
