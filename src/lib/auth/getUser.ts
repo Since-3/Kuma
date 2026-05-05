@@ -145,7 +145,12 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
 
         let permissions: EmployeeData["permissions"];
 
-        if (raw && ("canCreateCourses" in raw || "canCreateEmployees" in raw)) {
+        if (
+          raw &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          ("canCreateCourses" in raw || "canCreateEmployees" in raw)
+        ) {
           // Backward-Kompatibilität: altes Format migrieren
           const old = raw as { canCreateCourses?: boolean; canCreateEmployees?: boolean };
           permissions = {
@@ -209,6 +214,14 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
     }
   )(user.email, user.id);
 });
+
+// Returns the effective manager ID for any user type.
+// For Employees, this is createdBy (the manager who created them).
+// Returns null if the employee is orphaned (no manager mapping) — callers must handle this.
+export function getEffectiveManagerId(userData: AuthUserData): string | null {
+  if (isEmployee(userData)) return userData.createdBy;
+  return userData.id;
+}
 
 export async function requireAuth() {
   const user = await getUser();

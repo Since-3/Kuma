@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee, getEffectiveManagerId } from "@/src/lib/auth/getUser";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employee-schema";
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -129,7 +129,9 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
     }
 
     // Schritt 7: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 8: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
     const finalPermissions = isEmployee(userData)
@@ -216,7 +218,14 @@ export async function getMyTrainers() {
       };
     }
 
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        employees: [],
+        trainers: [],
+      };
 
     const employees = await prisma.employee.findMany({
       where: {
@@ -282,8 +291,12 @@ export async function getMyEmployees() {
       // Manager sieht alle Mitarbeiter unter seiner ID
       whereClause = { createdBy: userData.id };
     } else {
-      // Employee: eigene Manager-ID ermitteln, dann alle unter diesem Manager anzeigen (außer sich selbst)
+      // Employee: alle unter demselben Manager anzeigen (außer sich selbst)
+      // createdBy kann null sein (verwaister Account) — in dem Fall nichts zurückgeben
       const managerId = userData.createdBy;
+      if (!managerId) {
+        return { success: true, employees: [] };
+      }
       whereClause = { createdBy: managerId, NOT: { email: userData.email } };
     }
     const employees = await prisma.employee.findMany({
@@ -435,7 +448,9 @@ export async function updateEmployee(
     }
 
     // Schritt 6: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
-    const ownerManagerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const ownerManagerId = getEffectiveManagerId(userData);
+    if (!ownerManagerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
     if (existingEmployee.createdBy !== ownerManagerId) {
       return {
         success: false,
@@ -568,7 +583,13 @@ export async function getMyEmployeeRoles() {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        roles: [],
+      };
 
     // Schritt 4: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
     const employees = await prisma.employee.findMany({
@@ -653,7 +674,9 @@ export async function deleteEmployee(employeeId: string) {
     }
 
     // Schritt 5: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
-    const ownerManagerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const ownerManagerId = getEffectiveManagerId(userData);
+    if (!ownerManagerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
     if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,

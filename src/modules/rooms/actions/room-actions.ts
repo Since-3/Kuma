@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee, getEffectiveManagerId } from "@/src/lib/auth/getUser";
 import { roomSchema, type RoomFormData } from "../schemas/room-schema";
 import { revalidatePath } from "next/cache";
 
@@ -59,7 +59,9 @@ export async function createRoom(data: RoomFormData) {
     const validatedData = validation.data;
 
     // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const creatorId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const creatorId = getEffectiveManagerId(userData);
+    if (!creatorId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 6: Raum in der Datenbank erstellen
     const room = await prisma.room.create({
@@ -143,7 +145,13 @@ export async function getMyRooms() {
     }
 
     // Schritt 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        rooms: [],
+      };
 
     // Schritt 4: Räume abrufen, die von diesem Manager erstellt wurden
     const rooms = await prisma.room.findMany({
@@ -195,7 +203,9 @@ export async function getRoomById(roomId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({
@@ -267,7 +277,9 @@ export async function updateRoom(roomId: string, data: RoomFormData) {
     }
 
     // Schritt 4: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 5: Raum aus der Datenbank abrufen
     const existingRoom = await prisma.room.findUnique({
@@ -356,7 +368,9 @@ export async function deleteRoom(roomId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Raum aus der Datenbank abrufen
     const room = await prisma.room.findUnique({

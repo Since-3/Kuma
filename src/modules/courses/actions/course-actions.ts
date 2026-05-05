@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData, isManager, isEmployee } from "@/src/lib/auth/getUser";
+import { getUserData, isManager, isEmployee, getEffectiveManagerId } from "@/src/lib/auth/getUser";
 import { courseSchema, publishedCourseSchema, type CourseFormData } from "../schemas/course-schema";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -63,7 +63,9 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     const validatedData = validation.data;
 
     // Schritt 5: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const creatorId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const creatorId = getEffectiveManagerId(userData);
+    if (!creatorId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 6: Kurs in der Datenbank erstellen
     const course = await prisma.course.create({
@@ -173,7 +175,13 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     }
 
     // Step 3: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        courses: [],
+      };
 
     // Step 4: Build the where clause with optional date filtering
     const whereClause: Prisma.CourseWhereInput = {
@@ -248,7 +256,9 @@ export async function getCourseById(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -324,7 +334,9 @@ export async function updateCourse(
     }
 
     // Schritt 4: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 5: Kurs aus der Datenbank abrufen
     const existingCourse = await prisma.course.findUnique({
@@ -434,7 +446,9 @@ export async function deleteCourse(courseId: string) {
     }
 
     // Schritt 3: Effektive Manager-ID ermitteln
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
     // Schritt 4: Kurs aus der Datenbank abrufen
     const course = await prisma.course.findUnique({
@@ -492,7 +506,13 @@ export async function getMySportTypes() {
       return { success: false, error: "Unauthorized", sports: [] };
     }
 
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        sports: [],
+      };
 
     const courses = await prisma.course.findMany({
       where: { createdBy: managerId },
@@ -522,7 +542,13 @@ export async function getMyBusinesses() {
       return { success: false, error: "Unauthorized", businesses: [] };
     }
 
-    const managerId = isEmployee(userData) ? (userData.createdBy ?? userData.id) : userData.id;
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId)
+      return {
+        success: false,
+        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        businesses: [],
+      };
 
     const businesses = await prisma.business.findMany({
       where: { managerId },
