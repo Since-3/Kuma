@@ -245,9 +245,29 @@ export async function getPublishedCoursesForBusiness(
       orderBy: { date: "asc" },
     });
 
+    const trainerIds = [...new Set(courses.flatMap((c) => c.trainers))];
+    const trainers =
+      trainerIds.length > 0
+        ? await prisma.employee.findMany({
+            where: { id: { in: trainerIds } },
+            select: { id: true, firstName: true, lastName: true, pbSrc: true },
+          })
+        : [];
+
+    const trainerMap = Object.fromEntries(trainers.map((t) => [t.id, t]));
+
     return {
       success: true,
-      courses: courses.map((c) => ({ ...c, currentParticipants: c._count.bookings })),
+      courses: courses.map((c) => ({
+        ...c,
+        currentParticipants: c._count.bookings,
+        trainerProfiles: c.trainers.map((id) => trainerMap[id]).filter(Boolean) as {
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          pbSrc: string | null;
+        }[],
+      })),
     };
   } catch (error) {
     console.error("Error fetching courses for business:", error);
