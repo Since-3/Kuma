@@ -1,5 +1,5 @@
-import SettingsView from "@/src/modules/settings/ui/views/settings-view";
+import SettingsOverviewView from "@/src/modules/settings/ui/views/settings-overview-view";
 
 export default function SettingsPage() {
-  return <SettingsView />;
+  return <SettingsOverviewView />;
 }

@@ -309,6 +309,25 @@ const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
           </p>
         </div>
 
+        {course.trainerProfiles && course.trainerProfiles.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            {course.trainerProfiles.map((trainer) => {
+              const fullName =
+                [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+              return (
+                <Tooltip key={trainer.id}>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <TrainerAvatar trainer={trainer} size="sm" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{fullName}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        )}
+
         <h2 className="text-xl font-semibold text-gray-900">{course.name}</h2>
 
         <div className="flex items-center justify-between">
@@ -332,25 +351,6 @@ const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
             style={{ width: `${fillPercent}%` }}
           />
         </div>
-
-        {course.trainerProfiles && course.trainerProfiles.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {course.trainerProfiles.map((trainer) => {
-              const fullName =
-                [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
-              return (
-                <Tooltip key={trainer.id}>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <TrainerAvatar trainer={trainer} size="sm" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{fullName}</TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-        )}
 
         {isFull ? (
           <Button disabled variant="outline" className="w-full">
