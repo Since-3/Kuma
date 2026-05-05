@@ -48,8 +48,10 @@ const BookingDialog = ({
   const [isBooked, setIsBooked] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
-  const isFull = course.currentParticipants >= course.maxParticipants;
-  const spotsLeft = course.maxParticipants - course.currentParticipants;
+  const safeCurrent = Math.max(0, course.currentParticipants);
+  const safeMax = Math.max(0, course.maxParticipants);
+  const isFull = safeCurrent >= safeMax;
+  const spotsLeft = Math.max(0, safeMax - safeCurrent);
 
   const formattedDate = new Date(course.date).toLocaleDateString("de-DE", {
     weekday: "long",
@@ -65,11 +67,26 @@ const BookingDialog = ({
 
   useEffect(() => {
     if (!open) return;
-    setIsCheckingStatus(true);
-    checkUserBookingStatus(course.id).then((result) => {
-      if (result.success) setIsBooked(result.isBooked);
-      setIsCheckingStatus(false);
-    });
+    let active = true;
+
+    const loadStatus = async () => {
+      setIsCheckingStatus(true);
+      try {
+        const result = await checkUserBookingStatus(course.id);
+        if (!active) return;
+        setIsBooked(result.success ? result.isBooked : false);
+      } catch {
+        if (!active) return;
+        setIsBooked(false);
+      } finally {
+        if (active) setIsCheckingStatus(false);
+      }
+    };
+
+    void loadStatus();
+    return () => {
+      active = false;
+    };
   }, [open, course.id]);
 
   const handleBooking = async () => {
@@ -128,7 +145,7 @@ const BookingDialog = ({
             <div
               className={`h-full ${isFull ? "bg-red-500" : "bg-blue-500"}`}
               style={{
-                width: `${course.maxParticipants > 0 ? (course.currentParticipants / course.maxParticipants) * 100 : 0}%`,
+                width: `${safeMax > 0 ? Math.min(100, (safeCurrent / safeMax) * 100) : 0}%`,
               }}
             />
           </div>
@@ -164,7 +181,9 @@ const BookingDialog = ({
 const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const isFull = course.currentParticipants >= course.maxParticipants;
+  const cardSafeCurrent = Math.max(0, course.currentParticipants);
+  const cardSafeMax = Math.max(0, course.maxParticipants);
+  const isFull = cardSafeCurrent >= cardSafeMax;
   const currentLevel = levelConfig[course.level] ?? levelConfig.any;
 
   const formattedDate = new Date(course.date).toLocaleDateString("de-DE", {
@@ -179,8 +198,7 @@ const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
     currency: "EUR",
   });
 
-  const fillPercent =
-    course.maxParticipants > 0 ? (course.currentParticipants / course.maxParticipants) * 100 : 0;
+  const fillPercent = cardSafeMax > 0 ? Math.min(100, (cardSafeCurrent / cardSafeMax) * 100) : 0;
 
   return (
     <>
