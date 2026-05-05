@@ -253,14 +253,24 @@ export async function getPublishedCoursesForBusiness(
             select: { id: true, firstName: true, lastName: true, pbSrc: true },
           })
         : [];
-
     const trainerMap = Object.fromEntries(trainers.map((t) => [t.id, t]));
+
+    const roomIds = [...new Set(courses.map((c) => c.room).filter(Boolean))] as string[];
+    const rooms =
+      roomIds.length > 0
+        ? await prisma.room.findMany({
+            where: { id: { in: roomIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
 
     return {
       success: true,
       courses: courses.map((c) => ({
         ...c,
         currentParticipants: c._count.bookings,
+        roomName: c.room ? (roomMap[c.room] ?? null) : null,
         trainerProfiles: c.trainers.map((id) => trainerMap[id]).filter(Boolean) as {
           id: string;
           firstName: string | null;

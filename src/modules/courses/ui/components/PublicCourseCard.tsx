@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { Clock, MapPin, Users, Mail, Phone } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/ui/tooltip";
 import DOMPurify from "dompurify";
 import { bookCourse, checkUserBookingStatus } from "../../actions/booking-actions";
@@ -23,6 +25,12 @@ interface TrainerProfile {
   pbSrc: string | null;
 }
 
+interface BusinessInfo {
+  address: string;
+  email: string;
+  tel?: string;
+}
+
 interface PublicCourse {
   id: string;
   name: string;
@@ -36,21 +44,50 @@ interface PublicCourse {
   currentParticipants: number;
   description?: string;
   room?: string;
+  roomName?: string | null;
+  coverImage?: string;
   trainerProfiles?: TrainerProfile[];
 }
 
 interface PublicCourseCardProps {
   course: PublicCourse;
+  business?: BusinessInfo;
 }
 
-// Inner dialog content — only mounts when dialog opens, so booking status
-// is checked lazily rather than on every card render.
+const TrainerAvatar = ({ trainer, size }: { trainer: TrainerProfile; size: "sm" | "lg" }) => {
+  const fullName = [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+  const initials =
+    [trainer.firstName?.[0], trainer.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "T";
+  const sizeClass = size === "lg" ? "size-10" : "size-8";
+  const textClass = size === "lg" ? "text-sm" : "text-xs";
+
+  return (
+    <div
+      className={`${sizeClass} rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center shrink-0`}
+    >
+      {trainer.pbSrc ? (
+        <Image
+          src={trainer.pbSrc}
+          alt={fullName}
+          width={size === "lg" ? 40 : 32}
+          height={size === "lg" ? 40 : 32}
+          className="object-cover w-full h-full"
+        />
+      ) : (
+        <span className={`${textClass} font-medium text-gray-600`}>{initials}</span>
+      )}
+    </div>
+  );
+};
+
 const BookingDialog = ({
   course,
+  business,
   open,
   onOpenChange,
 }: {
   course: PublicCourse;
+  business?: BusinessInfo;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) => {
@@ -61,13 +98,12 @@ const BookingDialog = ({
   const safeCurrent = Math.max(0, course.currentParticipants);
   const safeMax = Math.max(0, course.maxParticipants);
   const isFull = safeCurrent >= safeMax;
-  const spotsLeft = Math.max(0, safeMax - safeCurrent);
+  const level = levelConfig[course.level] ?? levelConfig.any;
 
   const formattedDate = new Date(course.date).toLocaleDateString("de-DE", {
-    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
   });
 
   const formattedPrice = course.price.toLocaleString("de-DE", {
@@ -120,75 +156,128 @@ const BookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl w-[90vw] p-0 overflow-hidden gap-0">
+        <VisuallyHidden>
           <DialogTitle>{course.name}</DialogTitle>
-        </DialogHeader>
+        </VisuallyHidden>
 
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between text-gray-500">
-            <span>{formattedDate}</span>
-            <span>
-              {course.timeFrom} – {course.timeTo}
-            </span>
-          </div>
-
-          {course.sport.length > 0 && <p className="text-gray-600">{course.sport.join(", ")}</p>}
-
-          <div className="flex items-center justify-between">
-            <span
-              className={`text-xs font-semibold px-2 py-1 rounded-lg ${levelConfig[course.level]?.bg ?? "bg-gray-200"} ${levelConfig[course.level]?.text ?? "text-gray-700"}`}
-            >
-              {levelConfig[course.level]?.label ?? "Jedes Niveau"}
-            </span>
-            <span className="font-semibold">{formattedPrice}</span>
-          </div>
-
-          <div className={`text-sm font-medium ${isFull ? "text-red-600" : "text-gray-700"}`}>
-            {isFull
-              ? "Ausgebucht"
-              : `${spotsLeft} ${spotsLeft === 1 ? "Platz" : "Plätze"} verfügbar`}
-          </div>
-
-          {/* Participant bar */}
-          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${isFull ? "bg-red-500" : "bg-blue-500"}`}
-              style={{
-                width: `${safeMax > 0 ? Math.min(100, (safeCurrent / safeMax) * 100) : 0}%`,
-              }}
-            />
-          </div>
-
-          {course.description && (
-            <div
-              className="prose prose-sm max-w-none text-gray-600 pt-1"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
-            />
+        {/* Cover image */}
+        <div className="relative w-full h-64 bg-gray-200 shrink-0">
+          {course.coverImage ? (
+            <Image src={course.coverImage} alt={course.name} fill className="object-cover" />
+          ) : (
+            <div className="w-full h-full bg-linear-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+              <span className="text-gray-500 text-sm">Kein Bild vorhanden</span>
+            </div>
           )}
         </div>
 
-        <div className="pt-2">
-          {isCheckingStatus ? (
-            <Button disabled className="w-full">
-              Lade Status…
-            </Button>
-          ) : isBooked ? (
-            <Button disabled className="w-full">
-              ✓ Bereits angemeldet
-            </Button>
-          ) : (
-            <Button onClick={handleBooking} disabled={isSubmitting || isFull} className="w-full">
-              {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Jetzt anmelden"}
-            </Button>
+        {/* Body */}
+        <div className="px-6 pt-5 pb-6 flex flex-col gap-5">
+          {/* Title row */}
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-xl font-bold text-gray-900 leading-tight">{course.name}</h2>
+            <span className="text-sm text-gray-500 shrink-0 mt-0.5">{formattedDate}</span>
+          </div>
+
+          {/* Trainer(s) */}
+          {course.trainerProfiles && course.trainerProfiles.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {course.trainerProfiles.map((trainer) => {
+                const fullName =
+                  [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+                return (
+                  <div key={trainer.id} className="flex items-center gap-3">
+                    <TrainerAvatar trainer={trainer} size="lg" />
+                    <span className="text-sm font-medium text-gray-800">{fullName}</span>
+                  </div>
+                );
+              })}
+            </div>
           )}
+
+          {/* Level badge */}
+          <span
+            className={`self-start text-xs font-semibold px-2.5 py-1 rounded-lg ${level.bg} ${level.text}`}
+          >
+            {level.label}
+          </span>
+
+          {/* Info rows */}
+          <div className="flex flex-col gap-2.5 text-sm text-gray-700">
+            <div className="flex items-center gap-2.5">
+              <Clock size={15} className="text-gray-400 shrink-0" />
+              <span>
+                {course.timeFrom} – {course.timeTo} Uhr
+              </span>
+            </div>
+
+            {(course.roomName || business?.address) && (
+              <div className="flex items-center gap-2.5">
+                <MapPin size={15} className="text-gray-400 shrink-0" />
+                <span>{course.roomName ?? business?.address}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2.5">
+              <Users size={15} className="text-gray-400 shrink-0" />
+              <span>
+                Teilnehmer: {safeCurrent}/{safeMax}
+                {isFull && <span className="ml-2 text-red-600 font-medium">· Ausgebucht</span>}
+              </span>
+            </div>
+
+            {business?.email && (
+              <div className="flex items-center gap-2.5">
+                <Mail size={15} className="text-gray-400 shrink-0" />
+                <a href={`mailto:${business.email}`} className="hover:underline text-gray-700">
+                  {business.email}
+                </a>
+              </div>
+            )}
+
+            {business?.tel && (
+              <div className="flex items-center gap-2.5">
+                <Phone size={15} className="text-gray-400 shrink-0" />
+                <a href={`tel:${business.tel}`} className="hover:underline text-gray-700">
+                  {business.tel}
+                </a>
+              </div>
+            )}
+
+            {course.description && (
+              <div
+                className="prose prose-sm max-w-none text-gray-600"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
+              />
+            )}
+          </div>
+
+          {/* Footer: price + actions */}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Schließen
+              </Button>
+              {isCheckingStatus ? (
+                <Button disabled>Lade…</Button>
+              ) : isBooked ? (
+                <Button disabled>✓ Angemeldet</Button>
+              ) : (
+                <Button onClick={handleBooking} disabled={isSubmitting || isFull}>
+                  {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 };
 
-const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
+const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const cardSafeCurrent = Math.max(0, course.currentParticipants);
@@ -249,26 +338,11 @@ const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
             {course.trainerProfiles.map((trainer) => {
               const fullName =
                 [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
-              const initials =
-                [trainer.firstName?.[0], trainer.lastName?.[0]]
-                  .filter(Boolean)
-                  .join("")
-                  .toUpperCase() || "T";
               return (
                 <Tooltip key={trainer.id}>
                   <TooltipTrigger asChild>
-                    <div className="size-8 rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center shrink-0 cursor-default">
-                      {trainer.pbSrc ? (
-                        <Image
-                          src={trainer.pbSrc}
-                          alt={fullName}
-                          width={32}
-                          height={32}
-                          className="object-cover w-full h-full"
-                        />
-                      ) : (
-                        <span className="text-xs font-medium text-gray-600">{initials}</span>
-                      )}
+                    <div>
+                      <TrainerAvatar trainer={trainer} size="sm" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="top">{fullName}</TooltipContent>
@@ -289,7 +363,12 @@ const PublicCourseCard = ({ course }: PublicCourseCardProps) => {
         )}
       </div>
 
-      <BookingDialog course={course} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <BookingDialog
+        course={course}
+        business={business}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </>
   );
 };

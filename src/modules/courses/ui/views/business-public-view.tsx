@@ -170,10 +170,10 @@ const BusinessPublicView = ({
           )}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
           {/* Standing calendar */}
-          <div className="lg:sticky lg:top-6 shrink-0">
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+          <div className="lg:sticky lg:top-6 shrink-0 w-full lg:w-auto">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex justify-center">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -196,9 +196,13 @@ const BusinessPublicView = ({
                 Für diesen Tag sind keine Kurse verfügbar.
               </div>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
                 {displayedCourses.map((course) => (
-                  <PublicCourseCard key={course.id} course={course} />
+                  <PublicCourseCard
+                    key={course.id}
+                    course={course}
+                    business={{ address: business.address, email: business.email }}
+                  />
                 ))}
               </div>
             )}

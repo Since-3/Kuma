@@ -143,6 +143,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     });
   };
 
+  // Reset Form
   const handleReset = () => {
     setLocalStatus("all");
     setLocalSport("all");
