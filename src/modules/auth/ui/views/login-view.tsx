@@ -12,12 +12,19 @@ import { Spinner } from "@/src/components/ui/spinner";
 import { useAuth } from "@/src/hooks/useAuth";
 
 const LoginView = () => {
-  const { loginUser, errors, loading } = useAuth();
+  // ------------- States -------------
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
+
+  // ------------- Hooks -------------
+  const { loginUser, errors, loading } = useAuth();
   const router = useRouter();
 
+  /**
+   * Login of a Manager/User/Employee using loginUser Function from useAuth
+   * @param e - React Form Event (like klicking)
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const success = await loginUser(email, password, remember);
@@ -92,6 +99,7 @@ const LoginView = () => {
 
           <hr className="mt-6 border-blue" />
 
+          {/* Social Login Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <AuthButton Icon={FaGoogle} label="Login mit Google" />
             <AuthButton Icon={FaFacebook} label="Login mit Facebook" />

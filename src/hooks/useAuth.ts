@@ -68,13 +68,24 @@ export const useAuth = () => {
     }
   };
 
+  /**
+   * Authenticates the user and initializes the session in global state.
+   * @param email - User's email address
+   * @param password - Plain text password
+   * @param remember - Boolean to determine session persistence
+   * @returns {Promise<boolean>} - True if login and redirect were successful
+   */
   const loginUser = async (email: string, password: string, remember: boolean) => {
+    //TODO: Implement 'remember me' persistence logic
+
     setErrors({});
     setLoading(true);
 
     try {
+      // 1. Validate inputs
       userLoginSchema.parse({ email, password });
 
+      // 2. Attempt login via Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -86,16 +97,18 @@ export const useAuth = () => {
         return false;
       }
 
-      // Update Zustand store
+      // 3. Update global store
+      // The User-Store must manually update for Navbar etc.
       setUser(data.user);
 
       toast.success("Erfolgreich eingeloggt 🎉");
 
-      // Navigate to dashboard (no refresh needed - middleware handles it)
+      // 4. Navigation
       router.push("/dashboard");
 
       return true;
     } catch (err) {
+      // Zod Validation Error (for UI)
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {};
         err.issues.forEach((issue) => {
@@ -105,9 +118,11 @@ export const useAuth = () => {
         setErrors(fieldErrors);
         return false;
       }
+      // Catch-all for Network Errors or Supbase Auth Failure
       toast.error("Ein unerwarteter Fehler ist aufgetreten.");
       return false;
     } finally {
+      // Reset Loading to free the Login Button
       setLoading(false);
     }
   };
