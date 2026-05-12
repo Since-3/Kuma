@@ -41,7 +41,10 @@ export const publishedCourseSchema = z
     date: z.string().min(1, "Datum ist erforderlich"),
     timeFrom: z.string().min(1, "Anfangszeit ist erforderlich"),
     timeTo: z.string().min(1, "Endzeit ist erforderlich"),
-    trainers: z.array(z.string()).min(1, "Mindestens ein Trainer muss ausgewählt werden"),
+    trainers: z
+      .array(z.string())
+      .min(1, "Mindestens ein Trainer muss ausgewählt werden")
+      .optional(),
     room: z.string().min(1, "Raum ist erforderlich"),
     description: z.string().optional(),
     maxParticipants: z

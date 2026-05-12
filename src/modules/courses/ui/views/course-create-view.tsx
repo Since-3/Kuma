@@ -195,8 +195,6 @@ const CourseCreateView = ({
       newErrors.timeTo = "Endzeit muss nach der Anfangszeit liegen";
     }
 
-    if (trainers.length > 0 && selectedTrainers.length === 0)
-      newErrors.trainers = "Mindestens ein Trainer muss ausgewählt werden";
     if (!selectedRoom) newErrors.room = "Raum ist erforderlich";
 
     const maxPart = parseInt(maxParticipants);

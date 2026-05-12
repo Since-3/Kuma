@@ -123,6 +123,7 @@ const BusinessPublicView = ({
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
   });
 
   return (
@@ -148,31 +149,10 @@ const BusinessPublicView = ({
 
       {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-10">
-        {/* Datum + Sport-Tabs — über beiden Spalten */}
-        <div className="mb-4">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-1">{formattedSelectedDate}</h2>
-          {allSports.length > 1 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {allSports.map((sport) => (
-                <button
-                  key={sport}
-                  onClick={() => setActiveSport(sport)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    resolvedSport === sport
-                      ? "bg-gray-900 text-white"
-                      : "bg-white border border-gray-200 text-gray-600 hover:border-gray-400"
-                  }`}
-                >
-                  {sport === "Alle" ? "Alle" : capitalize(sport)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
-          {/* Standing calendar */}
+          {/* Left: sticky calendar */}
           <div className="lg:sticky lg:top-6 shrink-0 w-full lg:w-auto">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-3">{formattedSelectedDate}</h2>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex justify-center">
               <Calendar
                 mode="single"
@@ -185,8 +165,30 @@ const BusinessPublicView = ({
             </div>
           </div>
 
-          {/* Courses panel */}
+          {/* Right: filter + cards */}
           <div className="flex-1 min-w-0">
+            {/* Filter bündig mit Kalender-Oberkante (gleiche mb wie h2 links) */}
+            <div className="mb-4 mt-11">
+              {allSports.length > 1 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {allSports.map((sport) => (
+                    <button
+                      key={sport}
+                      onClick={() => setActiveSport(sport)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        resolvedSport === sport
+                          ? "bg-gray-900 text-white"
+                          : "bg-white border border-gray-200 text-gray-600 hover:border-gray-400"
+                      }`}
+                    >
+                      {sport === "Alle" ? "Alle" : capitalize(sport)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Courses */}
             {isPending ? (
               <div className="flex justify-center py-16">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
