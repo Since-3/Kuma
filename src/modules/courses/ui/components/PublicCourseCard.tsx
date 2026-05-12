@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Clock, MapPin, Users, Mail, Phone } from "lucide-react";
+import { Clock, MapPin, Users, Mail, Phone, DoorOpen, Info } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -204,25 +204,36 @@ const BookingDialog = ({
           </span>
 
           {/* Info rows */}
-          <div className="flex flex-col gap-2.5 text-sm text-gray-700">
+          <div className="flex flex-col gap-4 text-sm text-gray-700">
             <div className="flex items-center gap-2.5">
               <Clock size={15} className="text-gray-400 shrink-0" />
               <span>
-                {course.timeFrom} – {course.timeTo} Uhr
+                <b>Uhrzeit:</b> {course.timeFrom} – {course.timeTo}
               </span>
             </div>
 
-            {(course.roomName || business?.address) && (
+            {course.roomName && (
+              <div className="flex items-center gap-2.5">
+                <DoorOpen size={15} className="text-gray-400 shrink-0" />
+                <span>
+                  <b>Raum:</b> {course.roomName}
+                </span>
+              </div>
+            )}
+
+            {business?.address && (
               <div className="flex items-center gap-2.5">
                 <MapPin size={15} className="text-gray-400 shrink-0" />
-                <span>{course.roomName ?? business?.address}</span>
+                <span>
+                  <b>Ort:</b> {business?.address}
+                </span>
               </div>
             )}
 
             <div className="flex items-center gap-2.5">
               <Users size={15} className="text-gray-400 shrink-0" />
               <span>
-                Teilnehmer: {safeCurrent}/{safeMax}
+                <b>Teilnehmer:</b> {safeCurrent}/{safeMax}
                 {isFull && <span className="ml-2 text-red-600 font-medium">· Ausgebucht</span>}
               </span>
             </div>
@@ -231,7 +242,7 @@ const BookingDialog = ({
               <div className="flex items-center gap-2.5">
                 <Mail size={15} className="text-gray-400 shrink-0" />
                 <a href={`mailto:${business.email}`} className="hover:underline text-gray-700">
-                  {business.email}
+                  <b>Email:</b> {business.email}
                 </a>
               </div>
             )}
@@ -246,10 +257,16 @@ const BookingDialog = ({
             )}
 
             {course.description && (
-              <div
-                className="prose prose-sm max-w-none text-gray-600"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
-              />
+              <div className="flex items-start gap-2.5">
+                <Info size={15} className="text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                  <b>Was Sie beachten sollten:</b>
+                  <div
+                    className="prose prose-sm max-w-none text-gray-600 mt-1"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
@@ -288,7 +305,7 @@ const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
   const formattedDate = new Date(course.date).toLocaleDateString("de-DE", {
     weekday: "long",
     year: "numeric",
-    month: "long",
+    month: "numeric",
     day: "numeric",
   });
 
@@ -301,7 +318,10 @@ const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4">
+      <div
+        onClick={() => setDialogOpen(true)}
+        className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4"
+      >
         <div className="flex items-center justify-between">
           <p className="text-gray-500 text-sm">{formattedDate}</p>
           <p className="text-gray-500 text-sm">
