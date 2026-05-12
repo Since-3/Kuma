@@ -156,7 +156,7 @@ const BookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[90vw] p-0 overflow-hidden gap-0">
+      <DialogContent className="sm:max-w-3xl! w-[95vw] p-0 overflow-hidden gap-0">
         <VisuallyHidden>
           <DialogTitle>{course.name}</DialogTitle>
         </VisuallyHidden>

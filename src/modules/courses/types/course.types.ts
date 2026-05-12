@@ -17,6 +17,7 @@ export type Course = {
   status: string;
   createdBy: string;
   businessId: string | null;
+  coverImage: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

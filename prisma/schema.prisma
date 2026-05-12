@@ -125,9 +125,10 @@ model Course {
   weekdays String[] // For custom frequency
   status String @default("draft") // draft, published
   createdBy String // Manager ID who created the course
-  businessId String?
-  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
-  bookings CourseBooking[]
+  businessId  String?
+  coverImage  String?
+  business    Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  bookings    CourseBooking[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
