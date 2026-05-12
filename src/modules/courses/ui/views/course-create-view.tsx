@@ -13,7 +13,8 @@ import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
 import { getMyTrainers } from "@/src/modules/employee/actions/employee-actions";
 import { toast } from "sonner";
 import { Course } from "../../types/course.types";
-import { Trash2 } from "lucide-react";
+import { Trash2, ImagePlus, X } from "lucide-react";
+import Image from "next/image";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
 
@@ -82,6 +83,8 @@ const CourseCreateView = ({
   const [isLoadingTrainers, setIsLoadingTrainers] = useState(true);
   const [selectedBusinessId, setSelectedBusinessId] = useState("");
   const [businesses, setBusinesses] = useState<Array<{ value: string; label: string }>>([]);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const {
     deleteDialogOpen,
@@ -178,8 +181,27 @@ const CourseCreateView = ({
       setSelectedFrequency(initialData.frequency || "");
       setSelectedWeekdays(initialData.weekdays || []);
       setSelectedBusinessId(initialData.businessId ?? "");
+      setCoverImage(initialData.coverImage ?? null);
     }
   }, [mode, initialData, customSports]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/course-image", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setCoverImage(json.publicUrl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler beim Hochladen");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -252,9 +274,10 @@ const CourseCreateView = ({
         date: courseDate,
         timeFrom: timeFrom,
         timeTo: timeTo,
-        trainers: selectedTrainers,
+        trainers: selectedTrainers.length > 0 ? selectedTrainers : undefined,
         room: selectedRoom,
         description,
+        coverImage: coverImage ?? undefined,
         maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
         price: price ? parseFloat(price) : undefined,
         isStandingOrder,
@@ -473,6 +496,41 @@ const CourseCreateView = ({
           />
           {errors.maxParticipants && (
             <p className="text-red-500 text-sm mt-1">{errors.maxParticipants}</p>
+          )}
+        </div>
+
+        {/* Kursbild */}
+        <div>
+          <p className="text-lg font-bold mb-2 mt-2">Kursbild (optional)</p>
+          {coverImage ? (
+            <div className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200">
+              <Image src={coverImage} alt="Kursbild" fill className="object-cover" />
+              <button
+                type="button"
+                onClick={() => setCoverImage(null)}
+                className="absolute top-2 right-2 bg-white rounded-full p-1 shadow hover:bg-gray-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-gray-400 transition-colors">
+              {isUploadingImage ? (
+                <span className="text-sm text-gray-500">Wird hochgeladen…</span>
+              ) : (
+                <>
+                  <ImagePlus size={24} className="text-gray-400 mb-1" />
+                  <span className="text-sm text-gray-500">Bild auswählen (max. 5 MB)</span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={isUploadingImage}
+                onChange={handleImageUpload}
+              />
+            </label>
           )}
         </div>
 

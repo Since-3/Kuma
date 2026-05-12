@@ -12,6 +12,7 @@ export const courseSchema = z
     trainers: z.array(z.string()).optional(),
     room: z.string().optional().or(z.literal("")),
     description: z.string().optional(),
+    coverImage: z.string().optional(),
     maxParticipants: z.number().max(100).optional(),
     price: z.number().max(9999.99).optional(),
     isStandingOrder: z.boolean(),
@@ -47,6 +48,7 @@ export const publishedCourseSchema = z
       .optional(),
     room: z.string().min(1, "Raum ist erforderlich"),
     description: z.string().optional(),
+    coverImage: z.string().optional(),
     maxParticipants: z
       .number()
       .min(1, "Mindestens 1 Teilnehmer erforderlich")
