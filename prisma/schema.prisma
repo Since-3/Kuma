@@ -99,6 +99,8 @@ model Business {
   subscription Json?
   slug     String?  @unique
   isPublic Boolean  @default(false)
+  stripeAccountId     String?  @unique // Stripe Connect Account ID
+  stripeAccountStatus String?  // "pending" | "active" | "restricted"
   manager         Manager  @relation(fields: [managerId], references: [id])
   courses         Course[]
   createdAt       DateTime @default(now())
@@ -152,6 +154,11 @@ model CourseBooking {
   id String @id @default(uuid())
   courseId String
   userId String
+  paymentStatus         String   @default("pending") // "pending" | "paid" | "failed" | "refunded"
+  stripeSessionId       String?  @unique
+  stripePaymentIntentId String?  @unique
+  amountPaid            Float?   // tatsächlich gezahlter Betrag in EUR
+  platformFee           Float?   // unsere Service-Fee in EUR
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

@@ -1,6 +1,6 @@
 import { requireAuthWithData, isManager } from "@/src/lib/auth/getUser";
 import SettingsMenuItem from "../components/SettingsMenuItem";
-import { LucideIcon, PanelTop, Settings, User } from "lucide-react";
+import { CreditCard, LucideIcon, PanelTop, Settings, User } from "lucide-react";
 
 type SettingsMenuItem = {
   icon: LucideIcon;
@@ -21,6 +21,12 @@ const settingsMenuTitles: SettingsMenuItem[] = [
     name: "Öffentliche Seite",
     href: "/settings/public-page",
     description: "Verwalte deine öffentliche Kursseite",
+  },
+  {
+    icon: CreditCard,
+    name: "Zahlungen",
+    href: "/settings/payments",
+    description: "Verbinde dein Stripe-Konto um Zahlungen zu empfangen",
   },
 ];
 
