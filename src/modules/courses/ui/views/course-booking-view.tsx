@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/ui/button";
-import { bookCourse, checkUserBookingStatus } from "../../actions/booking-actions";
+import { checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
 
 interface CourseBookingViewProps {
@@ -18,11 +17,11 @@ interface CourseBookingViewProps {
     maxParticipants: number;
     currentParticipants: number;
     room: string;
+    price: number;
   };
 }
 
 const CourseBookingView = ({ course }: CourseBookingViewProps) => {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
@@ -37,6 +36,11 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
     month: "long",
     day: "numeric",
   });
+
+  const formattedPrice = new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(course.price);
 
   // Check if user already booked this course
   useEffect(() => {
@@ -54,19 +58,24 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
     setIsSubmitting(true);
 
     try {
-      const result = await bookCourse(course.id);
+      const response = await fetch("/api/stripe/checkout/course", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: course.id }),
+      });
 
-      if (result.success) {
-        toast.success(result.message);
-        setIsAlreadyBooked(true);
-        router.refresh();
-      } else {
-        toast.error(result.error || "Ein Fehler ist aufgetreten");
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        toast.error(data.error || "Fehler bei der Buchung");
+        setIsSubmitting(false);
+        return;
       }
+
+      window.location.assign(data.url);
     } catch (error) {
       toast.error("Ein unerwarteter Fehler ist aufgetreten");
       console.error(error);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -109,6 +118,11 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
           </div>
 
           <div>
+            <h2 className="font-semibold text-gray-700">Preis</h2>
+            <p className="text-2xl font-bold text-gray-900">{formattedPrice}</p>
+          </div>
+
+          <div>
             <h2 className="font-semibold text-gray-700 mb-2">Was Sie mitbringen sollten</h2>
             <div
               className="prose prose-sm max-w-none"
@@ -128,7 +142,11 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
             </Button>
           ) : (
             <Button onClick={handleBooking} disabled={isSubmitting || isFull} className="flex-1">
-              {isSubmitting ? "Wird gebucht..." : isFull ? "Ausgebucht" : "Jetzt anmelden"}
+              {isSubmitting
+                ? "Wird weitergeleitet..."
+                : isFull
+                  ? "Ausgebucht"
+                  : `Jetzt buchen - ${formattedPrice}`}
             </Button>
           )}
         </div>

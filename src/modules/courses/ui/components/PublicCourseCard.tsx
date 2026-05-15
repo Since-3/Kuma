@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/ui/tooltip";
 import DOMPurify from "dompurify";
-import { bookCourse, checkUserBookingStatus } from "../../actions/booking-actions";
+import { checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
 
 const levelConfig: Record<string, { label: string; bg: string; text: string }> = {
@@ -138,18 +138,29 @@ const BookingDialog = ({
   const handleBooking = async () => {
     setIsSubmitting(true);
     try {
-      const result = await bookCourse(course.id);
-      if (result.success) {
-        toast.success(result.message);
-        setIsBooked(true);
-      } else if (result.error?.includes("angemeldet sein")) {
+      const response = await fetch("/api/stripe/checkout/course", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: course.id }),
+      });
+
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (response.status === 401) {
         window.open("/login", "_blank");
-      } else {
-        toast.error(result.error || "Ein Fehler ist aufgetreten");
+        setIsSubmitting(false);
+        return;
       }
+
+      if (!response.ok || !data.url) {
+        toast.error(data.error || "Ein Fehler ist aufgetreten");
+        setIsSubmitting(false);
+        return;
+      }
+
+      window.location.assign(data.url);
     } catch {
       toast.error("Ein unerwarteter Fehler ist aufgetreten");
-    } finally {
       setIsSubmitting(false);
     }
   };

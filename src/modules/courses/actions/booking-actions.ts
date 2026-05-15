@@ -9,108 +9,6 @@
 
 import { prisma } from "@/src/lib/prisma";
 import { getUserData } from "@/src/lib/auth/getUser";
-import { revalidatePath } from "next/cache";
-
-/**
- * Bucht einen User in einen Kurs ein
- *
- * Diese Funktion überprüft:
- * - Ob der Kurs existiert und veröffentlicht ist
- * - Ob noch Plätze verfügbar sind
- * - Ob der User bereits gebucht hat
- * - Ob der User angemeldet ist
- *
- * @param courseId - Die eindeutige ID des Kurses
- * @returns Ein Objekt mit success-Flag und Nachricht oder Fehler
- */
-export async function bookCourse(courseId: string) {
-  try {
-    // Schritt 1: Aktuellen Benutzer abrufen
-    const userData = await getUserData();
-
-    // Schritt 2: Überprüfen, ob Benutzer angemeldet ist
-    if (!userData) {
-      return {
-        success: false,
-        error: "Sie müssen angemeldet sein, um einen Kurs zu buchen",
-      };
-    }
-
-    // Schritt 3: Kurs mit Buchungszähler abrufen
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      include: {
-        _count: {
-          select: { bookings: true },
-        },
-      },
-    });
-
-    // Schritt 4: Überprüfen, ob Kurs existiert
-    if (!course) {
-      return {
-        success: false,
-        error: "Kurs nicht gefunden",
-      };
-    }
-
-    // Schritt 5: Überprüfen, ob Kurs veröffentlicht ist
-    if (course.status !== "published") {
-      return {
-        success: false,
-        error: "Dieser Kurs ist nicht verfügbar",
-      };
-    }
-
-    // Schritt 6: Überprüfen, ob noch Plätze verfügbar sind
-    if (course._count.bookings >= course.maxParticipants) {
-      return {
-        success: false,
-        error: "Dieser Kurs ist bereits ausgebucht",
-      };
-    }
-
-    // Schritt 7: Überprüfen, ob User bereits gebucht hat
-    const existingBooking = await prisma.courseBooking.findUnique({
-      where: {
-        courseId_userId: {
-          courseId,
-          userId: userData.id,
-        },
-      },
-    });
-
-    if (existingBooking) {
-      return {
-        success: false,
-        error: "Sie haben sich bereits für diesen Kurs angemeldet",
-      };
-    }
-
-    // Schritt 8: Buchung erstellen
-    await prisma.courseBooking.create({
-      data: {
-        courseId,
-        userId: userData.id,
-      },
-    });
-
-    // Schritt 9: Cache invalidieren
-    revalidatePath("/courses");
-    revalidatePath(`/courses/book/${courseId}`);
-
-    return {
-      success: true,
-      message: "Sie wurden erfolgreich für den Kurs angemeldet",
-    };
-  } catch (error) {
-    console.error("Error booking course:", error);
-    return {
-      success: false,
-      error: "Ein Fehler ist bei der Buchung aufgetreten",
-    };
-  }
-}
 
 /**
  * Ruft einen Kurs mit Buchungsinformationen ab (öffentlich)
@@ -190,7 +88,7 @@ export async function checkUserBookingStatus(courseId: string) {
 
     return {
       success: true,
-      isBooked: !!booking,
+      isBooked: booking?.paymentStatus === "paid",
     };
   } catch (error) {
     console.error("Error checking booking status:", error);

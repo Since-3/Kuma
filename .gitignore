@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+STRIPE_INTEGRATION.md
 
 # production
 /build
