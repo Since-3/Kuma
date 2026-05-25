@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import PublicCourseCard from "../components/PublicCourseCard";
 import { getPublishedCoursesForBusiness } from "../../actions/booking-actions";
 import { Calendar } from "@/src/components/ui/calendar";
@@ -57,6 +58,21 @@ const BusinessPublicView = ({
   const [selectedDate, setSelectedDate] = useState<Date>(TODAY);
   const [activeSport, setActiveSport] = useState<string>("Alle");
   const [isPending, startTransition] = useTransition();
+
+  // Deep-Link: ?course=<id> öffnet das Detail-Popup des Kurses und springt
+  // auf dessen Datum, damit die Karte sichtbar ist (z.B. geteilter Buchungslink).
+  const searchParams = useSearchParams();
+  const deepLinkCourseId = searchParams.get("course");
+
+  useEffect(() => {
+    if (!deepLinkCourseId) return;
+    const target = loadedCourses.find((c) => c.id === deepLinkCourseId);
+    if (!target) return;
+    const day = new Date(target.date);
+    day.setHours(0, 0, 0, 0);
+    setSelectedDate(day);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkCourseId]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
@@ -204,6 +220,7 @@ const BusinessPublicView = ({
                     key={course.id}
                     course={course}
                     business={{ address: business.address, email: business.email }}
+                    defaultOpen={course.id === deepLinkCourseId}
                   />
                 ))}
               </div>

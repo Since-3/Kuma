@@ -59,8 +59,11 @@ export async function checkUserBookingStatus(courseId: string) {
  */
 export async function getCourseSummaryForConfirmation(courseId: string) {
   try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
+    const course = await prisma.course.findFirst({
+      where: {
+        id: courseId,
+        business: { isPublic: true },
+      },
       select: {
         id: true,
         name: true,

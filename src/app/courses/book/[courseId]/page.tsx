@@ -20,5 +20,5 @@ export default async function CourseBookingPage({ params }: CourseBookingPagePro
     notFound();
   }
 
-  redirect(`/business/${result.course.business.slug}`);
+  redirect(`/business/${result.course.business.slug}?course=${courseId}`);
 }
