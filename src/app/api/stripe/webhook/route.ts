@@ -203,7 +203,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   revalidatePath("/courses");
-  revalidatePath(`/courses/book/${courseId}`);
   revalidatePath("/courses/myCourses");
 }
 

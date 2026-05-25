@@ -52,6 +52,7 @@ interface PublicCourse {
 interface PublicCourseCardProps {
   course: PublicCourse;
   business?: BusinessInfo;
+  defaultOpen?: boolean; // öffnet das Detail-Popup beim Mount (für Deep-Links)
 }
 
 const TrainerAvatar = ({ trainer, size }: { trainer: TrainerProfile; size: "sm" | "lg" }) => {
@@ -310,8 +311,8 @@ const BookingDialog = ({
   );
 };
 
-const PublicCourseCard = ({ course, business }: PublicCourseCardProps) => {
-  const [dialogOpen, setDialogOpen] = useState(false);
+const PublicCourseCard = ({ course, business, defaultOpen = false }: PublicCourseCardProps) => {
+  const [dialogOpen, setDialogOpen] = useState(defaultOpen);
 
   const cardSafeCurrent = Math.max(0, course.currentParticipants);
   const cardSafeMax = Math.max(0, course.maxParticipants);
