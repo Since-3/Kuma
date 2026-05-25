@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { stripe, STRIPE_WEBHOOK_SECRET } from "@/src/lib/stripe";
+import { stripe, getWebhookSecret } from "@/src/lib/stripe";
 import { prisma } from "@/src/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(rawBody, signature, getWebhookSecret());
   } catch (err) {
     console.error("Webhook-Signatur ungültig:", err);
     return NextResponse.json({ error: "Ungültige Signatur" }, { status: 400 });
@@ -108,9 +108,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       where: { courseId_userId: { courseId, userId } },
     });
 
-    // Idempotenz: dieser Stripe-Event wurde schon verarbeitet.
-    if (existing?.paymentStatus === "paid") {
-      return "already_paid" as const;
+    // Idempotenz: Wenn diese Buchung bereits einen Endzustand für DIESE Session
+    // erreicht hat, ist der Event schon verarbeitet. Erneutes Durchlaufen würde
+    // sonst einen zweiten Refund auslösen oder "refunded" → "failed" überschreiben.
+    if (existing && existing.stripeSessionId === session.id) {
+      if (existing.paymentStatus === "paid") return "already_paid" as const;
+      if (existing.paymentStatus === "refunded") return "already_refunded" as const;
+      if (existing.paymentStatus === "failed") return "already_failed" as const;
     }
 
     const course = await tx.course.findUnique({
@@ -172,16 +176,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return "booked" as const;
   });
 
-  if (outcome === "capacity_exceeded" && paymentIntentId) {
+  // "already_failed" = Buchung wurde bei früherem Versuch wegen voller Kapazität
+  // auf "failed" gesetzt, aber der Refund ist noch ausstehend (z.B. damals
+  // fehlgeschlagen). Bei Stripe-Retry erneut versuchen.
+  const needsRefund = outcome === "capacity_exceeded" || outcome === "already_failed";
+
+  if (needsRefund && paymentIntentId) {
     console.warn(
       `Kurs ${courseId} war voll als Zahlung für User ${userId} ankam. ` +
         `Automatische Rückerstattung wird ausgelöst (PaymentIntent ${paymentIntentId}).`
     );
-    await refundPayment(paymentIntentId);
-    await prisma.courseBooking.update({
-      where: { courseId_userId: { courseId, userId } },
-      data: { paymentStatus: "refunded" },
-    });
+    const refunded = await refundPayment(paymentIntentId);
+    if (refunded) {
+      await prisma.courseBooking.update({
+        where: { courseId_userId: { courseId, userId } },
+        data: { paymentStatus: "refunded" },
+      });
+    } else {
+      // Refund fehlgeschlagen: Buchung bleibt "failed" für manuelle Bearbeitung.
+      // Stripe wiederholt den Webhook, sodass ein erneuter Refund-Versuch erfolgt.
+      console.error(
+        `Refund fehlgeschlagen für Kurs ${courseId}, User ${userId}. ` +
+          `Buchung bleibt "failed" – manuelle Erstattung im Stripe Dashboard nötig.`
+      );
+    }
   }
 
   revalidatePath("/courses");
@@ -194,15 +212,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * damit das Geld komplett zurückfließt – auch der bereits transferierte Anteil
  * beim Connected Account).
  */
-async function refundPayment(paymentIntentId: string) {
+async function refundPayment(paymentIntentId: string): Promise<boolean> {
   try {
     await stripe.refunds.create({
       payment_intent: paymentIntentId,
       reverse_transfer: true,
       refund_application_fee: true,
     });
+    return true;
   } catch (err) {
     console.error(`Refund für PaymentIntent ${paymentIntentId} fehlgeschlagen:`, err);
+    return false;
   }
 }
 

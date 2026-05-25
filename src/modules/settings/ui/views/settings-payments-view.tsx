@@ -62,7 +62,7 @@ const SettingsPaymentsView = () => {
     try {
       const result = await createStripeExpressDashboardLink(businessId);
       if (result.success && result.url) {
-        window.open(result.url, "_blank");
+        window.open(result.url, "_blank", "noopener,noreferrer");
       } else {
         toast.error(result.error || "Fehler beim Öffnen des Dashboards");
       }
