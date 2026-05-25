@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { stripe, calculatePlatformFeeCents, eurosToCents } from "@/src/lib/stripe";
-import { getUserData } from "@/src/lib/auth/getUser";
+import { getUserData, isUser } from "@/src/lib/auth/getUser";
 
 /**
  * Erstellt eine Stripe Checkout Session für eine Kurs-Buchung.
@@ -19,6 +19,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Nur normale User (role: "user") können Kurse buchen.
+    // Manager/Employee haben keine Einträge in der User-Tabelle, daher würde
+    // sonst der Foreign-Key-Constraint CourseBooking_userId_fkey im Webhook
+    // verletzt werden – und das erst NACHDEM das Geld geflossen ist.
+    if (!isUser(userData)) {
+      return NextResponse.json(
+        {
+          error: "Nur Kunden-Accounts können Kurse buchen. Bitte mit einem Nutzer-Konto anmelden.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = (await request.json()) as { courseId?: string };
     const { courseId } = body;
 
@@ -29,7 +42,8 @@ export async function POST(request: NextRequest) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
       include: {
-        _count: { select: { bookings: true } },
+        // Nur bezahlte Buchungen belegen einen Platz (failed/refunded zählen nicht).
+        _count: { select: { bookings: { where: { paymentStatus: "paid" } } } },
         business: {
           select: {
             id: true,
@@ -49,6 +63,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Dieser Kurs ist nicht verfügbar" }, { status: 400 });
     }
 
+    // Grober Vor-Filter: spart unnötige Stripe-Sessions wenn offensichtlich voll.
+    // Die verbindliche Kapazitätsprüfung passiert atomar im Webhook (siehe #101).
     if (course._count.bookings >= course.maxParticipants) {
       return NextResponse.json({ error: "Dieser Kurs ist bereits ausgebucht" }, { status: 400 });
     }

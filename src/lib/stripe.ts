@@ -20,10 +20,21 @@ export const stripe = new Proxy({} as Stripe, {
   },
 });
 
-export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error("STRIPE_WEBHOOK_SECRET ist nicht gesetzt");
+}
+export const STRIPE_WEBHOOK_SECRET: string = process.env.STRIPE_WEBHOOK_SECRET;
 
 // Plattform-Fee in Prozent (z.B. 10 = 10%)
-export const PLATFORM_FEE_PERCENT = Number(process.env.STRIPE_PLATFORM_FEE_PERCENT ?? "5");
+const rawPlatformFeePercent = Number(process.env.STRIPE_PLATFORM_FEE_PERCENT ?? "5");
+if (
+  !Number.isFinite(rawPlatformFeePercent) ||
+  rawPlatformFeePercent < 0 ||
+  rawPlatformFeePercent > 100
+) {
+  throw new Error("STRIPE_PLATFORM_FEE_PERCENT muss zwischen 0 und 100 liegen");
+}
+export const PLATFORM_FEE_PERCENT = rawPlatformFeePercent;
 
 /**
  * Berechnet die Plattform-Fee in Cents.

@@ -25,7 +25,7 @@ export async function getCourseForBooking(courseId: string) {
       where: { id: courseId },
       include: {
         _count: {
-          select: { bookings: true },
+          select: { bookings: { where: { paymentStatus: "paid" } } },
         },
       },
     });
@@ -138,7 +138,7 @@ export async function getPublishedCoursesForBusiness(
         date: { gte: options.from, lte: options.to },
       },
       include: {
-        _count: { select: { bookings: true } },
+        _count: { select: { bookings: { where: { paymentStatus: "paid" } } } },
       },
       orderBy: { date: "asc" },
     });

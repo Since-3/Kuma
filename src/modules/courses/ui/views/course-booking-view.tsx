@@ -64,7 +64,17 @@ const CourseBookingView = ({ course }: CourseBookingViewProps) => {
         body: JSON.stringify({ courseId: course.id }),
       });
 
-      const data = (await response.json()) as { url?: string; error?: string };
+      if (response.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
+
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = (await response.json()) as { url?: string; error?: string };
+      } catch {
+        // fallback error message below
+      }
 
       if (!response.ok || !data.url) {
         toast.error(data.error || "Fehler bei der Buchung");
