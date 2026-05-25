@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/settings/payments?error=missing-business", request.url));
   }
 
-  await syncConnectAccountStatus(businessId);
+  const result = await syncConnectAccountStatus(businessId);
+  if (!result.success) {
+    return NextResponse.redirect(new URL("/settings/payments?error=sync-failed", request.url));
+  }
 
   return NextResponse.redirect(new URL("/settings/payments?onboarding=success", request.url));
 }

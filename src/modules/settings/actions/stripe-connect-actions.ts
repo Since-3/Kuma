@@ -99,12 +99,21 @@ export async function createConnectOnboardingLink(businessId: string) {
  */
 export async function syncConnectAccountStatus(businessId: string) {
   try {
+    const userData = await requireAuthWithData();
+    if (!isManager(userData)) {
+      return { success: false, error: "Nur für Manager verfügbar" };
+    }
+
     const business = await prisma.business.findUnique({
       where: { id: businessId },
     });
 
     if (!business?.stripeAccountId) {
       return { success: false, error: "Business hat kein Stripe-Konto" };
+    }
+
+    if (business.managerId !== userData.id) {
+      return { success: false, error: "Keine Berechtigung für dieses Business" };
     }
 
     const account = await stripe.accounts.retrieve(business.stripeAccountId);

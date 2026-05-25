@@ -144,12 +144,17 @@ const BookingDialog = ({
         body: JSON.stringify({ courseId: course.id }),
       });
 
-      const data = (await response.json()) as { url?: string; error?: string };
-
       if (response.status === 401) {
         window.open("/login", "_blank");
         setIsSubmitting(false);
         return;
+      }
+
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = (await response.json()) as { url?: string; error?: string };
+      } catch {
+        // keep fallback error below
       }
 
       if (!response.ok || !data.url) {

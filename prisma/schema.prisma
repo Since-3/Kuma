@@ -157,8 +157,8 @@ model CourseBooking {
   paymentStatus         String   @default("pending") // "pending" | "paid" | "failed" | "refunded"
   stripeSessionId       String?  @unique
   stripePaymentIntentId String?  @unique
-  amountPaid            Float?   // tatsächlich gezahlter Betrag in EUR
-  platformFee           Float?   // unsere Service-Fee in EUR
+  amountPaid            Int?     // tatsächlich gezahlter Betrag in Cents
+  platformFee           Int?     // unsere Service-Fee in Cents
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

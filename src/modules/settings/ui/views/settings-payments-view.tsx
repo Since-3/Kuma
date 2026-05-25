@@ -25,37 +25,52 @@ const SettingsPaymentsView = () => {
   useEffect(() => {
     const loadBusinesses = async () => {
       setIsLoading(true);
-      const result = await getBusinessesWithStripeStatus();
-      if (result.success) {
-        setBusinesses(result.businesses);
-      } else {
-        toast.error(result.error || "Fehler beim Laden");
+      try {
+        const result = await getBusinessesWithStripeStatus();
+        if (result.success) {
+          setBusinesses(result.businesses);
+        } else {
+          toast.error(result.error || "Fehler beim Laden");
+        }
+      } catch {
+        toast.error("Fehler beim Laden");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     void loadBusinesses();
   }, []);
 
   const handleConnect = async (businessId: string) => {
     setPendingId(businessId);
-    const result = await createConnectOnboardingLink(businessId);
-    if (result.success && result.url) {
-      window.location.assign(result.url);
-    } else {
+    try {
+      const result = await createConnectOnboardingLink(businessId);
+      if (result.success && result.url) {
+        window.location.assign(result.url);
+        return;
+      }
       toast.error(result.error || "Fehler beim Verbinden");
+    } catch {
+      toast.error("Fehler beim Verbinden");
+    } finally {
       setPendingId(null);
     }
   };
 
   const handleOpenDashboard = async (businessId: string) => {
     setPendingId(businessId);
-    const result = await createStripeExpressDashboardLink(businessId);
-    if (result.success && result.url) {
-      window.open(result.url, "_blank");
-    } else {
-      toast.error(result.error || "Fehler beim Öffnen des Dashboards");
+    try {
+      const result = await createStripeExpressDashboardLink(businessId);
+      if (result.success && result.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error(result.error || "Fehler beim Öffnen des Dashboards");
+      }
+    } catch {
+      toast.error("Fehler beim Öffnen des Dashboards");
+    } finally {
+      setPendingId(null);
     }
-    setPendingId(null);
   };
 
   const renderStatusBadge = (status: string | null) => {
