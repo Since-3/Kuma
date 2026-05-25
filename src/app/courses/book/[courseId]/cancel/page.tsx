@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
+import { getCourseSummaryForConfirmation } from "@/src/modules/courses/actions/booking-actions";
 import { XCircle } from "lucide-react";
 
 interface CancelPageProps {
@@ -8,6 +9,8 @@ interface CancelPageProps {
 
 export default async function CourseBookingCancelPage({ params }: CancelPageProps) {
   const { courseId } = await params;
+  const result = await getCourseSummaryForConfirmation(courseId);
+  const businessSlug = result.success ? (result.course.business?.slug ?? null) : null;
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -24,9 +27,11 @@ export default async function CourseBookingCancelPage({ params }: CancelPageProp
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href={`/courses/book/${courseId}`}>
-            <Button className="w-full sm:w-auto">Erneut versuchen</Button>
-          </Link>
+          {businessSlug && (
+            <Link href={`/business/${businessSlug}`}>
+              <Button className="w-full sm:w-auto">Erneut versuchen</Button>
+            </Link>
+          )}
           <Link href="/">
             <Button variant="outline" className="w-full sm:w-auto">
               Zur Startseite

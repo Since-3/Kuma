@@ -1,6 +1,5 @@
-import { getCourseForBooking } from "@/src/modules/courses/actions/booking-actions";
-import CourseBookingView from "@/src/modules/courses/ui/views/course-booking-view";
-import { notFound } from "next/navigation";
+import { getCourseSummaryForConfirmation } from "@/src/modules/courses/actions/booking-actions";
+import { notFound, redirect } from "next/navigation";
 
 interface CourseBookingPageProps {
   params: Promise<{
@@ -8,13 +7,18 @@ interface CourseBookingPageProps {
   }>;
 }
 
+/**
+ * Die alte direkte Buchungs-View ist abgelöst – gebucht wird nur noch über die
+ * öffentliche Business-Seite. Alte (geteilte) Links werden hierher geleitet und
+ * auf die öffentliche Seite des zugehörigen Business weitergeleitet.
+ */
 export default async function CourseBookingPage({ params }: CourseBookingPageProps) {
   const { courseId } = await params;
-  const result = await getCourseForBooking(courseId);
+  const result = await getCourseSummaryForConfirmation(courseId);
 
-  if (!result.success || !result.course) {
+  if (!result.success || !result.course.business?.slug) {
     notFound();
   }
 
-  return <CourseBookingView course={result.course} />;
+  redirect(`/business/${result.course.business.slug}`);
 }

@@ -11,56 +11,6 @@ import { prisma } from "@/src/lib/prisma";
 import { getUserData } from "@/src/lib/auth/getUser";
 
 /**
- * Ruft einen Kurs mit Buchungsinformationen ab (öffentlich)
- *
- * Diese Funktion gibt Kursinformationen inkl. aktueller Teilnehmerzahl zurück.
- * Sie ist öffentlich zugänglich für die Buchungsseite.
- *
- * @param courseId - Die eindeutige ID des Kurses
- * @returns Ein Objekt mit success-Flag und Kursdaten
- */
-export async function getCourseForBooking(courseId: string) {
-  try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      include: {
-        _count: {
-          select: { bookings: { where: { paymentStatus: "paid" } } },
-        },
-      },
-    });
-
-    if (!course) {
-      return {
-        success: false,
-        error: "Kurs nicht gefunden",
-      };
-    }
-
-    if (course.status !== "published") {
-      return {
-        success: false,
-        error: "Dieser Kurs ist nicht verfügbar",
-      };
-    }
-
-    return {
-      success: true,
-      course: {
-        ...course,
-        currentParticipants: course._count.bookings,
-      },
-    };
-  } catch (error) {
-    console.error("Error fetching course for booking:", error);
-    return {
-      success: false,
-      error: "Fehler beim Laden des Kurses",
-    };
-  }
-}
-
-/**
  * Überprüft, ob ein User bereits für einen Kurs gebucht hat
  *
  * @param courseId - Die eindeutige ID des Kurses
@@ -97,6 +47,47 @@ export async function checkUserBookingStatus(courseId: string) {
       error: "Fehler beim Prüfen des Buchungsstatus",
       isBooked: false,
     };
+  }
+}
+
+/**
+ * Lädt eine kompakte Kurs-Zusammenfassung inkl. Business-Slug.
+ * Wird für die Success-Page (Kursdetails anzeigen) und für den Redirect
+ * der alten Buchungs-View auf die öffentliche Business-Seite genutzt.
+ *
+ * @param courseId - Die eindeutige ID des Kurses
+ */
+export async function getCourseSummaryForConfirmation(courseId: string) {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: {
+        id: true,
+        name: true,
+        sport: true,
+        date: true,
+        timeFrom: true,
+        timeTo: true,
+        price: true,
+        room: true,
+        business: {
+          select: {
+            name: true,
+            slug: true,
+            address: true,
+          },
+        },
+      },
+    });
+
+    if (!course) {
+      return { success: false as const, error: "Kurs nicht gefunden" };
+    }
+
+    return { success: true as const, course };
+  } catch (error) {
+    console.error("Error fetching course summary:", error);
+    return { success: false as const, error: "Fehler beim Laden des Kurses" };
   }
 }
 
