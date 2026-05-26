@@ -129,10 +129,10 @@ const DashboardSidebar = ({ userData, displayName }: DashboardSidebarProps) => {
   });
 
   return (
-    <Sidebar>
+    <Sidebar className="border-r-0 bg-white/55 backdrop-blur-xl supports-backdrop-filter:bg-white/45 shadow-[1px_0_0_0_oklch(0.85_0_0/30%)]">
       <SidebarHeader className="text-sidebar-accent-foreground">
         <Link href="/" className="flex justify-center items-center gap-2 px-2 pt-2">
-          <Image src={Logo} height={65} alt="Cloud_Clipboard" />
+          <Image src={Logo} height={45} alt="Kumasy Logo" />
         </Link>
       </SidebarHeader>
 
