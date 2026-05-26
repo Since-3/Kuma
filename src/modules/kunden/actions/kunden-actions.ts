@@ -20,10 +20,10 @@ function mapPaymentStatus(paymentStatus: string): KundeRow["status"] {
 export async function getKunden(): Promise<
   { success: true; kunden: KundeRow[] } | { success: false; error: string }
 > {
-  try {
-    const manager = await requireManager();
-    const businessIds = manager.businesses.map((b) => b.id);
+  const manager = await requireManager();
+  const businessIds = manager.businesses.map((b) => b.id);
 
+  try {
     if (businessIds.length === 0) {
       return { success: true, kunden: [] };
     }

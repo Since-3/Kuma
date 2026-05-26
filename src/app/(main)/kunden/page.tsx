@@ -5,9 +5,11 @@ import KundenView from "@/src/modules/kunden/ui/views/kunden-view";
 const KundenPage = async () => {
   await requireManager();
   const result = await getKunden();
-  const kunden = result.success ? result.kunden : [];
+  if (!result.success) {
+    throw new Error(result.error);
+  }
 
-  return <KundenView initialKunden={kunden} />;
+  return <KundenView initialKunden={result.kunden} />;
 };
 
 export default KundenPage;
