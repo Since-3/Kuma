@@ -4,86 +4,18 @@ import { useState } from "react";
 import { Input } from "@/src/components/ui/input";
 import { Search } from "lucide-react";
 import KundenTable from "../components/kunden-table";
+import type { KundeRow } from "../../actions/kunden-actions";
 
-const DUMMY_KUNDEN = [
-  {
-    id: "1",
-    name: "Stern Thireau",
-    email: "sthireau0@prilog.org",
-    telefon: "+49 160 14256244",
-    status: "Teilgenommen" as const,
-  },
-  {
-    id: "2",
-    name: "Ford Mckibbin",
-    email: "fmckibbin1@slate.com",
-    telefon: "+49 160 84256328",
-    status: "Storniert" as const,
-  },
-  {
-    id: "3",
-    name: "Foss Roglieri",
-    email: "froglieri2@xing.com",
-    telefon: "+49 160 78745913",
-    status: "Teilgenommen" as const,
-  },
-  {
-    id: "4",
-    name: "Maurits Elgey",
-    email: "melgey3@blogger.com",
-    telefon: "+49 160 55834625",
-    status: "Teilgenommen" as const,
-  },
-  {
-    id: "5",
-    name: "Gun Kaasmann",
-    email: "gkaasmann4@economist.com",
-    telefon: "+49 160 32679584",
-    status: "Teilgenommen" as const,
-  },
-  {
-    id: "6",
-    name: "Edmund McCrae",
-    email: "emccrae5@woothemes.com",
-    telefon: "+49 160 69321457",
-    status: "Bezahlt" as const,
-  },
-  {
-    id: "7",
-    name: "Samuel Totman",
-    email: "stotman6@wisc.edu",
-    telefon: "+49 160 96851428",
-    status: "Teilgenommen" as const,
-  },
-  {
-    id: "8",
-    name: "Patsy Cuardall",
-    email: "pcuardall70@barnesandnoble.com",
-    telefon: "+49 160 38591426",
-    status: "Bezahlt" as const,
-  },
-  {
-    id: "9",
-    name: "Barnaby Carl",
-    email: "bcarl8@alexa.com",
-    telefon: "+49 160 77958426",
-    status: "Storniert" as const,
-  },
-  {
-    id: "10",
-    name: "Lena Bergmann",
-    email: "lbergmann9@spiegel.de",
-    telefon: "+49 160 12345678",
-    status: "Bezahlt" as const,
-  },
-];
+export type Kunde = KundeRow;
 
-export type Kunde = (typeof DUMMY_KUNDEN)[number];
+interface KundenViewProps {
+  initialKunden: KundeRow[];
+}
 
-const KundenView = () => {
+const KundenView = ({ initialKunden }: KundenViewProps) => {
   const [search, setSearch] = useState("");
 
-  const filtered = DUMMY_KUNDEN.filter(
+  const filtered = initialKunden.filter(
     (k) =>
       k.name.toLowerCase().includes(search.toLowerCase()) ||
       k.email.toLowerCase().includes(search.toLowerCase()) ||

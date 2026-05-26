@@ -256,7 +256,7 @@ export async function requireGuest() {
  * Redirects to /dashboard if user is not a manager.
  * Redirects to /login if not authenticated.
  */
-export async function requireManager() {
+export async function requireManager(): Promise<ManagerData> {
   const userData = await requireAuthWithData();
 
   if (!isManager(userData)) {
@@ -264,7 +264,7 @@ export async function requireManager() {
     redirect("/dashboard");
   }
 
-  return userData;
+  return userData as ManagerData;
 }
 
 // Helper function to check if user is a manager
