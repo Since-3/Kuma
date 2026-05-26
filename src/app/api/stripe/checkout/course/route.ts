@@ -104,7 +104,11 @@ export async function POST(request: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
+      // payment_method_types weggelassen → Checkout Sessions nutzen automatisch
+      // alle im Stripe Dashboard aktivierten und für diese Session kompatiblen
+      // Methoden (Dynamic Payment Methods).
+      // Karte/Apple Pay/Google Pay/Link sind sofort verfügbar. PayPal
+      // unterstützt kein Stripe Connect und muss über die PayPal Dev API eingerichtet werden
       line_items: [
         {
           price_data: {

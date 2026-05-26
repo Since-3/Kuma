@@ -3,6 +3,9 @@ import Stripe from "stripe";
 import { stripe, getWebhookSecret } from "@/src/lib/stripe";
 import { prisma } from "@/src/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { sendMail } from "@/src/lib/mail/nodemailer";
+import { generateBookingConfirmationEmail } from "@/src/lib/mail/templates/booking-confirmation";
+import { generateBookingRefundEmail } from "@/src/lib/mail/templates/booking-refund";
 
 /**
  * Stripe Webhook Handler.
@@ -181,13 +184,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // fehlgeschlagen). Bei Stripe-Retry erneut versuchen.
   const needsRefund = outcome === "capacity_exceeded" || outcome === "already_failed";
 
+  let refundSucceeded = false;
   if (needsRefund && paymentIntentId) {
     console.warn(
       `Kurs ${courseId} war voll als Zahlung für User ${userId} ankam. ` +
         `Automatische Rückerstattung wird ausgelöst (PaymentIntent ${paymentIntentId}).`
     );
-    const refunded = await refundPayment(paymentIntentId);
-    if (refunded) {
+    refundSucceeded = await refundPayment(paymentIntentId);
+    if (refundSucceeded) {
       await prisma.courseBooking.update({
         where: { courseId_userId: { courseId, userId } },
         data: { paymentStatus: "refunded" },
@@ -202,8 +206,95 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
+  // E-Mail-Versand (FR.10) – darf den Webhook NICHT zum Crashen bringen.
+  // Bei Fehler: nur loggen, sonst riskiert man Stripe-Retry-Schleifen und
+  // mehrfache Buchungs-Verarbeitung.
+  const recipientEmail = session.customer_email ?? session.customer_details?.email ?? null;
+  if (recipientEmail) {
+    if (outcome === "booked") {
+      await sendBookingConfirmation(recipientEmail, courseId, amountPaidCents);
+    } else if (needsRefund && refundSucceeded) {
+      await sendBookingRefund(recipientEmail, courseId, amountPaidCents);
+    }
+  }
+
   revalidatePath("/courses");
   revalidatePath("/courses/myCourses");
+}
+
+/**
+ * Lädt Kurs+Business und schickt die Buchungs-Bestätigung an den Kunden.
+ * Schluckt Fehler bewusst (siehe Caller-Kommentar).
+ */
+async function sendBookingConfirmation(
+  recipientEmail: string,
+  courseId: string,
+  amountPaidCents: number
+) {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: {
+        name: true,
+        date: true,
+        timeFrom: true,
+        timeTo: true,
+        coverImage: true,
+        business: { select: { name: true, address: true } },
+      },
+    });
+    if (!course || !course.business) return;
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const { subject, html, text } = generateBookingConfirmationEmail({
+      courseName: course.name,
+      courseDate: course.date,
+      timeFrom: course.timeFrom,
+      timeTo: course.timeTo,
+      businessName: course.business.name,
+      businessAddress: course.business.address,
+      amountPaidCents,
+      myCoursesUrl: `${baseUrl}/courses/myCourses`,
+      coverImageUrl: course.coverImage,
+      companyName: process.env.COMPANY_NAME,
+    });
+
+    await sendMail({ to: recipientEmail, subject, html, text });
+  } catch (err) {
+    console.error("Buchungs-Bestätigungs-Mail fehlgeschlagen:", err);
+  }
+}
+
+/**
+ * Lädt Kurs+Business und schickt die Rückerstattungs-Mail an den Kunden.
+ * Schluckt Fehler bewusst (siehe Caller-Kommentar).
+ */
+async function sendBookingRefund(
+  recipientEmail: string,
+  courseId: string,
+  amountRefundedCents: number
+) {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: {
+        name: true,
+        business: { select: { name: true } },
+      },
+    });
+    if (!course || !course.business) return;
+
+    const { subject, html, text } = generateBookingRefundEmail({
+      courseName: course.name,
+      businessName: course.business.name,
+      amountRefundedCents,
+      companyName: process.env.COMPANY_NAME,
+    });
+
+    await sendMail({ to: recipientEmail, subject, html, text });
+  } catch (err) {
+    console.error("Refund-Mail fehlgeschlagen:", err);
+  }
 }
 
 /**

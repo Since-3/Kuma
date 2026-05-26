@@ -8,6 +8,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/ui/tooltip";
 import DOMPurify from "dompurify";
+
+// DOMPurify hat im Server-Build kein window — wir sanitizen nur im Browser.
+// Vor Hydration zeigen wir leeren Inhalt; sobald hydriert, kommt der saubere HTML.
+function sanitizeHtml(dirty: string): string {
+  if (typeof window === "undefined") return "";
+  return DOMPurify.sanitize(dirty);
+}
 import { checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
 
@@ -173,137 +180,154 @@ const BookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl! w-[95vw] p-0 overflow-hidden gap-0">
+      <DialogContent className="sm:max-w-3xl! w-[95vw] max-w-[calc(100%-1rem)] p-0 overflow-hidden gap-0 max-h-[90vh] sm:max-h-[85vh] flex flex-col">
         <VisuallyHidden>
           <DialogTitle>{course.name}</DialogTitle>
         </VisuallyHidden>
 
-        {/* Cover image */}
-        <div className="relative w-full h-64 bg-gray-200 shrink-0">
-          {course.coverImage ? (
-            <Image src={course.coverImage} alt={course.name} fill className="object-cover" />
-          ) : (
-            <div className="w-full h-full bg-linear-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-              <span className="text-gray-500 text-sm">Kein Bild vorhanden</span>
-            </div>
-          )}
-        </div>
-
-        {/* Body */}
-        <div className="px-6 pt-5 pb-6 flex flex-col gap-5">
-          {/* Title row */}
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">{course.name}</h2>
-            <span className="text-sm text-gray-500 shrink-0 mt-0.5">{formattedDate}</span>
+        {/* Scroll container für den Inhalt – Footer bleibt sichtbar */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Cover image – auf Mobile dünner */}
+          <div className="relative w-full h-40 sm:h-64 bg-gray-200 shrink-0">
+            {course.coverImage ? (
+              <Image src={course.coverImage} alt={course.name} fill className="object-cover" />
+            ) : (
+              <div className="w-full h-full bg-linear-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                <span className="text-gray-500 text-sm">Kein Bild vorhanden</span>
+              </div>
+            )}
           </div>
 
-          {/* Trainer(s) */}
-          {course.trainerProfiles && course.trainerProfiles.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {course.trainerProfiles.map((trainer) => {
-                const fullName =
-                  [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
-                return (
-                  <div key={trainer.id} className="flex items-center gap-3">
-                    <TrainerAvatar trainer={trainer} size="lg" />
-                    <span className="text-sm font-medium text-gray-800">{fullName}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Level badge */}
-          <span
-            className={`self-start text-xs font-semibold px-2.5 py-1 rounded-lg ${level.bg} ${level.text}`}
-          >
-            {level.label}
-          </span>
-
-          {/* Info rows */}
-          <div className="flex flex-col gap-4 text-sm text-gray-700">
-            <div className="flex items-center gap-2.5">
-              <Clock size={15} className="text-gray-400 shrink-0" />
-              <span>
-                <b>Uhrzeit:</b> {course.timeFrom} – {course.timeTo}
-              </span>
+          {/* Body */}
+          <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-4 sm:pb-6 flex flex-col gap-4 sm:gap-5">
+            {/* Title row – auf Mobile gestapelt */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-4">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight pr-8 sm:pr-0">
+                {course.name}
+              </h2>
+              <span className="text-sm text-gray-500 shrink-0 sm:mt-0.5">{formattedDate}</span>
             </div>
 
-            {course.roomName && (
+            {/* Trainer(s) */}
+            {course.trainerProfiles && course.trainerProfiles.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {course.trainerProfiles.map((trainer) => {
+                  const fullName =
+                    [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+                  return (
+                    <div key={trainer.id} className="flex items-center gap-3">
+                      <TrainerAvatar trainer={trainer} size="lg" />
+                      <span className="text-sm font-medium text-gray-800">{fullName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Level badge */}
+            <span
+              className={`self-start text-xs font-semibold px-2.5 py-1 rounded-lg ${level.bg} ${level.text}`}
+            >
+              {level.label}
+            </span>
+
+            {/* Info rows */}
+            <div className="flex flex-col gap-4 text-sm text-gray-700">
               <div className="flex items-center gap-2.5">
-                <DoorOpen size={15} className="text-gray-400 shrink-0" />
+                <Clock size={15} className="text-gray-400 shrink-0" />
                 <span>
-                  <b>Raum:</b> {course.roomName}
+                  <b>Uhrzeit:</b> {course.timeFrom} – {course.timeTo}
                 </span>
               </div>
-            )}
 
-            {business?.address && (
-              <div className="flex items-center gap-2.5">
-                <MapPin size={15} className="text-gray-400 shrink-0" />
-                <span>
-                  <b>Ort:</b> {business?.address}
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2.5">
-              <Users size={15} className="text-gray-400 shrink-0" />
-              <span>
-                <b>Teilnehmer:</b> {safeCurrent}/{safeMax}
-                {isFull && <span className="ml-2 text-red-600 font-medium">· Ausgebucht</span>}
-              </span>
-            </div>
-
-            {business?.email && (
-              <div className="flex items-center gap-2.5">
-                <Mail size={15} className="text-gray-400 shrink-0" />
-                <a href={`mailto:${business.email}`} className="hover:underline text-gray-700">
-                  <b>Email:</b> {business.email}
-                </a>
-              </div>
-            )}
-
-            {business?.tel && (
-              <div className="flex items-center gap-2.5">
-                <Phone size={15} className="text-gray-400 shrink-0" />
-                <a href={`tel:${business.tel}`} className="hover:underline text-gray-700">
-                  {business.tel}
-                </a>
-              </div>
-            )}
-
-            {course.description && (
-              <div className="flex items-start gap-2.5">
-                <Info size={15} className="text-gray-400 shrink-0 mt-0.5" />
-                <div>
-                  <b>Was Sie beachten sollten:</b>
-                  <div
-                    className="prose prose-sm max-w-none text-gray-600 mt-1"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(course.description) }}
-                  />
+              {course.roomName && (
+                <div className="flex items-center gap-2.5">
+                  <DoorOpen size={15} className="text-gray-400 shrink-0" />
+                  <span>
+                    <b>Raum:</b> {course.roomName}
+                  </span>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Footer: price + actions */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Schließen
-              </Button>
-              {isCheckingStatus ? (
-                <Button disabled>Lade…</Button>
-              ) : isBooked ? (
-                <Button disabled>✓ Angemeldet</Button>
-              ) : (
-                <Button onClick={handleBooking} disabled={isSubmitting || isFull}>
-                  {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
-                </Button>
+              {business?.address && (
+                <div className="flex items-center gap-2.5">
+                  <MapPin size={15} className="text-gray-400 shrink-0" />
+                  <span>
+                    <b>Ort:</b> {business?.address}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2.5">
+                <Users size={15} className="text-gray-400 shrink-0" />
+                <span>
+                  <b>Teilnehmer:</b> {safeCurrent}/{safeMax}
+                  {isFull && <span className="ml-2 text-red-600 font-medium">· Ausgebucht</span>}
+                </span>
+              </div>
+
+              {business?.email && (
+                <div className="flex items-center gap-2.5">
+                  <Mail size={15} className="text-gray-400 shrink-0" />
+                  <a href={`mailto:${business.email}`} className="hover:underline text-gray-700">
+                    <b>Email:</b> {business.email}
+                  </a>
+                </div>
+              )}
+
+              {business?.tel && (
+                <div className="flex items-center gap-2.5">
+                  <Phone size={15} className="text-gray-400 shrink-0" />
+                  <a href={`tel:${business.tel}`} className="hover:underline text-gray-700">
+                    {business.tel}
+                  </a>
+                </div>
+              )}
+
+              {course.description && (
+                <div className="flex items-start gap-2.5">
+                  <Info size={15} className="text-gray-400 shrink-0 mt-0.5" />
+                  <div>
+                    <b>Was Sie beachten sollten:</b>
+                    <div
+                      className="prose prose-sm max-w-none text-gray-600 mt-1"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Sticky Footer: bleibt immer sichtbar, auf Mobile gestapelt */}
+        <div className="shrink-0 border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1 sm:flex-initial"
+            >
+              Schließen
+            </Button>
+            {isCheckingStatus ? (
+              <Button disabled className="flex-1 sm:flex-initial">
+                Lade…
+              </Button>
+            ) : isBooked ? (
+              <Button disabled className="flex-1 sm:flex-initial">
+                ✓ Angemeldet
+              </Button>
+            ) : (
+              <Button
+                onClick={handleBooking}
+                disabled={isSubmitting || isFull}
+                className="flex-1 sm:flex-initial"
+              >
+                {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
