@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { Clock, MapPin, Users, Mail, Phone, DoorOpen, Info } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
@@ -8,15 +8,29 @@ import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/ui/tooltip";
 import DOMPurify from "dompurify";
-
-// DOMPurify hat im Server-Build kein window — wir sanitizen nur im Browser.
-// Vor Hydration zeigen wir leeren Inhalt; sobald hydriert, kommt der saubere HTML.
-function sanitizeHtml(dirty: string): string {
-  if (typeof window === "undefined") return "";
-  return DOMPurify.sanitize(dirty);
-}
 import { checkUserBookingStatus } from "../../actions/booking-actions";
 import { toast } from "sonner";
+
+// useSyncExternalStore: liefert `false` auf dem Server (server snapshot) und
+// `true` im Browser. Damit haben Server- und initialer Client-Render denselben
+// Wert (kein Hydration-Mismatch), und nach dem Mount geht der Wert auf true –
+// ohne setState im Effect, also lint-konform.
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+/**
+ * Sanitisiert den HTML-Wert nach dem Mount.
+ * Server- und initialer Client-Render liefern "" – nach dem Mount läuft
+ * DOMPurify.sanitize synchron während des Re-Renders. So gibt es keinen
+ * Hydration-Mismatch und DOMPurify wird nie auf dem Server aufgerufen
+ * (wo es kein `window` hat).
+ */
+function useSanitizedHtml(dirty: string | undefined): string {
+  const isClient = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
+  if (!isClient || !dirty) return "";
+  return DOMPurify.sanitize(dirty);
+}
 
 const levelConfig: Record<string, { label: string; bg: string; text: string }> = {
   any: { label: "Jedes Niveau", bg: "bg-gray-200", text: "text-gray-700" },
@@ -99,6 +113,7 @@ const BookingDialog = ({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) => {
+  const sanitizedDescription = useSanitizedHtml(course.description);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
@@ -291,7 +306,7 @@ const BookingDialog = ({
                     <b>Was Sie beachten sollten:</b>
                     <div
                       className="prose prose-sm max-w-none text-gray-600 mt-1"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }}
+                      dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
                     />
                   </div>
                 </div>

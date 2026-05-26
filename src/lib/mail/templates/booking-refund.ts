@@ -6,6 +6,8 @@
  * (Stripe Webhook: capacity_exceeded → refund).
  */
 
+import { escapeHtml, singleLine } from "./utils";
+
 interface BookingRefundEmailParams {
   courseName: string;
   businessName: string;
@@ -26,7 +28,12 @@ export function generateBookingRefundEmail({
   amountRefundedCents,
   companyName = "Ihr Unternehmen",
 }: BookingRefundEmailParams): { subject: string; html: string; text: string } {
-  const subject = `Rückerstattung – ${courseName}`;
+  // Defense gegen Markup-Injection in der Mail.
+  const safeCourseName = escapeHtml(courseName);
+  const safeBusinessName = escapeHtml(businessName);
+  const safeCompanyName = escapeHtml(companyName);
+
+  const subject = singleLine(`Rückerstattung – ${courseName}`);
   const formattedPrice = formatPrice(amountRefundedCents);
 
   const html = `
@@ -60,7 +67,7 @@ export function generateBookingRefundEmail({
               </p>
 
               <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                leider war der Kurs <strong>${courseName}</strong> von <strong>${businessName}</strong>
+                leider war der Kurs <strong>${safeCourseName}</strong> von <strong>${safeBusinessName}</strong>
                 bereits ausgebucht, als Ihre Zahlung bei uns eingegangen ist.
               </p>
 
@@ -86,7 +93,7 @@ export function generateBookingRefundEmail({
 
               <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
                 Es tut uns leid für die Unannehmlichkeiten. Sie können gerne einen anderen
-                freien Kurs bei <strong>${businessName}</strong> buchen.
+                freien Kurs bei <strong>${safeBusinessName}</strong> buchen.
               </p>
 
               <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 30px;">
@@ -102,7 +109,7 @@ export function generateBookingRefundEmail({
           <tr>
             <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="margin: 0 0 10px; color: #666666; font-size: 14px;">
-                ${companyName}
+                ${safeCompanyName}
               </p>
               <p style="margin: 0; color: #999999; font-size: 12px;">
                 Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht auf diese E-Mail.

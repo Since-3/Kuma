@@ -5,6 +5,8 @@
  * erfolgreich bezahlt wurde (Stripe Webhook checkout.session.completed).
  */
 
+import { escapeHtml, sanitizeUrl, singleLine } from "./utils";
+
 interface BookingConfirmationEmailParams {
   courseName: string;
   courseDate: Date;
@@ -24,6 +26,7 @@ function formatDate(date: Date): string {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "Europe/Berlin",
   });
 }
 
@@ -46,7 +49,17 @@ export function generateBookingConfirmationEmail({
   coverImageUrl,
   companyName = "Ihr Unternehmen",
 }: BookingConfirmationEmailParams): { subject: string; html: string; text: string } {
-  const subject = `Buchungsbestätigung – ${courseName}`;
+  // Defense gegen Markup-Injection: alle dynamischen Werte vor dem HTML-Einsetzen escapen.
+  const safeCourseName = escapeHtml(courseName);
+  const safeBusinessName = escapeHtml(businessName);
+  const safeBusinessAddress = businessAddress ? escapeHtml(businessAddress) : "";
+  const safeTimeFrom = escapeHtml(timeFrom);
+  const safeTimeTo = escapeHtml(timeTo);
+  const safeCompanyName = escapeHtml(companyName);
+  const safeMyCoursesUrl = sanitizeUrl(myCoursesUrl);
+  const safeCoverImageUrl = coverImageUrl ? sanitizeUrl(coverImageUrl) : null;
+
+  const subject = singleLine(`Buchungsbestätigung – ${courseName}`);
   const formattedDate = formatDate(courseDate);
   const formattedPrice = formatPrice(amountPaidCents);
 
@@ -65,12 +78,12 @@ export function generateBookingConfirmationEmail({
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
           ${
-            coverImageUrl
+            safeCoverImageUrl
               ? `
           <!-- Cover Image Banner -->
           <tr>
             <td style="padding: 0; line-height: 0;">
-              <img src="${coverImageUrl}" alt="${courseName}" width="600" style="display: block; width: 100%; max-width: 600px; height: auto; object-fit: cover;" />
+              <img src="${safeCoverImageUrl}" alt="${safeCourseName}" width="600" style="display: block; width: 100%; max-width: 600px; height: auto; object-fit: cover;" />
             </td>
           </tr>
           `
@@ -103,20 +116,20 @@ export function generateBookingConfirmationEmail({
                 <tr>
                   <td style="padding: 24px;">
                     <p style="margin: 0 0 4px; color: #999999; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Kurs</p>
-                    <p style="margin: 0 0 16px; color: #333333; font-size: 18px; font-weight: 600;">${courseName}</p>
+                    <p style="margin: 0 0 16px; color: #333333; font-size: 18px; font-weight: 600;">${safeCourseName}</p>
 
                     <p style="margin: 0 0 4px; color: #999999; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Anbieter</p>
-                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${businessName}</p>
+                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${safeBusinessName}</p>
 
                     <p style="margin: 0 0 4px; color: #999999; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Termin</p>
                     <p style="margin: 0 0 4px; color: #333333; font-size: 15px;">${formattedDate}</p>
-                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${timeFrom} – ${timeTo} Uhr</p>
+                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${safeTimeFrom} – ${safeTimeTo} Uhr</p>
 
                     ${
-                      businessAddress
+                      safeBusinessAddress
                         ? `
                     <p style="margin: 0 0 4px; color: #999999; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Ort</p>
-                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${businessAddress}</p>
+                    <p style="margin: 0 0 16px; color: #333333; font-size: 15px;">${safeBusinessAddress}</p>
                     `
                         : ""
                     }
@@ -141,7 +154,7 @@ export function generateBookingConfirmationEmail({
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 20px;">
                 <tr>
                   <td align="center">
-                    <a href="${myCoursesUrl}"
+                    <a href="${safeMyCoursesUrl}"
                        style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);">
                       Zu meinen Kursen
                     </a>
@@ -153,12 +166,12 @@ export function generateBookingConfirmationEmail({
                 Oder kopieren Sie diesen Link in Ihren Browser:
               </p>
               <p style="margin: 8px 0 0; color: #667eea; font-size: 14px; word-break: break-all; text-align: center;">
-                ${myCoursesUrl}
+                ${safeMyCoursesUrl}
               </p>
 
               <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 30px;">
                 <p style="margin: 0; color: #999999; font-size: 13px; line-height: 1.6;">
-                  Bei Fragen zu Ihrer Buchung wenden Sie sich bitte direkt an den Anbieter <strong>${businessName}</strong>.
+                  Bei Fragen zu Ihrer Buchung wenden Sie sich bitte direkt an den Anbieter <strong>${safeBusinessName}</strong>.
                 </p>
               </div>
             </td>
@@ -168,7 +181,7 @@ export function generateBookingConfirmationEmail({
           <tr>
             <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="margin: 0 0 10px; color: #666666; font-size: 14px;">
-                ${companyName}
+                ${safeCompanyName}
               </p>
               <p style="margin: 0; color: #999999; font-size: 12px;">
                 Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht auf diese E-Mail.
@@ -198,7 +211,7 @@ ${businessAddress ? `Ort: ${businessAddress}\n` : ""}Bezahlt: ${formattedPrice}
 
 Wir wünschen Ihnen viel Spaß im Kurs!
 
-Zu meinen Kursen: ${myCoursesUrl}
+Zu meinen Kursen: ${safeMyCoursesUrl}
 
 Bei Fragen zu Ihrer Buchung wenden Sie sich bitte direkt an den Anbieter ${businessName}.
 

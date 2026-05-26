@@ -209,17 +209,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // E-Mail-Versand (FR.10) – darf den Webhook NICHT zum Crashen bringen.
   // Bei Fehler: nur loggen, sonst riskiert man Stripe-Retry-Schleifen und
   // mehrfache Buchungs-Verarbeitung.
+  // Außerdem: harte 2-Sekunden-Grenze pro Mail, damit ein träger SMTP-Server
+  // den Webhook nicht über sein Timeout-Limit zieht. Der Versand läuft dann
+  // im Hintergrund weiter; der Webhook gibt nur früher 200 zurück.
   const recipientEmail = session.customer_email ?? session.customer_details?.email ?? null;
   if (recipientEmail) {
     if (outcome === "booked") {
-      await sendBookingConfirmation(recipientEmail, courseId, amountPaidCents);
+      await withTimeout(sendBookingConfirmation(recipientEmail, courseId, amountPaidCents), 2000);
     } else if (needsRefund && refundSucceeded) {
-      await sendBookingRefund(recipientEmail, courseId, amountPaidCents);
+      await withTimeout(sendBookingRefund(recipientEmail, courseId, amountPaidCents), 2000);
     }
   }
 
   revalidatePath("/courses");
   revalidatePath("/courses/myCourses");
+}
+
+/**
+ * Wartet maximal `ms` Millisekunden auf das Promise. Läuft das Promise länger,
+ * wird `null` zurückgegeben – das eigentliche Promise läuft im Hintergrund weiter.
+ * Wird genutzt, um den Stripe-Webhook nicht über sein Timeout-Limit hinauszuziehen.
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 /**
