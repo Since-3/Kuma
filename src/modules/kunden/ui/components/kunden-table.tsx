@@ -14,9 +14,9 @@ import { useRouter } from "next/navigation";
 import type { Kunde } from "../views/kunden-view";
 
 const STATUS_STYLES: Record<Kunde["status"], string> = {
-  Teilgenommen: "bg-green-100 text-green-700",
+  Bezahlt: "bg-green-100 text-green-700",
   Storniert: "bg-red-100 text-red-600",
-  Bezahlt: "bg-blue-100 text-blue-700",
+  Ausstehend: "bg-yellow-100 text-yellow-700",
 };
 
 interface KundenTableProps {
