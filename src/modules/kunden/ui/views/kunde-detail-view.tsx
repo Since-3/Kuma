@@ -21,8 +21,9 @@ import type { KundeDetail } from "../../actions/kunde-detail-actions";
 import KundeBookingCard from "../components/kunde-booking-card";
 
 // ─── DiceBear Fallback ────────────────────────────────────────────────────────
+// Nur anonymisierten Seed senden – keine internen IDs an Drittanbieter
 const getDiceBearUrl = (seed: string) =>
-  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(`u-${seed.slice(0, 6)}`)}`;
 
 // ─── ID kürzen: erste 8 Zeichen + … ──────────────────────────────────────────
 const shortenId = (id: string) => `${id.slice(0, 8)}…${id.slice(-4)}`;
@@ -48,6 +49,8 @@ const CollapsibleSection = ({
   return (
     <div className="rounded-2xl border border-white/60 bg-white/55 backdrop-blur-xl shadow-sm overflow-hidden">
       <button
+        type="button"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/50 transition-colors"
       >

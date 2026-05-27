@@ -16,7 +16,10 @@ const KundeDetailPage = async ({ params }: Props) => {
   const result = await getKundeDetail(id);
 
   if (!result.success) {
-    notFound();
+    if (result.error === "Kunde nicht gefunden.") {
+      notFound();
+    }
+    throw new Error(result.error);
   }
 
   return (

@@ -54,8 +54,15 @@ export async function getKundeDetail(
     async () => {
       // Alles parallel: User+Bookings und Räume des Managers
       const [userWithBookings, allRooms] = await Promise.all([
-        prisma.user.findUnique({
-          where: { id: kundeId },
+        prisma.user.findFirst({
+          where: {
+            id: kundeId,
+            // Sicherheits-Guard: nur zurückgeben wenn der User wirklich
+            // mindestens eine Buchung bei diesem Manager hat
+            courseBookings: {
+              some: { course: { businessId: { in: businessIds } } },
+            },
+          },
           select: {
             id: true,
             name: true,

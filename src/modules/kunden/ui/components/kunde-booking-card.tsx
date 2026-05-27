@@ -8,8 +8,9 @@ import AbstractTooltip from "@/src/components/layout/AbstractTooltip";
 import { BookingDialog } from "@/src/modules/courses/ui/components/PublicCourseCard";
 import type { PublicCourse } from "@/src/modules/courses/ui/components/PublicCourseCard";
 
+// Nur anonymisierten Seed senden – keine internen IDs an Drittanbieter
 const getDiceBearUrl = (seed: string) =>
-  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(`t-${seed.slice(0, 6)}`)}`;
 
 const PAYMENT_STATUS: Record<string, { label: string; bg: string; text: string }> = {
   paid: { label: "Bezahlt", bg: "bg-green-100", text: "text-green-700" },
@@ -54,9 +55,10 @@ const KundeBookingCard = ({ booking }: KundeBookingCardProps) => {
 
   return (
     <>
-      <div
+      <button
+        type="button"
         onClick={() => setDialogOpen(true)}
-        className="bg-white/70 backdrop-blur-sm border border-white/50 rounded-xl p-4 shadow-sm hover:shadow-md hover:bg-white/85 transition-all cursor-pointer flex flex-col gap-3 select-none"
+        className="text-left w-full bg-white/70 backdrop-blur-sm border border-white/50 rounded-xl p-4 shadow-sm hover:shadow-md hover:bg-white/85 transition-all cursor-pointer flex flex-col gap-3 select-none"
       >
         {/* Trainer Avatare + Uhrzeit */}
         <div className="flex items-center justify-between">
@@ -113,7 +115,7 @@ const KundeBookingCard = ({ booking }: KundeBookingCardProps) => {
             {status.label}
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Exakt derselbe Dialog wie auf der Public Page, aber in der Admin-Ansicht */}
       <BookingDialog
