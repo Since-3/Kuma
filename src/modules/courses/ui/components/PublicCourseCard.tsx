@@ -39,20 +39,20 @@ const levelConfig: Record<string, { label: string; bg: string; text: string }> =
   pro: { label: "Profi", bg: "bg-red-200", text: "text-red-700" },
 };
 
-interface TrainerProfile {
+export interface TrainerProfile {
   id: string;
   firstName: string | null;
   lastName: string | null;
   pbSrc: string | null;
 }
 
-interface BusinessInfo {
+export interface BusinessInfo {
   address: string;
   email: string;
   tel?: string;
 }
 
-interface PublicCourse {
+export interface PublicCourse {
   id: string;
   name: string;
   sport: string[];
@@ -102,21 +102,33 @@ const TrainerAvatar = ({ trainer, size }: { trainer: TrainerProfile; size: "sm" 
   );
 };
 
-const BookingDialog = ({
+const ADMIN_PAYMENT_LABELS: Record<string, { label: string; bg: string; text: string }> = {
+  paid: { label: "Bezahlt", bg: "bg-green-100", text: "text-green-700" },
+  pending: { label: "Ausstehend", bg: "bg-yellow-100", text: "text-yellow-700" },
+  refunded: { label: "Storniert", bg: "bg-red-100", text: "text-red-600" },
+  failed: { label: "Fehlgeschlagen", bg: "bg-red-100", text: "text-red-600" },
+};
+
+export const BookingDialog = ({
   course,
   business,
   open,
   onOpenChange,
+  // Wenn gesetzt → Admin-Ansicht: kein Buchen-Button, nur Status-Badge
+  paymentStatus,
 }: {
   course: PublicCourse;
   business?: BusinessInfo;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  paymentStatus?: string;
 }) => {
   const sanitizedDescription = useSanitizedHtml(course.description);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+
+  const isAdminView = paymentStatus !== undefined;
 
   const safeCurrent = Math.max(0, course.currentParticipants);
   const safeMax = Math.max(0, course.maxParticipants);
@@ -134,8 +146,9 @@ const BookingDialog = ({
     currency: "EUR",
   });
 
+  // Booking-Status nur laden wenn keine Admin-Ansicht
   useEffect(() => {
-    if (!open) return;
+    if (!open || isAdminView) return;
     let active = true;
 
     const loadStatus = async () => {
@@ -156,7 +169,7 @@ const BookingDialog = ({
     return () => {
       active = false;
     };
-  }, [open, course.id]);
+  }, [open, course.id, isAdminView]);
 
   const handleBooking = async () => {
     setIsSubmitting(true);
@@ -192,6 +205,10 @@ const BookingDialog = ({
       setIsSubmitting(false);
     }
   };
+
+  const adminStatus = isAdminView
+    ? (ADMIN_PAYMENT_LABELS[paymentStatus!] ?? ADMIN_PAYMENT_LABELS.pending)
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -315,33 +332,54 @@ const BookingDialog = ({
           </div>
         </div>
 
-        {/* Sticky Footer: bleibt immer sichtbar, auf Mobile gestapelt */}
+        {/* Sticky Footer */}
         <div className="shrink-0 border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1 sm:flex-initial"
-            >
-              Schließen
-            </Button>
-            {isCheckingStatus ? (
-              <Button disabled className="flex-1 sm:flex-initial">
-                Lade…
-              </Button>
-            ) : isBooked ? (
-              <Button disabled className="flex-1 sm:flex-initial">
-                ✓ Angemeldet
-              </Button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Admin-Ansicht: nur Status-Badge + Schließen */}
+            {isAdminView ? (
+              <>
+                <span
+                  className={`text-sm font-semibold px-3 py-1.5 rounded-full ${adminStatus!.bg} ${adminStatus!.text}`}
+                >
+                  {adminStatus!.label}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="flex-1 sm:flex-initial"
+                >
+                  Schließen
+                </Button>
+              </>
             ) : (
-              <Button
-                onClick={handleBooking}
-                disabled={isSubmitting || isFull}
-                className="flex-1 sm:flex-initial"
-              >
-                {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
-              </Button>
+              /* Public-Ansicht: Buchen-Button */
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="flex-1 sm:flex-initial"
+                >
+                  Schließen
+                </Button>
+                {isCheckingStatus ? (
+                  <Button disabled className="flex-1 sm:flex-initial">
+                    Lade…
+                  </Button>
+                ) : isBooked ? (
+                  <Button disabled className="flex-1 sm:flex-initial">
+                    ✓ Angemeldet
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleBooking}
+                    disabled={isSubmitting || isFull}
+                    className="flex-1 sm:flex-initial"
+                  >
+                    {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
