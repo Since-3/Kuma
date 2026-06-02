@@ -8,7 +8,187 @@
 "use server";
 
 import { prisma } from "@/src/lib/prisma";
-import { getUserData } from "@/src/lib/auth/getUser";
+import { getUserData, isUser } from "@/src/lib/auth/getUser";
+import { unstable_cache, revalidateTag } from "next/cache";
+
+export type UserBooking = {
+  bookingId: string;
+  courseId: string;
+  courseName: string;
+  date: string; // ISO
+  timeFrom: string;
+  timeTo: string;
+  roomName: string;
+  level: string;
+  price: number;
+  maxParticipants: number;
+  currentParticipants: number;
+  coverImage: string | null;
+  description: string;
+  trainerProfiles: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    pbSrc: string | null;
+  }[];
+  trainers: string[];
+  trainersMap: Record<string, { label: string; pbSrc?: string }>;
+  paymentStatus: string;
+  isPast: boolean;
+};
+
+export async function getUserBookings(): Promise<
+  { success: true; bookings: UserBooking[] } | { success: false; error: string }
+> {
+  const userData = await getUserData();
+  if (!userData || !isUser(userData)) {
+    return { success: false, error: "Nicht angemeldet." };
+  }
+
+  const userId = userData.id;
+
+  const fetchBookings = unstable_cache(
+    async () => {
+      const bookingsRaw = await prisma.courseBooking.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          paymentStatus: true,
+          course: {
+            select: {
+              id: true,
+              name: true,
+              date: true,
+              timeFrom: true,
+              timeTo: true,
+              room: true,
+              trainers: true,
+              level: true,
+              price: true,
+              maxParticipants: true,
+              coverImage: true,
+              description: true,
+              _count: { select: { bookings: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Collect all room and trainer IDs
+      const roomIds = [
+        ...new Set(bookingsRaw.map((b) => b.course.room).filter(Boolean)),
+      ] as string[];
+      const allTrainerIds = new Set<string>();
+      for (const b of bookingsRaw) {
+        for (const tid of b.course.trainers) allTrainerIds.add(tid);
+      }
+
+      const [rooms, trainersData] = await Promise.all([
+        roomIds.length > 0
+          ? prisma.room.findMany({
+              where: { id: { in: roomIds } },
+              select: { id: true, name: true },
+            })
+          : [],
+        allTrainerIds.size > 0
+          ? prisma.employee.findMany({
+              where: { id: { in: Array.from(allTrainerIds) } },
+              select: { id: true, firstName: true, lastName: true, pbSrc: true },
+            })
+          : [],
+      ]);
+
+      const roomsMap: Record<string, string> = {};
+      for (const r of rooms) roomsMap[r.id] = r.name;
+
+      const trainersMap: Record<string, { label: string; pbSrc?: string }> = {};
+      const trainerProfilesMap: Record<
+        string,
+        { id: string; firstName: string | null; lastName: string | null; pbSrc: string | null }
+      > = {};
+      for (const t of trainersData) {
+        const label = [t.firstName, t.lastName].filter(Boolean).join(" ") || "Trainer";
+        trainersMap[t.id] = { label, pbSrc: t.pbSrc ?? undefined };
+        trainerProfilesMap[t.id] = {
+          id: t.id,
+          firstName: t.firstName,
+          lastName: t.lastName,
+          pbSrc: t.pbSrc,
+        };
+      }
+
+      const now = new Date();
+
+      return bookingsRaw.map((b) => {
+        const courseDate = new Date(b.course.date);
+        return {
+          bookingId: b.id,
+          courseId: b.course.id,
+          courseName: b.course.name,
+          date: b.course.date.toISOString(),
+          timeFrom: b.course.timeFrom,
+          timeTo: b.course.timeTo,
+          roomName: roomsMap[b.course.room] ?? b.course.room,
+          level: b.course.level,
+          price: b.course.price,
+          maxParticipants: b.course.maxParticipants,
+          currentParticipants: b.course._count.bookings,
+          coverImage: b.course.coverImage ?? null,
+          description: b.course.description,
+          trainerProfiles: b.course.trainers.map((tid) => trainerProfilesMap[tid]).filter(Boolean),
+          trainers: b.course.trainers,
+          trainersMap,
+          paymentStatus: b.paymentStatus,
+          isPast: courseDate < now,
+        } satisfies UserBooking;
+      });
+    },
+    [`user-bookings-${userId}`],
+    { tags: [`user-bookings-${userId}`], revalidate: 60 }
+  );
+
+  try {
+    const bookings = await fetchBookings();
+    return { success: true, bookings };
+  } catch {
+    return { success: false, error: "Buchungen konnten nicht geladen werden." };
+  }
+}
+
+export async function cancelUserBooking(
+  bookingId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const userData = await getUserData();
+  if (!userData || !isUser(userData)) {
+    return { success: false, error: "Nicht angemeldet." };
+  }
+
+  try {
+    const booking = await prisma.courseBooking.findUnique({
+      where: { id: bookingId },
+      select: { userId: true, paymentStatus: true, course: { select: { date: true } } },
+    });
+
+    if (!booking || booking.userId !== userData.id) {
+      return { success: false, error: "Buchung nicht gefunden." };
+    }
+
+    if (new Date(booking.course.date) < new Date()) {
+      return { success: false, error: "Vergangene Kurse können nicht storniert werden." };
+    }
+
+    await prisma.courseBooking.update({
+      where: { id: bookingId },
+      data: { paymentStatus: "refunded" },
+    });
+
+    revalidateTag(`user-bookings-${userData.id}`);
+    return { success: true };
+  } catch {
+    return { success: false, error: "Stornierung fehlgeschlagen." };
+  }
+}
 
 /**
  * Überprüft, ob ein User bereits für einen Kurs gebucht hat

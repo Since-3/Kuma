@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 
 const menuTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/courses/myCourses": "Meine Kurse",
   "/courses": "Kurs Übersicht",
   "/courses/create": "Erstelle einen Kurs",
   "/courses/edit": "Bearbeite den Kurs",
