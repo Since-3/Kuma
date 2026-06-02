@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { MapPin, Clock, X } from "lucide-react";
 import type { UserBooking } from "../../actions/booking-actions";
@@ -45,6 +46,7 @@ interface UserBookingCardProps {
 }
 
 const UserBookingCard = ({ booking }: UserBookingCardProps) => {
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [cancelled, setCancelled] = useState(booking.paymentStatus === "refunded");
@@ -58,7 +60,7 @@ const UserBookingCard = ({ booking }: UserBookingCardProps) => {
     year: "numeric",
   });
 
-  const canCancel = !booking.isPast && !cancelled && booking.paymentStatus !== "refunded";
+  const canCancel = !booking.isPast && !cancelled && booking.paymentStatus === "paid";
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,6 +68,7 @@ const UserBookingCard = ({ booking }: UserBookingCardProps) => {
       const result = await cancelUserBooking(booking.bookingId);
       if (result.success) {
         setCancelled(true);
+        router.refresh();
         toast.success("Buchung erfolgreich storniert.");
       } else {
         toast.error(result.error);

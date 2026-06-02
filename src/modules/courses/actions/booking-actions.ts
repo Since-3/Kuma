@@ -9,7 +9,7 @@
 
 import { prisma } from "@/src/lib/prisma";
 import { getUserData, isUser } from "@/src/lib/auth/getUser";
-import { unstable_cache, revalidateTag } from "next/cache";
+import { unstable_cache, revalidatePath } from "next/cache";
 
 export type UserBooking = {
   bookingId: string;
@@ -68,7 +68,7 @@ export async function getUserBookings(): Promise<
               maxParticipants: true,
               coverImage: true,
               description: true,
-              _count: { select: { bookings: true } },
+              _count: { select: { bookings: { where: { paymentStatus: "paid" } } } },
             },
           },
         },
@@ -178,12 +178,16 @@ export async function cancelUserBooking(
       return { success: false, error: "Vergangene Kurse können nicht storniert werden." };
     }
 
+    if (booking.paymentStatus !== "paid") {
+      return { success: false, error: "Nur bezahlte Buchungen können storniert werden." };
+    }
+
     await prisma.courseBooking.update({
       where: { id: bookingId },
       data: { paymentStatus: "refunded" },
     });
 
-    revalidateTag(`user-bookings-${userData.id}`);
+    revalidatePath("/courses/myCourses");
     return { success: true };
   } catch {
     return { success: false, error: "Stornierung fehlgeschlagen." };
