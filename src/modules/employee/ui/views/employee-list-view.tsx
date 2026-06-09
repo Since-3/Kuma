@@ -94,7 +94,7 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
       </div>
 
       {employees.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl">
           <p className="text-xl text-gray-600">Keine Mitarbeiter vorhanden</p>
           {canCreate && (
             <>
