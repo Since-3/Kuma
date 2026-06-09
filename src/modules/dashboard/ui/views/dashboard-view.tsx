@@ -12,7 +12,7 @@ const DashboardView = async () => {
 
   return (
     <div className="space-y-6">
-      <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Willkommen zurück!</h1>
         <p className="text-gray-600">Schön, dich wiederzusehen, {displayName}</p>
         {isManager(userData) && (
@@ -28,13 +28,13 @@ const DashboardView = async () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-2">Profil</h2>
           <p className="text-gray-600 text-sm">Verwalte deine persönlichen Daten</p>
         </div>
 
         {isManager(userData) ? (
-          <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-2">Meine Businesses</h2>
             <p className="text-gray-600 text-sm">
               {userData.businesses.length}{" "}
@@ -42,7 +42,7 @@ const DashboardView = async () => {
             </p>
           </div>
         ) : isEmployee(userData) ? (
-          <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-2">Meine Berechtigungen</h2>
             {(() => {
               const p = userData.permissions;
@@ -79,20 +79,20 @@ const DashboardView = async () => {
             })()}
           </div>
         ) : (
-          <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-2">Trainings</h2>
             <p className="text-gray-600 text-sm">Deine gebuchten Trainingseinheiten</p>
           </div>
         )}
 
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-2">Einstellungen</h2>
           <p className="text-gray-600 text-sm">Passe deine Einstellungen an</p>
         </div>
       </div>
 
       {isUser(userData) && (
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Benutzerdaten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -132,7 +132,7 @@ const DashboardView = async () => {
       )}
 
       {isManager(userData) && (
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Manager-Daten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -164,7 +164,7 @@ const DashboardView = async () => {
       )}
 
       {isManager(userData) && userData.businesses.length > 0 && (
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Meine Businesses</h2>
           <div className="space-y-4">
             {userData.businesses.map((business) => (
@@ -179,7 +179,7 @@ const DashboardView = async () => {
       )}
 
       {isEmployee(userData) && (
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Mitarbeiter-Daten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

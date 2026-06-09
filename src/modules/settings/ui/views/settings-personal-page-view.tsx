@@ -1,5 +1,5 @@
-const SettingsPersonalPageView = () => {
+const SettignsPersonalPageView = () => {
   return <div></div>;
 };
 
-export default SettingsPersonalPageView;
+export default SettignsPersonalPageView;

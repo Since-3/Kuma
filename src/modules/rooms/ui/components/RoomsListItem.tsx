@@ -17,7 +17,7 @@ const RoomsListItem: React.FC<RoomsListItemProps> = ({
   showDeleteIcon,
 }) => {
   return (
-    <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl p-5 shadow-sm hover:shadow-md hover:bg-white/70 transition flex flex-col gap-4 w-full max-w-xs justify-self-center">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4 w-full max-w-xs justify-self-center">
       <div className="w-full flex items-center justify-between">
         <div className="flex-1">
           <h2 className="text-xl text-gray-900">{roomName}</h2>
@@ -27,7 +27,7 @@ const RoomsListItem: React.FC<RoomsListItemProps> = ({
             <button
               aria-label={`Raum ${roomName} löschen`}
               onClick={onDelete}
-              className="p-2 rounded-md hover:bg-red-500/10 transition"
+              className="p-2 rounded-md hover:bg-red-100 transition"
             >
               <Trash2 size={20} className="text-red-600" />
             </button>
@@ -36,7 +36,7 @@ const RoomsListItem: React.FC<RoomsListItemProps> = ({
             <button
               aria-label={`Raum ${roomName} bearbeiten`}
               onClick={onEdit}
-              className="p-2 rounded-md hover:bg-white/50 transition"
+              className="p-2 rounded-md hover:bg-gray-100 transition"
             >
               <Pen size={20} className="text-gray-700" />
             </button>

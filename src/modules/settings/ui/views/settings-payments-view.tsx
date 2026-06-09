@@ -126,7 +126,7 @@ const SettingsPaymentsView = () => {
       </div>
 
       {businesses.length === 0 ? (
-        <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl p-6 text-center">
+        <div className="border border-gray-200 rounded-xl p-6 bg-white text-center">
           <p className="text-sm text-gray-500">Du hast noch keine Businesses angelegt.</p>
         </div>
       ) : (
@@ -139,7 +139,7 @@ const SettingsPaymentsView = () => {
             return (
               <div
                 key={business.id}
-                className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl p-5 space-y-3"
+                className="border border-gray-200 rounded-xl p-5 bg-white space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -190,7 +190,7 @@ const SettingsPaymentsView = () => {
         </div>
       )}
 
-      <div className="border border-white/60 bg-white/40 backdrop-blur-xl rounded-xl p-4 text-xs text-gray-600">
+      <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4 text-xs text-gray-600">
         <p className="font-medium text-gray-900 mb-1">So funktioniert es:</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Klicke auf &quot;Stripe-Konto verbinden&quot; - du wirst zu Stripe weitergeleitet</li>

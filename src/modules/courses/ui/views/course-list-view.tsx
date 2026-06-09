@@ -32,7 +32,6 @@ type Course = {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
-  coverImage: string | null;
   _count?: {
     bookings: number;
   };
@@ -564,7 +563,7 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       )}
 
       {filteredCourses.length === 0 ? (
-        <div className="text-center py-12 border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl">
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-xl text-gray-600">
             {courses.length === 0
               ? "Sie haben noch keine Kurse erstellt"
@@ -610,7 +609,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
                       status={course.status}
                       isPast={isPastCourse(course.date)}
                       showDeleteIcon={deleteMode && canDelete}
-                      coverImage={course.coverImage ?? undefined}
                       onDelete={
                         canDelete ? () => handleDeleteClick(course.id, course.name) : undefined
                       }

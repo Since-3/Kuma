@@ -46,7 +46,7 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
   showDeleteIcon,
 }) => {
   return (
-    <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl p-5 shadow-sm hover:shadow-md hover:bg-white/70 transition flex flex-col gap-4 relative">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4 relative">
       {/* Status Badge */}
       <div className="flex justify-between items-start">
         <div className="flex gap-2">
@@ -159,15 +159,15 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
         })()}
 
       {/* Action Buttons */}
-      <div className="flex justify-end items-center pt-3 border-t border-white/40">
+      <div className="flex justify-end items-center pt-3 border-t border-gray-200">
         <div className="flex gap-2">
           {showDeleteIcon && onDelete && (
-            <button onClick={onDelete} className="p-2 rounded-md hover:bg-red-500/10 transition">
+            <button onClick={onDelete} className="p-2 rounded-md hover:bg-red-100 transition">
               <Trash2 size={20} className="text-red-600" />
             </button>
           )}
           {onEdit && (
-            <button onClick={onEdit} className="p-2 rounded-md hover:bg-white/50 transition">
+            <button onClick={onEdit} className="p-2 rounded-md hover:bg-gray-100 transition">
               <Pen size={20} className="text-gray-700" />
             </button>
           )}
