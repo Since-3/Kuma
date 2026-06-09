@@ -7,7 +7,6 @@ import {
   LucideIcon,
   Megaphone,
   PanelTop,
-  Settings,
   TicketPercent,
   TicketX,
   User,
@@ -86,10 +85,11 @@ const SettingsOverviewView = async () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl flex gap-2 font-bold">
-          <Settings /> Allgemeine Einstellungen
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Verwalte deine App-Einstellungen</p>
+        <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">
+          Konfiguration
+        </p>
+        <h1 className="text-3xl font-black text-gray-900">Einstellungen</h1>
+        <p className="text-sm text-gray-400 font-light mt-1">Verwalte deine App-Einstellungen</p>
       </div>
       <div className="flex flex-col gap-4">
         {settingsMenuTitles.map((item) => (

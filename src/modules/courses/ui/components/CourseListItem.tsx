@@ -129,27 +129,29 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
         </div>
 
         {/* Course Name */}
-        <h2 className="text-xl font-semibold text-gray-900">{courseName}</h2>
+        <h2 className="text-xl font-black text-gray-900 leading-tight">{courseName}</h2>
 
         <div className="flex items-center justify-between w-full">
           {/* Participant Number */}
-          <span className={isFull ? "text-red-600 font-semibold" : "text-gray-800"}>
+          <span
+            className={`text-sm ${isFull ? "text-red-500 font-semibold" : "text-gray-400 font-light"}`}
+          >
             {currentParticipants}/{maxParticipants} Teilnehmer
           </span>
 
           {/* Price */}
-          <h2 className="text-lg font-semibold">
+          <span className="text-lg font-black text-gray-900">
             {price.toLocaleString("de-DE", {
               style: "currency",
               currency: "EUR",
             })}
-          </h2>
+          </span>
         </div>
 
         {/* Participant Bar */}
-        <div className="w-full h-2 bg-white/40 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-white/40 rounded-full overflow-hidden">
           <div
-            className={`h-full ${isFull ? "bg-red-500" : "bg-blue"}`}
+            className={`h-full rounded-full ${isFull ? "bg-red-400" : "bg-blue"}`}
             style={{
               width: `${maxParticipants > 0 ? (currentParticipants / maxParticipants) * 100 : 0}%`,
             }}
@@ -163,10 +165,10 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
             {currentLevel.label}
           </span>
           {/* Room */}
-          <p className="text-gray-500">{room}</p>
+          <p className="text-xs text-gray-400 font-light">{room}</p>
         </div>
 
-        <hr />
+        <div className="h-px bg-white/50" />
 
         <div className="flex items-center justify-between w-full">
           {/* Status */}
