@@ -564,19 +564,17 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       )}
 
       {filteredCourses.length === 0 ? (
-        <div className="text-center py-12 border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl">
-          <p className="text-xl text-gray-600">
-            {courses.length === 0
-              ? "Sie haben noch keine Kurse erstellt"
-              : "Keine Kurse gefunden mit den ausgewählten Filtern"}
+        <div className="text-center py-16 border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl">
+          <p className="text-3xl font-black text-gray-800 mb-2">
+            {courses.length === 0 ? "Noch keine Kurse" : "Keine Treffer"}
           </p>
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-400 font-light text-sm">
             {courses.length === 0
-              ? "Erstellen Sie Ihren ersten Kurs!"
-              : "Ändern Sie die Filter oder setzen Sie sie zurück"}
+              ? "Erstelle deinen ersten Kurs und starte durch."
+              : "Andere Filter ausprobieren oder zurücksetzen."}
           </p>
           {courses.length === 0 && canCreate && (
-            <Button onClick={() => router.push("/courses/create")} className="mt-4">
+            <Button onClick={() => router.push("/courses/create")} className="mt-6">
               Kurs anlegen
             </Button>
           )}
@@ -589,9 +587,12 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
 
             return (
               <div key={dateKey}>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  {formatDate(firstCourse.date)}
-                </h2>
+                <div className="flex items-center gap-3 mb-4">
+                  <h2 className="text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                    {formatDate(firstCourse.date)}
+                  </h2>
+                  <div className="flex-1 h-px bg-white/50" />
+                </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {coursesForDate.map((course) => (
                     <CourseListItem

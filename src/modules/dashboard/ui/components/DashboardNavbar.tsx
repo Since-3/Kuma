@@ -56,8 +56,8 @@ const DashboardNavbar = () => {
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <div>
-      <div className="flex gap-x-4 items-center py-4 bg-muted">
+    <div className="sticky top-0 z-10 -mx-4 px-4 mb-8 bg-white/55 backdrop-blur-xl supports-backdrop-filter:bg-white/45 border-b border-white/30 shadow-sm">
+      <div className="flex gap-x-4 items-center py-4">
         <Button className="size-9 cursor-pointer" variant="outline" onClick={toggleSidebar}>
           {state === "collapsed" || isMobile ? (
             <PanelLeftIcon className="size-4" />
@@ -70,7 +70,6 @@ const DashboardNavbar = () => {
 
         <h1 className="text-xl font-semibold mt-1">{pageTitle}</h1>
       </div>
-      <hr className="mb-8" />
     </div>
   );
 };

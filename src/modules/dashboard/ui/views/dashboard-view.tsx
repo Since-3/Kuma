@@ -12,38 +12,44 @@ const DashboardView = async () => {
 
   return (
     <div className="space-y-6">
-      <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Willkommen zurück!</h1>
-        <p className="text-gray-600">Schön, dich wiederzusehen, {displayName}</p>
-        {isManager(userData) && (
-          <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-            Manager
-          </span>
-        )}
-        {isEmployee(userData) && (
-          <span className="inline-block mt-2 px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-            Mitarbeiter
-          </span>
-        )}
+      <div className="border border-white/60 bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm p-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_100%_0%,oklch(0.88_0.09_85/_0.25)_0%,transparent_70%)] pointer-events-none" />
+        <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-2">
+          Dashboard
+        </p>
+        <h1 className="text-4xl font-black text-gray-900 mb-1">Willkommen zurück!</h1>
+        <p className="text-gray-500 font-light">{displayName}</p>
+        <div className="mt-4 flex gap-2">
+          {isManager(userData) && (
+            <span className="inline-flex items-center px-3 py-1 bg-blue/10 text-blue text-xs font-semibold rounded-full border border-blue/10">
+              Manager
+            </span>
+          )}
+          {isEmployee(userData) && (
+            <span className="inline-flex items-center px-3 py-1 bg-green-500/10 text-green-700 text-xs font-semibold rounded-full border border-green-500/10">
+              Mitarbeiter
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-2">Profil</h2>
-          <p className="text-gray-600 text-sm">Verwalte deine persönlichen Daten</p>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Profil</h2>
+          <p className="text-gray-400 text-sm font-light">Verwalte deine persönlichen Daten</p>
         </div>
 
         {isManager(userData) ? (
           <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-2">Meine Businesses</h2>
-            <p className="text-gray-600 text-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Meine Businesses</h2>
+            <p className="text-gray-400 text-sm font-light">
               {userData.businesses.length}{" "}
               {userData.businesses.length === 1 ? "Business" : "Businesses"}
             </p>
           </div>
         ) : isEmployee(userData) ? (
           <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-2">Meine Berechtigungen</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Meine Berechtigungen</h2>
             {(() => {
               const p = userData.permissions;
               const RESOURCE_LABELS: Record<string, string> = {
@@ -80,20 +86,20 @@ const DashboardView = async () => {
           </div>
         ) : (
           <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-2">Trainings</h2>
-            <p className="text-gray-600 text-sm">Deine gebuchten Trainingseinheiten</p>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Trainings</h2>
+            <p className="text-gray-400 text-sm font-light">Deine gebuchten Trainingseinheiten</p>
           </div>
         )}
 
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-2">Einstellungen</h2>
-          <p className="text-gray-600 text-sm">Passe deine Einstellungen an</p>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Einstellungen</h2>
+          <p className="text-gray-400 text-sm font-light">Passe deine Einstellungen an</p>
         </div>
       </div>
 
       {isUser(userData) && (
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Benutzerdaten</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Benutzerdaten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <dt className="text-sm font-medium text-gray-500">Name</dt>
@@ -133,7 +139,7 @@ const DashboardView = async () => {
 
       {isManager(userData) && (
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Manager-Daten</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Manager-Daten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <dt className="text-sm font-medium text-gray-500">Vorname</dt>
@@ -165,10 +171,10 @@ const DashboardView = async () => {
 
       {isManager(userData) && userData.businesses.length > 0 && (
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Meine Businesses</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Meine Businesses</h2>
           <div className="space-y-4">
             {userData.businesses.map((business) => (
-              <div key={business.id} className="border-l-4 border-blue-500 pl-4 py-2">
+              <div key={business.id} className="border-l-2 border-white/60 pl-4 py-1">
                 <h3 className="text-lg font-semibold text-gray-900">{business.name}</h3>
                 <p className="text-sm text-gray-600 mt-1">{business.address}</p>
                 <p className="text-sm text-gray-600">{business.email}</p>
@@ -180,7 +186,7 @@ const DashboardView = async () => {
 
       {isEmployee(userData) && (
         <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Mitarbeiter-Daten</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Mitarbeiter-Daten</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <dt className="text-sm font-medium text-gray-500">Vorname</dt>
