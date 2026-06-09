@@ -1,6 +1,17 @@
 import { requireAuthWithData, isManager } from "@/src/lib/auth/getUser";
 import SettingsMenuItem from "../components/SettingsMenuItem";
-import { CreditCard, LucideIcon, PanelTop, Settings, User } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  CreditCard,
+  LucideIcon,
+  Megaphone,
+  PanelTop,
+  Settings,
+  TicketPercent,
+  TicketX,
+  User,
+} from "lucide-react";
 
 type SettingsMenuItem = {
   icon: LucideIcon;
@@ -17,6 +28,12 @@ const settingsMenuTitles: SettingsMenuItem[] = [
     description: "Verwalte deine persöhnlichen Daten",
   },
   {
+    icon: Building2,
+    name: "Business Einsetllungen",
+    href: "/settings/business",
+    description: "Verwalte deine Business Daten",
+  },
+  {
     icon: PanelTop,
     name: "Öffentliche Seite",
     href: "/settings/public-page",
@@ -27,6 +44,30 @@ const settingsMenuTitles: SettingsMenuItem[] = [
     name: "Zahlungen",
     href: "/settings/payments",
     description: "Verbinde dein Stripe-Konto um Zahlungen zu empfangen",
+  },
+  {
+    icon: TicketX,
+    name: "Stornierung",
+    href: "/settings/cancellation",
+    description: "Verwalte deine Stornierungsregeln",
+  },
+  {
+    icon: TicketPercent,
+    name: "Rabatt",
+    href: "/settings/discounts",
+    description: "Verwalte deine Rabattaktionen und Pakete",
+  },
+  {
+    icon: Bell,
+    name: "Benachrichtigungen",
+    href: "/settings/notifications",
+    description: "Verwalte deine Benachrichtigungseinstellungen",
+  },
+  {
+    icon: Megaphone,
+    name: "Branding",
+    href: "/settings/branding",
+    description: "Platziere dein Logo und nimm deine Farben",
   },
 ];
 
