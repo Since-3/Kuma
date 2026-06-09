@@ -106,81 +106,52 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Atomare Kapazitätsprüfung: verhindert dass zwei gleichzeitig zahlende User
   // den letzten Platz bekommen. Innerhalb der Transaction wird gezählt und
   // erst dann auf "paid" gesetzt.
-  const outcome = await prisma.$transaction(
-    async (tx) => {
-      const existing = await tx.courseBooking.findUnique({
-        where: { courseId_userId: { courseId, userId } },
-      });
+  //
+  // PostgreSQL kann bei Serializable-Isolation transiente Serialisierungsfehler
+  // (P2034) werfen, die Prisma nicht selbst wiederholt. Wir versuchen bis zu 3
+  // Mal mit exponentiellem Backoff+Jitter, bevor wir aufgeben und Stripe den
+  // Webhook wiederholen lassen.
+  const MAX_ATTEMPTS = 3;
+  let outcome: Awaited<ReturnType<typeof runCapacityTransaction>> | undefined;
 
-      // Idempotenz: Wenn diese Buchung bereits einen Endzustand für DIESE Session
-      // erreicht hat, ist der Event schon verarbeitet. Erneutes Durchlaufen würde
-      // sonst einen zweiten Refund auslösen oder "refunded" → "failed" überschreiben.
-      if (existing && existing.stripeSessionId === session.id) {
-        if (existing.paymentStatus === "paid") return "already_paid" as const;
-        if (existing.paymentStatus === "refunded") return "already_refunded" as const;
-        if (existing.paymentStatus === "failed") return "already_failed" as const;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      outcome = await runCapacityTransaction({
+        courseId,
+        userId,
+        session,
+        paymentIntentId,
+        amountPaidCents,
+        platformFeeCents,
+      });
+      break;
+    } catch (err: unknown) {
+      const isSerializationError =
+        err instanceof Error && "code" in err && (err as { code: string }).code === "P2034";
+
+      if (isSerializationError && attempt < MAX_ATTEMPTS) {
+        const delay = 50 * 2 ** (attempt - 1) + Math.random() * 30;
+        console.warn(
+          `Serialisierungskonflikt (Versuch ${attempt}/${MAX_ATTEMPTS}) – ` +
+            `courseId=${courseId} userId=${userId} sessionId=${session.id}. ` +
+            `Retry in ${Math.round(delay)}ms.`
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
       }
 
-      const course = await tx.course.findUnique({
-        where: { id: courseId },
-        select: { maxParticipants: true },
-      });
-
-      if (!course) {
-        return "course_not_found" as const;
+      if (isSerializationError) {
+        console.error(
+          `Serialisierungskonflikt nach ${MAX_ATTEMPTS} Versuchen – ` +
+            `courseId=${courseId} userId=${userId} sessionId=${session.id} ` +
+            `paymentIntentId=${paymentIntentId}. Stripe wird den Webhook wiederholen.`
+        );
       }
+      throw err;
+    }
+  }
 
-      const paidCount = await tx.courseBooking.count({
-        where: { courseId, paymentStatus: "paid" },
-      });
-
-      if (paidCount >= course.maxParticipants) {
-        // Platz ist weg – Buchung als failed markieren, Aufrufer löst Refund aus.
-        await tx.courseBooking.upsert({
-          where: { courseId_userId: { courseId, userId } },
-          update: {
-            paymentStatus: "failed",
-            stripeSessionId: session.id,
-            stripePaymentIntentId: paymentIntentId,
-            amountPaid: amountPaidCents,
-            platformFee: platformFeeCents,
-          },
-          create: {
-            courseId,
-            userId,
-            paymentStatus: "failed",
-            stripeSessionId: session.id,
-            stripePaymentIntentId: paymentIntentId,
-            amountPaid: amountPaidCents,
-            platformFee: platformFeeCents,
-          },
-        });
-        return "capacity_exceeded" as const;
-      }
-
-      await tx.courseBooking.upsert({
-        where: { courseId_userId: { courseId, userId } },
-        update: {
-          paymentStatus: "paid",
-          stripeSessionId: session.id,
-          stripePaymentIntentId: paymentIntentId,
-          amountPaid: amountPaidCents,
-          platformFee: platformFeeCents,
-        },
-        create: {
-          courseId,
-          userId,
-          paymentStatus: "paid",
-          stripeSessionId: session.id,
-          stripePaymentIntentId: paymentIntentId,
-          amountPaid: amountPaidCents,
-          platformFee: platformFeeCents,
-        },
-      });
-      return "booked" as const;
-    },
-    { isolationLevel: "Serializable" }
-  );
+  if (!outcome) throw new Error("runCapacityTransaction lieferte kein Ergebnis");
 
   // "already_failed" = Buchung wurde bei früherem Versuch wegen voller Kapazität
   // auf "failed" gesetzt, aber der Refund ist noch ausstehend (z.B. damals
@@ -244,6 +215,99 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null
  * Lädt Kurs+Business und schickt die Buchungs-Bestätigung an den Kunden.
  * Schluckt Fehler bewusst (siehe Caller-Kommentar).
  */
+type CapacityOutcome =
+  | "booked"
+  | "capacity_exceeded"
+  | "already_paid"
+  | "already_refunded"
+  | "already_failed"
+  | "course_not_found";
+
+async function runCapacityTransaction(params: {
+  courseId: string;
+  userId: string;
+  session: Stripe.Checkout.Session;
+  paymentIntentId: string | null;
+  amountPaidCents: number;
+  platformFeeCents: number;
+}): Promise<CapacityOutcome> {
+  const { courseId, userId, session, paymentIntentId, amountPaidCents, platformFeeCents } = params;
+
+  return prisma.$transaction(
+    async (tx) => {
+      const existing = await tx.courseBooking.findUnique({
+        where: { courseId_userId: { courseId, userId } },
+      });
+
+      // Idempotenz: Wenn diese Buchung bereits einen Endzustand für DIESE Session
+      // erreicht hat, ist der Event schon verarbeitet. Erneutes Durchlaufen würde
+      // sonst einen zweiten Refund auslösen oder "refunded" → "failed" überschreiben.
+      if (existing && existing.stripeSessionId === session.id) {
+        if (existing.paymentStatus === "paid") return "already_paid" as const;
+        if (existing.paymentStatus === "refunded") return "already_refunded" as const;
+        if (existing.paymentStatus === "failed") return "already_failed" as const;
+      }
+
+      const course = await tx.course.findUnique({
+        where: { id: courseId },
+        select: { maxParticipants: true },
+      });
+
+      if (!course) return "course_not_found" as const;
+
+      const paidCount = await tx.courseBooking.count({
+        where: { courseId, paymentStatus: "paid" },
+      });
+
+      if (paidCount >= course.maxParticipants) {
+        // Platz ist weg – Buchung als failed markieren, Aufrufer löst Refund aus.
+        await tx.courseBooking.upsert({
+          where: { courseId_userId: { courseId, userId } },
+          update: {
+            paymentStatus: "failed",
+            stripeSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            amountPaid: amountPaidCents,
+            platformFee: platformFeeCents,
+          },
+          create: {
+            courseId,
+            userId,
+            paymentStatus: "failed",
+            stripeSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            amountPaid: amountPaidCents,
+            platformFee: platformFeeCents,
+          },
+        });
+        return "capacity_exceeded" as const;
+      }
+
+      await tx.courseBooking.upsert({
+        where: { courseId_userId: { courseId, userId } },
+        update: {
+          paymentStatus: "paid",
+          stripeSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          amountPaid: amountPaidCents,
+          platformFee: platformFeeCents,
+        },
+        create: {
+          courseId,
+          userId,
+          paymentStatus: "paid",
+          stripeSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          amountPaid: amountPaidCents,
+          platformFee: platformFeeCents,
+        },
+      });
+      return "booked" as const;
+    },
+    { isolationLevel: "Serializable" }
+  );
+}
+
 async function sendBookingConfirmation(
   recipientEmail: string,
   courseId: string,
