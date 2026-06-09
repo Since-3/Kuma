@@ -414,67 +414,77 @@ const PublicCourseCard = ({ course, business, defaultOpen = false }: PublicCours
     <>
       <div
         onClick={() => setDialogOpen(true)}
-        className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col gap-4"
+        className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl shadow-sm hover:shadow-md hover:bg-white/70 transition flex flex-col cursor-pointer overflow-hidden"
       >
-        <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-sm">{formattedDate}</p>
-          <p className="text-gray-500 text-sm">
-            {course.timeFrom} – {course.timeTo}
-          </p>
-        </div>
-
-        {course.trainerProfiles && course.trainerProfiles.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {course.trainerProfiles.map((trainer) => {
-              const fullName =
-                [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
-              return (
-                <Tooltip key={trainer.id}>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <TrainerAvatar trainer={trainer} size="sm" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{fullName}</TooltipContent>
-                </Tooltip>
-              );
-            })}
+        {course.coverImage && (
+          <div className="relative w-full h-36 shrink-0">
+            <Image src={course.coverImage} alt={course.name} fill className="object-cover" />
           </div>
         )}
 
-        <h2 className="text-xl font-semibold text-gray-900">{course.name}</h2>
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-500 text-sm">{formattedDate}</p>
+            <p className="text-gray-500 text-sm">
+              {course.timeFrom} – {course.timeTo}
+            </p>
+          </div>
 
-        <div className="flex items-center justify-between">
-          <span
-            className={`text-xs font-semibold px-2 py-1 rounded-lg ${currentLevel.bg} ${currentLevel.text}`}
-          >
-            {currentLevel.label}
-          </span>
-          <span className="text-lg font-semibold">{formattedPrice}</span>
+          {course.trainerProfiles && course.trainerProfiles.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              {course.trainerProfiles.map((trainer) => {
+                const fullName =
+                  [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Trainer";
+                return (
+                  <Tooltip key={trainer.id}>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <TrainerAvatar trainer={trainer} size="sm" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{fullName}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          )}
+
+          <h2 className="text-xl font-semibold text-gray-900">{course.name}</h2>
+
+          <div className="flex items-center justify-between">
+            <span
+              className={`text-xs font-semibold px-2 py-1 rounded-lg ${currentLevel.bg} ${currentLevel.text}`}
+            >
+              {currentLevel.label}
+            </span>
+            <span className="text-lg font-semibold">{formattedPrice}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span
+              className={isFull ? "text-red-600 font-semibold text-sm" : "text-gray-700 text-sm"}
+            >
+              {course.currentParticipants}/{course.maxParticipants} Teilnehmer
+            </span>
+          </div>
+
+          <div className="w-full h-2 bg-white/40 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${isFull ? "bg-red-500" : "bg-blue-500"}`}
+              style={{ width: `${fillPercent}%` }}
+            />
+          </div>
+
+          {isFull ? (
+            <Button disabled variant="outline" className="w-full">
+              Ausgebucht
+            </Button>
+          ) : (
+            <Button className="w-full" onClick={() => setDialogOpen(true)}>
+              Jetzt anmelden
+            </Button>
+          )}
         </div>
-
-        <div className="flex items-center justify-between">
-          <span className={isFull ? "text-red-600 font-semibold text-sm" : "text-gray-700 text-sm"}>
-            {course.currentParticipants}/{course.maxParticipants} Teilnehmer
-          </span>
-        </div>
-
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full ${isFull ? "bg-red-500" : "bg-blue-500"}`}
-            style={{ width: `${fillPercent}%` }}
-          />
-        </div>
-
-        {isFull ? (
-          <Button disabled variant="outline" className="w-full">
-            Ausgebucht
-          </Button>
-        ) : (
-          <Button className="w-full" onClick={() => setDialogOpen(true)}>
-            Jetzt anmelden
-          </Button>
-        )}
       </div>
 
       <BookingDialog
