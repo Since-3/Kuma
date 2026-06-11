@@ -1,4 +1,4 @@
-import { requireAuthWithData, isManager } from "@/src/lib/auth/getUser";
+import { requireAuthWithData, isManager, isUser, isEmployee } from "@/src/lib/auth/getUser";
 import SettingsMenuItem from "../components/SettingsMenuItem";
 import {
   Bell,
@@ -74,11 +74,23 @@ const settingsMenuTitles: SettingsMenuItem[] = [
 const SettingsOverviewView = async () => {
   const userData = await requireAuthWithData();
 
-  if (!isManager(userData)) {
+  if (isUser(userData) || isEmployee(userData)) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold mb-1">Einstellungen</h1>
-        <p className="text-gray-500 text-sm">Keine weiteren Einstellungen verfügbar.</p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl flex gap-2 font-bold">
+            <Settings /> Einstellungen
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Verwalte deine persönlichen Daten</p>
+        </div>
+        <div className="flex flex-col gap-4">
+          <SettingsMenuItem
+            name="Persönliche Einstellungen"
+            description="Profilbild, Name, E-Mail, Passwort und mehr"
+            icon={User}
+            href="/settings/personal"
+          />
+        </div>
       </div>
     );
   }
