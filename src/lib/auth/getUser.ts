@@ -8,6 +8,7 @@ export type UserData = {
   id: string;
   name: string | null;
   email: string;
+  tel: string | null;
   birthday: Date | null;
   plz: string | null;
   city: string | null;
@@ -83,6 +84,7 @@ export const getUserData = cache(async (): Promise<AuthUserData | null> => {
             id: true,
             name: true,
             email: true,
+            tel: true,
             birthday: true,
             plz: true,
             city: true,
