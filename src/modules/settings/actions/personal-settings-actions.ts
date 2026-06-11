@@ -93,7 +93,10 @@ export async function updateEmail(newEmail: string): Promise<ActionResult> {
       return { success: false, error: "Ungültige E-Mail-Adresse." };
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseUrl) {
+      return { success: false, error: "App-URL ist nicht konfiguriert." };
+    }
     const supabase = await createClient();
     const { error: authError } = await supabase.auth.updateUser(
       { email: newEmail },
@@ -133,7 +136,13 @@ export async function syncEmailAfterConfirmation(): Promise<ActionResult> {
       if (manager) {
         await prisma.manager.update({ where: { id }, data: { email: newEmail } });
       } else {
-        await prisma.employee.updateMany({ where: { id }, data: { email: newEmail } });
+        const result = await prisma.employee.updateMany({
+          where: { id },
+          data: { email: newEmail },
+        });
+        if (result.count === 0) {
+          return { success: false, error: "Kein passender Datensatz für E-Mail-Sync gefunden." };
+        }
       }
     }
 

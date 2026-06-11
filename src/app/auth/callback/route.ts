@@ -5,7 +5,9 @@ import { syncEmailAfterConfirmation } from "@/src/modules/settings/actions/perso
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/settings/personal";
+  const requestedNext = searchParams.get("next");
+  const next =
+    requestedNext && /^\/(?!\/)/.test(requestedNext) ? requestedNext : "/settings/personal";
   const isEmailChange = searchParams.get("email_confirmed") === "true";
 
   if (!code) {
@@ -20,7 +22,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (isEmailChange) {
-    await syncEmailAfterConfirmation();
+    const syncResult = await syncEmailAfterConfirmation();
+    if (!syncResult.success) {
+      const fallback = new URL("/settings/personal", request.url);
+      fallback.searchParams.set("emailSync", "failed");
+      return NextResponse.redirect(fallback);
+    }
   }
 
   // Hard redirect so the browser re-fetches the page fully,
