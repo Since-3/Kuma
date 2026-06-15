@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import InputComponent from "@/src/components/layout/InputComponent";
 import { Button } from "@/src/components/ui/button";
 import { updateBusinessInfo } from "../../actions/business-settings-actions";
@@ -25,7 +25,7 @@ function Card({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-6 space-y-5">
@@ -59,29 +59,37 @@ const BusinessSettingsForm = ({
 
   const handleBusinessSave = () => {
     startTransition(async () => {
-      const result = await updateBusinessInfo({
-        businessId,
-        address,
-        email,
-        title,
-        ustId,
-        banking,
-      });
-      if (result.success) {
-        toast.success("Business-Daten erfolgreich gespeichert.");
-      } else {
-        toast.error(result.error ?? "Fehler beim Speichern.");
+      try {
+        const result = await updateBusinessInfo({
+          businessId,
+          address,
+          email,
+          title,
+          ustId,
+          banking,
+        });
+        if (result.success) {
+          toast.success("Business-Daten erfolgreich gespeichert.");
+        } else {
+          toast.error(result.error ?? "Fehler beim Speichern.");
+        }
+      } catch {
+        toast.error("Fehler beim Speichern.");
       }
     });
   };
 
   const handleTelSave = () => {
     startTransition(async () => {
-      const result = await updateProfileInfo({ tel });
-      if (result.success) {
-        toast.success("Geschäftsnummer erfolgreich gespeichert.");
-      } else {
-        toast.error(result.error ?? "Fehler beim Speichern.");
+      try {
+        const result = await updateProfileInfo({ tel });
+        if (result.success) {
+          toast.success("Geschäftsnummer erfolgreich gespeichert.");
+        } else {
+          toast.error(result.error ?? "Fehler beim Speichern.");
+        }
+      } catch {
+        toast.error("Fehler beim Speichern.");
       }
     });
   };

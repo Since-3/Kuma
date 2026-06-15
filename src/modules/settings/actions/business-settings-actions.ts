@@ -26,11 +26,13 @@ export async function updateBusinessInfo(data: {
       return { success: false, error: "Nicht berechtigt." };
     }
 
-    if (!data.address.trim() || !data.email.trim() || !data.title.trim()) {
+    const email = data.email.trim();
+
+    if (!data.address.trim() || !email || !data.title.trim()) {
       return { success: false, error: "Bitte alle Pflichtfelder ausfüllen." };
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { success: false, error: "Ungültige E-Mail-Adresse." };
     }
 
@@ -38,14 +40,14 @@ export async function updateBusinessInfo(data: {
       where: { id: data.businessId },
       data: {
         address: data.address.trim(),
-        email: data.email.trim(),
+        email,
         title: data.title.trim(),
         ustId: data.ustId?.trim() || null,
         banking: data.banking?.trim() || null,
       },
     });
 
-    revalidateTag(`user-data-${manager.email}`);
+    (revalidateTag as (tag: string, type: "max") => void)(`user-data-${manager.email}`, "max");
     return { success: true };
   } catch {
     return { success: false, error: "Fehler beim Speichern der Business-Daten." };
