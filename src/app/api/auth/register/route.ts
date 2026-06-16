@@ -69,6 +69,36 @@ export async function POST(request: Request) {
       },
     });
 
+    // Gast-Buchungen mit derselben E-Mail auf den neuen Account übertragen.
+    // GuestLead-Einträge mit dieser Mail suchen und deren Buchungen auf userId setzen.
+    try {
+      const guestLeads = await prisma.guestLead.findMany({
+        where: { email },
+        select: { id: true },
+      });
+
+      if (guestLeads.length > 0) {
+        const guestLeadIds = guestLeads.map((g) => g.id);
+
+        // Nur Buchungen übertragen die noch keinen User haben und paid/pending sind
+        // (failed/refunded sind nicht mehr relevant)
+        await prisma.courseBooking.updateMany({
+          where: {
+            guestLeadId: { in: guestLeadIds },
+            userId: null,
+            paymentStatus: { in: ["paid", "pending"] },
+          },
+          data: {
+            userId: newUser.id,
+            guestLeadId: null,
+          },
+        });
+      }
+    } catch (mergeError) {
+      // Nicht-fatal: User wurde erfolgreich angelegt, Merge kann manuell nachgeholt werden
+      console.error("Gast-Buchungen konnten nicht übertragen werden:", mergeError);
+    }
+
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error) {
     console.error("Error in /api/auth/register:", error);

@@ -15,9 +15,16 @@ export async function middleware(request: NextRequest) {
   ];
   const authRoutes = ["/login", "/register", "/forgot-password"];
 
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
+  // Guest-accessible sub-paths that sit under a protected prefix
+  const guestAllowedPaths = [
+    "/courses/book/", // success + cancel pages after guest checkout
+  ];
+  const isGuestAllowed = guestAllowedPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
   );
+
+  const isProtectedRoute =
+    !isGuestAllowed && protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
   const isAuthRoute = authRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
   const isPasswordReset = request.nextUrl.pathname.startsWith("/reset-password");
 

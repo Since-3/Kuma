@@ -3,40 +3,85 @@ import { prisma } from "@/src/lib/prisma";
 import { stripe, calculatePlatformFeeCents, eurosToCents } from "@/src/lib/stripe";
 import { getUserData, isUser } from "@/src/lib/auth/getUser";
 
+// Simple in-memory rate limiter: max 10 checkout attempts per IP per minute.
+// Resets automatically as entries expire — no external dependency needed.
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * Erstellt eine Stripe Checkout Session für eine Kurs-Buchung.
  * Geld geht direkt an das Business-Connect-Account (minus Plattform-Fee).
  *
- * Body: { courseId: string }
+ * Auth-Flow  → Body: { courseId: string }
+ * Guest-Flow → Body: { courseId: string; guestEmail: string; guestName?: string }
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting per IP
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Zu viele Anfragen. Bitte warte kurz und versuche es erneut." },
+        { status: 429 }
+      );
+    }
+
+    // Auth check — always first, Guest-Path only when no session exists
     const userData = await getUserData();
-    if (!userData) {
-      return NextResponse.json(
-        { error: "Sie müssen angemeldet sein, um einen Kurs zu buchen" },
-        { status: 401 }
-      );
-    }
 
-    // Nur normale User (role: "user") können Kurse buchen.
-    // Manager/Employee haben keine Einträge in der User-Tabelle, daher würde
-    // sonst der Foreign-Key-Constraint CourseBooking_userId_fkey im Webhook
-    // verletzt werden – und das erst NACHDEM das Geld geflossen ist.
-    if (!isUser(userData)) {
-      return NextResponse.json(
-        {
-          error: "Nur Kunden-Accounts können Kurse buchen. Bitte mit einem Nutzer-Konto anmelden.",
-        },
-        { status: 403 }
-      );
-    }
-
-    const body = (await request.json()) as { courseId?: string };
-    const { courseId } = body;
+    const body = (await request.json()) as {
+      courseId?: string;
+      guestEmail?: string;
+      guestName?: string;
+    };
+    const { courseId, guestEmail, guestName } = body;
 
     if (!courseId) {
       return NextResponse.json({ error: "courseId fehlt" }, { status: 400 });
+    }
+
+    // Determine flow: authenticated user or guest
+    const isGuest = !userData;
+
+    if (!isGuest) {
+      // Nur normale User (role: "user") können Kurse buchen.
+      // Manager/Employee haben keine Einträge in der User-Tabelle, daher würde
+      // sonst der Foreign-Key-Constraint CourseBooking_userId_fkey im Webhook
+      // verletzt werden – und das erst NACHDEM das Geld geflossen ist.
+      if (!isUser(userData)) {
+        return NextResponse.json(
+          {
+            error:
+              "Nur Kunden-Accounts können Kurse buchen. Bitte mit einem Nutzer-Konto anmelden.",
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Guest flow: guestEmail required
+      if (!guestEmail || !EMAIL_RE.test(guestEmail)) {
+        return NextResponse.json(
+          { error: "Bitte eine gültige E-Mail-Adresse angeben.", isGuestRequired: true },
+          { status: 401 }
+        );
+      }
     }
 
     const course = await prisma.course.findUnique({
@@ -85,30 +130,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingBooking = await prisma.courseBooking.findUnique({
-      where: {
-        courseId_userId: { courseId, userId: userData.id },
-      },
-    });
+    // Duplicate-booking check only for authenticated users (guests have no unique constraint)
+    if (!isGuest && userData) {
+      const existingBooking = await prisma.courseBooking.findUnique({
+        where: {
+          courseId_userId: { courseId, userId: userData.id },
+        },
+      });
 
-    if (existingBooking && existingBooking.paymentStatus === "paid") {
-      return NextResponse.json(
-        { error: "Sie haben sich bereits für diesen Kurs angemeldet" },
-        { status: 400 }
-      );
+      if (existingBooking && existingBooking.paymentStatus === "paid") {
+        return NextResponse.json(
+          { error: "Sie haben sich bereits für diesen Kurs angemeldet" },
+          { status: 400 }
+        );
+      }
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const priceCents = eurosToCents(course.price);
     const platformFeeCents = calculatePlatformFeeCents(course.price);
 
+    const customerEmail = isGuest ? guestEmail! : userData!.email;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      // payment_method_types weggelassen → Checkout Sessions nutzen automatisch
-      // alle im Stripe Dashboard aktivierten und für diese Session kompatiblen
-      // Methoden (Dynamic Payment Methods).
-      // Karte/Apple Pay/Google Pay/Link sind sofort verfügbar. PayPal
-      // unterstützt kein Stripe Connect und muss über die PayPal Dev API eingerichtet werden
       line_items: [
         {
           price_data: {
@@ -129,16 +174,22 @@ export async function POST(request: NextRequest) {
         },
         metadata: {
           courseId: course.id,
-          userId: userData.id,
+          userId: isGuest ? "" : userData!.id,
           businessId: course.business.id,
+          isGuest: isGuest ? "true" : "false",
+          guestEmail: isGuest ? guestEmail! : "",
+          guestName: isGuest ? (guestName ?? "") : "",
         },
       },
       metadata: {
         courseId: course.id,
-        userId: userData.id,
+        userId: isGuest ? "" : userData!.id,
         businessId: course.business.id,
+        isGuest: isGuest ? "true" : "false",
+        guestEmail: isGuest ? guestEmail! : "",
+        guestName: isGuest ? (guestName ?? "") : "",
       },
-      customer_email: userData.email,
+      customer_email: customerEmail,
       success_url: `${baseUrl}/courses/book/${course.id}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/courses/book/${course.id}/cancel`,
     });

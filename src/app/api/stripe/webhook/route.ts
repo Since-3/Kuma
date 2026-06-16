@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe, getWebhookSecret } from "@/src/lib/stripe";
 import { prisma } from "@/src/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { sendMail } from "@/src/lib/mail/nodemailer";
 import { generateBookingConfirmationEmail } from "@/src/lib/mail/templates/booking-confirmation";
 import { generateBookingRefundEmail } from "@/src/lib/mail/templates/booking-refund";
@@ -63,13 +63,14 @@ export async function POST(request: NextRequest) {
 /**
  * Verarbeitet eine erfolgreiche Checkout-Session.
  * Erstellt die CourseBooking (falls nicht vorhanden) und setzt sie auf "paid".
+ * Unterstützt Auth-User und Gäste (isGuest === "true" in Metadata).
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const courseId = session.metadata?.courseId;
-  const userId = session.metadata?.userId;
+  const isGuest = session.metadata?.isGuest === "true";
 
-  if (!courseId || !userId) {
-    console.error("checkout.session.completed: courseId oder userId fehlt in Metadata");
+  if (!courseId) {
+    console.error("checkout.session.completed: courseId fehlt in Metadata");
     return;
   }
 
@@ -80,50 +81,92 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Sicherheitsnetz: User muss in der User-Tabelle existieren, sonst würde
-  // der Foreign-Key-Constraint die Buchung ablehnen. Wir loggen das und
-  // geben 200 zurück (kein Stripe-Retry für einen Fehler den ein Retry nicht behebt).
-  const userExists = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true },
-  });
-
-  if (!userExists) {
-    console.error(
-      `checkout.session.completed: User ${userId} existiert nicht in der User-Tabelle. ` +
-        `Session ${session.id} wird ignoriert. Zahlung muss ggf. manuell erstattet werden.`
-    );
-    return;
-  }
-
-  // Beträge in Cents (ganzzahlig) speichern – keine Float-Rundungsfehler.
   const amountPaidCents = session.amount_total ?? 0;
   const paymentIntentId = (session.payment_intent as string | null) ?? null;
   const platformFeeCents = paymentIntentId
     ? await getApplicationFeeFromPaymentIntent(paymentIntentId)
     : 0;
 
-  // Atomare Kapazitätsprüfung: verhindert dass zwei gleichzeitig zahlende User
-  // den letzten Platz bekommen. Innerhalb der Transaction wird gezählt und
-  // erst dann auf "paid" gesetzt.
-  //
-  // PostgreSQL kann bei Serializable-Isolation transiente Serialisierungsfehler
-  // (P2034) werfen, die Prisma nicht selbst wiederholt. Wir versuchen bis zu 3
-  // Mal mit exponentiellem Backoff+Jitter, bevor wir aufgeben und Stripe den
-  // Webhook wiederholen lassen.
+  // Guest-Flow und Auth-Flow teilen die Kapazitäts-Logik, aber nutzen
+  // unterschiedliche Identifikatoren und DB-Operationen.
   const MAX_ATTEMPTS = 3;
-  let outcome: Awaited<ReturnType<typeof runCapacityTransaction>> | undefined;
+  let outcome: CapacityOutcome | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      outcome = await runCapacityTransaction({
-        courseId,
-        userId,
-        session,
-        paymentIntentId,
-        amountPaidCents,
-        platformFeeCents,
-      });
+      if (isGuest) {
+        const guestEmail = session.metadata?.guestEmail ?? "";
+        const guestName = session.metadata?.guestName ?? undefined;
+
+        if (!guestEmail) {
+          console.error(
+            "checkout.session.completed: isGuest=true aber guestEmail fehlt in Metadata. " +
+              `Session ${session.id} wird ignoriert.`
+          );
+          return;
+        }
+
+        outcome = await runCapacityTransactionGuest({
+          courseId,
+          guestEmail,
+          guestName: guestName || undefined,
+          session,
+          paymentIntentId,
+          amountPaidCents,
+          platformFeeCents,
+        });
+      } else {
+        const userId = session.metadata?.userId;
+        // Leerer String bedeutet: Checkout wurde ohne Auth erstellt (Race condition
+        // oder alter Code-Pfad). Als Gast behandeln wenn guestEmail vorhanden.
+        if (!userId) {
+          const fallbackEmail =
+            session.metadata?.guestEmail ||
+            session.customer_details?.email ||
+            session.customer_email;
+          if (fallbackEmail) {
+            outcome = await runCapacityTransactionGuest({
+              courseId,
+              guestEmail: fallbackEmail,
+              guestName: session.metadata?.guestName || undefined,
+              session,
+              paymentIntentId,
+              amountPaidCents,
+              platformFeeCents,
+            });
+          } else {
+            console.error(
+              "checkout.session.completed: userId und guestEmail fehlen in Metadata. " +
+                `Session ${session.id} wird ignoriert. Zahlung muss ggf. manuell erstattet werden.`
+            );
+            return;
+          }
+          break;
+        }
+
+        // Sicherheitsnetz: User muss in der User-Tabelle existieren.
+        const userExists = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true },
+        });
+
+        if (!userExists) {
+          console.error(
+            `checkout.session.completed: User ${userId} existiert nicht in der User-Tabelle. ` +
+              `Session ${session.id} wird ignoriert. Zahlung muss ggf. manuell erstattet werden.`
+          );
+          return;
+        }
+
+        outcome = await runCapacityTransactionUser({
+          courseId,
+          userId,
+          session,
+          paymentIntentId,
+          amountPaidCents,
+          platformFeeCents,
+        });
+      }
       break;
     } catch (err: unknown) {
       const isSerializationError =
@@ -133,7 +176,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         const delay = 50 * 2 ** (attempt - 1) + Math.random() * 30;
         console.warn(
           `Serialisierungskonflikt (Versuch ${attempt}/${MAX_ATTEMPTS}) – ` +
-            `courseId=${courseId} userId=${userId} sessionId=${session.id}. ` +
+            `courseId=${courseId} isGuest=${isGuest} sessionId=${session.id}. ` +
             `Retry in ${Math.round(delay)}ms.`
         );
         await new Promise((r) => setTimeout(r, delay));
@@ -143,7 +186,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       if (isSerializationError) {
         console.error(
           `Serialisierungskonflikt nach ${MAX_ATTEMPTS} Versuchen – ` +
-            `courseId=${courseId} userId=${userId} sessionId=${session.id} ` +
+            `courseId=${courseId} isGuest=${isGuest} sessionId=${session.id} ` +
             `paymentIntentId=${paymentIntentId}. Stripe wird den Webhook wiederholen.`
         );
       }
@@ -153,42 +196,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (!outcome) throw new Error("runCapacityTransaction lieferte kein Ergebnis");
 
-  // "already_failed" = Buchung wurde bei früherem Versuch wegen voller Kapazität
-  // auf "failed" gesetzt, aber der Refund ist noch ausstehend (z.B. damals
-  // fehlgeschlagen). Bei Stripe-Retry erneut versuchen.
-  const needsRefund = outcome === "capacity_exceeded" || outcome === "already_failed";
+  const needsRefund = outcome.result === "capacity_exceeded" || outcome.result === "already_failed";
 
   let refundSucceeded = false;
   if (needsRefund && paymentIntentId) {
     console.warn(
-      `Kurs ${courseId} war voll als Zahlung für User ${userId} ankam. ` +
+      `Kurs ${courseId} war voll als Zahlung ankam. ` +
         `Automatische Rückerstattung wird ausgelöst (PaymentIntent ${paymentIntentId}).`
     );
     refundSucceeded = await refundPayment(paymentIntentId);
-    if (refundSucceeded) {
+    if (refundSucceeded && outcome.bookingId) {
       await prisma.courseBooking.update({
-        where: { courseId_userId: { courseId, userId } },
+        where: { id: outcome.bookingId },
         data: { paymentStatus: "refunded" },
       });
-    } else {
-      // Refund fehlgeschlagen: Buchung bleibt "failed" für manuelle Bearbeitung.
-      // Stripe wiederholt den Webhook, sodass ein erneuter Refund-Versuch erfolgt.
+    } else if (!refundSucceeded) {
       console.error(
-        `Refund fehlgeschlagen für Kurs ${courseId}, User ${userId}. ` +
+        `Refund fehlgeschlagen für Kurs ${courseId}. ` +
           `Buchung bleibt "failed" – manuelle Erstattung im Stripe Dashboard nötig.`
       );
     }
   }
 
-  // E-Mail-Versand (FR.10) – darf den Webhook NICHT zum Crashen bringen.
-  // Bei Fehler: nur loggen, sonst riskiert man Stripe-Retry-Schleifen und
-  // mehrfache Buchungs-Verarbeitung.
-  // Außerdem: harte 2-Sekunden-Grenze pro Mail, damit ein träger SMTP-Server
-  // den Webhook nicht über sein Timeout-Limit zieht. Der Versand läuft dann
-  // im Hintergrund weiter; der Webhook gibt nur früher 200 zurück.
+  // E-Mail-Versand – darf den Webhook NICHT zum Crashen bringen.
   const recipientEmail = session.customer_email ?? session.customer_details?.email ?? null;
   if (recipientEmail) {
-    if (outcome === "booked") {
+    if (outcome.result === "booked") {
       await withTimeout(sendBookingConfirmation(recipientEmail, courseId, amountPaidCents), 2000);
     } else if (needsRefund && refundSucceeded) {
       await withTimeout(sendBookingRefund(recipientEmail, courseId, amountPaidCents), 2000);
@@ -197,33 +230,34 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   revalidatePath("/courses");
   revalidatePath("/courses/myCourses");
+
+  if (outcome.result === "booked" || outcome.result === "capacity_exceeded") {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { businessId: true },
+    });
+    if (course) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (revalidateTag as any)(`business-courses-${course.businessId}`);
+    }
+  }
 }
 
-/**
- * Wartet maximal `ms` Millisekunden auf das Promise. Läuft das Promise länger,
- * wird `null` zurückgegeben – das eigentliche Promise läuft im Hintergrund weiter.
- * Wird genutzt, um den Stripe-Webhook nicht über sein Timeout-Limit hinauszuziehen.
- */
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
-  ]);
-}
+type CapacityOutcome = {
+  result:
+    | "booked"
+    | "capacity_exceeded"
+    | "already_paid"
+    | "already_refunded"
+    | "already_failed"
+    | "course_not_found";
+  bookingId?: string;
+};
 
 /**
- * Lädt Kurs+Business und schickt die Buchungs-Bestätigung an den Kunden.
- * Schluckt Fehler bewusst (siehe Caller-Kommentar).
+ * Atomare Kapazitätsprüfung für authentifizierte User.
  */
-type CapacityOutcome =
-  | "booked"
-  | "capacity_exceeded"
-  | "already_paid"
-  | "already_refunded"
-  | "already_failed"
-  | "course_not_found";
-
-async function runCapacityTransaction(params: {
+async function runCapacityTransactionUser(params: {
   courseId: string;
   userId: string;
   session: Stripe.Checkout.Session;
@@ -239,13 +273,13 @@ async function runCapacityTransaction(params: {
         where: { courseId_userId: { courseId, userId } },
       });
 
-      // Idempotenz: Wenn diese Buchung bereits einen Endzustand für DIESE Session
-      // erreicht hat, ist der Event schon verarbeitet. Erneutes Durchlaufen würde
-      // sonst einen zweiten Refund auslösen oder "refunded" → "failed" überschreiben.
       if (existing && existing.stripeSessionId === session.id) {
-        if (existing.paymentStatus === "paid") return "already_paid" as const;
-        if (existing.paymentStatus === "refunded") return "already_refunded" as const;
-        if (existing.paymentStatus === "failed") return "already_failed" as const;
+        if (existing.paymentStatus === "paid")
+          return { result: "already_paid" as const, bookingId: existing.id };
+        if (existing.paymentStatus === "refunded")
+          return { result: "already_refunded" as const, bookingId: existing.id };
+        if (existing.paymentStatus === "failed")
+          return { result: "already_failed" as const, bookingId: existing.id };
       }
 
       const course = await tx.course.findUnique({
@@ -253,15 +287,14 @@ async function runCapacityTransaction(params: {
         select: { maxParticipants: true },
       });
 
-      if (!course) return "course_not_found" as const;
+      if (!course) return { result: "course_not_found" as const };
 
       const paidCount = await tx.courseBooking.count({
         where: { courseId, paymentStatus: "paid" },
       });
 
       if (paidCount >= course.maxParticipants) {
-        // Platz ist weg – Buchung als failed markieren, Aufrufer löst Refund aus.
-        await tx.courseBooking.upsert({
+        const booking = await tx.courseBooking.upsert({
           where: { courseId_userId: { courseId, userId } },
           update: {
             paymentStatus: "failed",
@@ -280,10 +313,10 @@ async function runCapacityTransaction(params: {
             platformFee: platformFeeCents,
           },
         });
-        return "capacity_exceeded" as const;
+        return { result: "capacity_exceeded" as const, bookingId: booking.id };
       }
 
-      await tx.courseBooking.upsert({
+      const booking = await tx.courseBooking.upsert({
         where: { courseId_userId: { courseId, userId } },
         update: {
           paymentStatus: "paid",
@@ -302,10 +335,108 @@ async function runCapacityTransaction(params: {
           platformFee: platformFeeCents,
         },
       });
-      return "booked" as const;
+      return { result: "booked" as const, bookingId: booking.id };
     },
     { isolationLevel: "Serializable" }
   );
+}
+
+/**
+ * Atomare Kapazitätsprüfung für Gäste.
+ * Erstellt einen GuestLead und eine CourseBooking ohne userId.
+ * Idempotenz über stripeSessionId (findFirst statt findUnique).
+ */
+async function runCapacityTransactionGuest(params: {
+  courseId: string;
+  guestEmail: string;
+  guestName?: string;
+  session: Stripe.Checkout.Session;
+  paymentIntentId: string | null;
+  amountPaidCents: number;
+  platformFeeCents: number;
+}): Promise<CapacityOutcome> {
+  const {
+    courseId,
+    guestEmail,
+    guestName,
+    session,
+    paymentIntentId,
+    amountPaidCents,
+    platformFeeCents,
+  } = params;
+
+  return prisma.$transaction(
+    async (tx) => {
+      // Idempotenz: Wurde diese Session schon verarbeitet?
+      const existing = await tx.courseBooking.findFirst({
+        where: { stripeSessionId: session.id },
+      });
+
+      if (existing) {
+        if (existing.paymentStatus === "paid")
+          return { result: "already_paid" as const, bookingId: existing.id };
+        if (existing.paymentStatus === "refunded")
+          return { result: "already_refunded" as const, bookingId: existing.id };
+        if (existing.paymentStatus === "failed")
+          return { result: "already_failed" as const, bookingId: existing.id };
+      }
+
+      const course = await tx.course.findUnique({
+        where: { id: courseId },
+        select: { maxParticipants: true },
+      });
+
+      if (!course) return { result: "course_not_found" as const };
+
+      const paidCount = await tx.courseBooking.count({
+        where: { courseId, paymentStatus: "paid" },
+      });
+
+      // GuestLead anlegen (kein Upsert — mehrere Buchungen eines Gastes sind erlaubt)
+      const guestLead = await tx.guestLead.create({
+        data: { email: guestEmail, name: guestName ?? null },
+      });
+
+      if (paidCount >= course.maxParticipants) {
+        const booking = await tx.courseBooking.create({
+          data: {
+            courseId,
+            guestLeadId: guestLead.id,
+            paymentStatus: "failed",
+            stripeSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            amountPaid: amountPaidCents,
+            platformFee: platformFeeCents,
+          },
+        });
+        return { result: "capacity_exceeded" as const, bookingId: booking.id };
+      }
+
+      const booking = await tx.courseBooking.create({
+        data: {
+          courseId,
+          guestLeadId: guestLead.id,
+          paymentStatus: "paid",
+          stripeSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          amountPaid: amountPaidCents,
+          platformFee: platformFeeCents,
+        },
+      });
+      return { result: "booked" as const, bookingId: booking.id };
+    },
+    { isolationLevel: "Serializable" }
+  );
+}
+
+/**
+ * Wartet maximal `ms` Millisekunden auf das Promise.
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 async function sendBookingConfirmation(
@@ -347,10 +478,6 @@ async function sendBookingConfirmation(
   }
 }
 
-/**
- * Lädt Kurs+Business und schickt die Rückerstattungs-Mail an den Kunden.
- * Schluckt Fehler bewusst (siehe Caller-Kommentar).
- */
 async function sendBookingRefund(
   recipientEmail: string,
   courseId: string,
@@ -379,11 +506,6 @@ async function sendBookingRefund(
   }
 }
 
-/**
- * Erstattet eine Zahlung vollständig zurück (Reverse Transfer + Application Fee,
- * damit das Geld komplett zurückfließt – auch der bereits transferierte Anteil
- * beim Connected Account).
- */
 async function refundPayment(paymentIntentId: string): Promise<boolean> {
   try {
     await stripe.refunds.create({
@@ -398,10 +520,6 @@ async function refundPayment(paymentIntentId: string): Promise<boolean> {
   }
 }
 
-/**
- * Holt die application_fee_amount vom PaymentIntent.
- * Wird gebraucht weil das Feld nicht direkt in der Session steht.
- */
 async function getApplicationFeeFromPaymentIntent(paymentIntentId: string): Promise<number> {
   try {
     const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -418,9 +536,26 @@ async function getApplicationFeeFromPaymentIntent(paymentIntentId: string): Prom
  */
 async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   const courseId = session.metadata?.courseId;
-  const userId = session.metadata?.userId;
+  const isGuest = session.metadata?.isGuest === "true";
 
-  if (!courseId || !userId) return;
+  if (!courseId) return;
+
+  if (isGuest) {
+    // Gäste: per stripeSessionId suchen (kein courseId_userId Unique-Index)
+    const existing = await prisma.courseBooking.findFirst({
+      where: { stripeSessionId: session.id },
+    });
+    if (existing && existing.paymentStatus === "pending") {
+      await prisma.courseBooking.update({
+        where: { id: existing.id },
+        data: { paymentStatus: "failed" },
+      });
+    }
+    return;
+  }
+
+  const userId = session.metadata?.userId;
+  if (!userId) return;
 
   const existing = await prisma.courseBooking.findUnique({
     where: { courseId_userId: { courseId, userId } },
@@ -436,7 +571,6 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 
 /**
  * Synchronisiert den Stripe Connect Account-Status mit der DB.
- * Wird ausgelöst wenn z.B. das Onboarding abgeschlossen wird.
  */
 async function handleAccountUpdated(account: Stripe.Account) {
   const business = await prisma.business.findUnique({

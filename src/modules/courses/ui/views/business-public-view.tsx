@@ -145,7 +145,7 @@ const BusinessPublicView = ({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b border-white/60 bg-white/55 backdrop-blur-xl">
+      <div className="border-b border-gray-200 bg-white/90 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <h1 className="text-4xl font-bold text-gray-900">{business.name}</h1>
           {business.title && <p className="text-xl text-gray-500 mt-1">{business.title}</p>}
@@ -169,7 +169,7 @@ const BusinessPublicView = ({
           {/* Left: sticky calendar */}
           <div className="lg:sticky lg:top-6 shrink-0 w-full lg:w-auto">
             <h2 className="text-2xl font-semibold text-gray-900 mb-3">{formattedSelectedDate}</h2>
-            <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl shadow-sm p-4 flex justify-center">
+            <div className="border border-gray-200 bg-white rounded-xl shadow-sm p-4 flex justify-center">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -194,7 +194,7 @@ const BusinessPublicView = ({
                       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                         resolvedSport === sport
                           ? "bg-gray-900 text-white"
-                          : "border border-white/60 bg-white/55 backdrop-blur-sm text-gray-600 hover:bg-white/70"
+                          : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                       }`}
                     >
                       {sport === "Alle" ? "Alle" : capitalize(sport)}

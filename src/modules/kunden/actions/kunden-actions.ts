@@ -47,9 +47,11 @@ export async function getKunden(): Promise<
       orderBy: { createdAt: "desc" },
     });
 
-    // Pro User nur den letzten (relevantesten) Status behalten
+    // Pro User nur den letzten (relevantesten) Status behalten.
+    // Gast-Buchungen (user === null) werden hier übersprungen.
     const seen = new Map<string, KundeRow>();
     for (const booking of bookings) {
+      if (!booking.user) continue;
       if (!seen.has(booking.user.id)) {
         seen.set(booking.user.id, {
           id: booking.user.id,
