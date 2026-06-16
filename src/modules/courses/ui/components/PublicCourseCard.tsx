@@ -127,6 +127,9 @@ export const BookingDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestName, setGuestName] = useState("");
 
   const isAdminView = paymentStatus !== undefined;
 
@@ -171,26 +174,42 @@ export const BookingDialog = ({
     };
   }, [open, course.id, isAdminView]);
 
-  const handleBooking = async () => {
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleBooking = async (opts?: { asGuest: boolean }) => {
     setIsSubmitting(true);
     try {
+      const body: Record<string, string> = { courseId: course.id };
+      if (opts?.asGuest) {
+        const normalizedEmail = guestEmail.trim().toLowerCase();
+        if (!EMAIL_RE.test(normalizedEmail)) {
+          toast.error("Bitte eine gültige E-Mail-Adresse angeben.");
+          setIsSubmitting(false);
+          return;
+        }
+        body.guestEmail = normalizedEmail;
+        if (guestName.trim()) body.guestName = guestName.trim();
+      }
+
       const response = await fetch("/api/stripe/checkout/course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId: course.id }),
+        body: JSON.stringify(body),
       });
 
-      if (response.status === 401) {
-        window.open("/login", "_blank");
-        setIsSubmitting(false);
-        return;
-      }
-
-      let data: { url?: string; error?: string } = {};
+      let data: { url?: string; error?: string; isGuestRequired?: boolean } = {};
       try {
-        data = (await response.json()) as { url?: string; error?: string };
+        data = (await response.json()) as typeof data;
       } catch {
         // keep fallback error below
+      }
+
+      // Not logged in → show guest form (and show server error if already in guest mode)
+      if (response.status === 401 || (response.status === 400 && data.isGuestRequired)) {
+        if (opts?.asGuest && data.error) toast.error(data.error);
+        setShowGuestForm(true);
+        setIsSubmitting(false);
+        return;
       }
 
       if (!response.ok || !data.url) {
@@ -333,55 +352,92 @@ export const BookingDialog = ({
         </div>
 
         {/* Sticky Footer */}
-        <div className="shrink-0 border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Admin-Ansicht: nur Status-Badge + Schließen */}
-            {isAdminView ? (
-              <>
-                <span
-                  className={`text-sm font-semibold px-3 py-1.5 rounded-full ${adminStatus!.bg} ${adminStatus!.text}`}
-                >
-                  {adminStatus!.label}
-                </span>
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1 sm:flex-initial"
-                >
-                  Schließen
-                </Button>
-              </>
-            ) : (
-              /* Public-Ansicht: Buchen-Button */
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1 sm:flex-initial"
-                >
-                  Schließen
-                </Button>
-                {isCheckingStatus ? (
-                  <Button disabled className="flex-1 sm:flex-initial">
-                    Lade…
-                  </Button>
-                ) : isBooked ? (
-                  <Button disabled className="flex-1 sm:flex-initial">
-                    ✓ Angemeldet
-                  </Button>
-                ) : (
+        <div className="shrink-0 border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span className="text-lg font-bold text-gray-900">Preis: {formattedPrice}</span>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {/* Admin-Ansicht: nur Status-Badge + Schließen */}
+              {isAdminView ? (
+                <>
+                  <span
+                    className={`text-sm font-semibold px-3 py-1.5 rounded-full ${adminStatus!.bg} ${adminStatus!.text}`}
+                  >
+                    {adminStatus!.label}
+                  </span>
                   <Button
-                    onClick={handleBooking}
-                    disabled={isSubmitting || isFull}
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
                     className="flex-1 sm:flex-initial"
                   >
-                    {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
+                    Schließen
                   </Button>
-                )}
-              </>
-            )}
+                </>
+              ) : (
+                /* Public-Ansicht: Buchen-Button */
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    className="flex-1 sm:flex-initial"
+                  >
+                    Schließen
+                  </Button>
+                  {isCheckingStatus ? (
+                    <Button disabled className="flex-1 sm:flex-initial">
+                      Lade…
+                    </Button>
+                  ) : isBooked ? (
+                    <Button disabled className="flex-1 sm:flex-initial">
+                      ✓ Angemeldet
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleBooking()}
+                      disabled={isSubmitting || isFull}
+                      className="flex-1 sm:flex-initial"
+                    >
+                      {isSubmitting ? "Wird gebucht…" : isFull ? "Ausgebucht" : "Buchen"}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Gast-Formular: erscheint nach erstem 401 (nicht eingeloggt) */}
+          {!isAdminView && showGuestForm && !isBooked && (
+            <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
+              <p className="text-xs text-gray-500">
+                Ohne Konto buchen – oder{" "}
+                <a href="/login" className="underline text-gray-700 hover:text-gray-900">
+                  anmelden
+                </a>
+                .
+              </p>
+              <input
+                type="email"
+                placeholder="E-Mail *"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Name (optional)"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+              />
+              <Button
+                onClick={() => handleBooking({ asGuest: true })}
+                disabled={isSubmitting || isFull || !EMAIL_RE.test(guestEmail.trim().toLowerCase())}
+                className="w-full"
+              >
+                {isSubmitting ? "Wird gebucht…" : "Als Gast buchen"}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -414,7 +470,7 @@ const PublicCourseCard = ({ course, business, defaultOpen = false }: PublicCours
     <>
       <div
         onClick={() => setDialogOpen(true)}
-        className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-xl shadow-sm hover:shadow-md hover:bg-white/70 transition flex flex-col cursor-pointer overflow-hidden"
+        className="border border-gray-200 bg-white rounded-xl shadow-sm hover:shadow-md transition flex flex-col cursor-pointer overflow-hidden"
       >
         {course.coverImage && (
           <div className="relative w-full h-36 shrink-0">

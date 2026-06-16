@@ -9,7 +9,7 @@
 
 import { prisma } from "@/src/lib/prisma";
 import { getUserData, isUser } from "@/src/lib/auth/getUser";
-import { unstable_cache, revalidatePath } from "next/cache";
+import { unstable_cache, revalidatePath, revalidateTag } from "next/cache";
 
 export type UserBooking = {
   bookingId: string;
@@ -167,7 +167,11 @@ export async function cancelUserBooking(
   try {
     const booking = await prisma.courseBooking.findUnique({
       where: { id: bookingId },
-      select: { userId: true, paymentStatus: true, course: { select: { date: true } } },
+      select: {
+        userId: true,
+        paymentStatus: true,
+        course: { select: { date: true, businessId: true } },
+      },
     });
 
     if (!booking || booking.userId !== userData.id) {
@@ -188,6 +192,8 @@ export async function cancelUserBooking(
     });
 
     revalidatePath("/courses/myCourses");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (revalidateTag as any)(`business-courses-${booking.course.businessId}`);
     return { success: true };
   } catch {
     return { success: false, error: "Stornierung fehlgeschlagen." };
@@ -279,35 +285,56 @@ export async function getCourseSummaryForConfirmation(courseId: string) {
 }
 
 export async function getBusinessBySlug(slug: string) {
-  try {
-    const business = await prisma.business.findUnique({
-      where: { slug },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        email: true,
-        title: true,
-        slug: true,
-        isPublic: true,
-      },
-    });
+  const fetch = unstable_cache(
+    async () => {
+      try {
+        const business = await prisma.business.findUnique({
+          where: { slug },
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            email: true,
+            title: true,
+            slug: true,
+            isPublic: true,
+          },
+        });
 
-    if (!business || !business.isPublic) {
-      return { success: false, error: "Seite nicht gefunden" };
-    }
+        if (!business || !business.isPublic) {
+          return { success: false as const, error: "Seite nicht gefunden" };
+        }
 
-    return { success: true, business };
-  } catch (error) {
-    console.error("Error fetching business by slug:", error);
-    return { success: false, error: "Fehler beim Laden" };
-  }
+        return { success: true as const, business };
+      } catch (error) {
+        console.error("Error fetching business by slug:", error);
+        return { success: false as const, error: "Fehler beim Laden" };
+      }
+    },
+    [`business-slug-${slug}`],
+    { tags: [`business-slug-${slug}`], revalidate: 3600 }
+  );
+
+  return fetch();
 }
 
 export async function getPublishedCoursesForBusiness(
   businessId: string,
   options: { from: Date; to: Date }
 ) {
+  const fromKey = options.from.toISOString().slice(0, 10);
+  const toKey = options.to.toISOString().slice(0, 10);
+
+  const fetch = unstable_cache(
+    async () => _fetchCoursesForBusiness(businessId, options),
+    [`business-courses-${businessId}-${fromKey}-${toKey}`],
+    { tags: [`business-courses-${businessId}`], revalidate: 30 }
+  );
+
+  return fetch();
+}
+
+async function _fetchCoursesForBusiness(businessId: string, options: { from: Date; to: Date }) {
   try {
     const courses = await prisma.course.findMany({
       where: {
@@ -322,23 +349,24 @@ export async function getPublishedCoursesForBusiness(
     });
 
     const trainerIds = [...new Set(courses.flatMap((c) => c.trainers))];
-    const trainers =
+    const roomIds = [...new Set(courses.map((c) => c.room).filter(Boolean))] as string[];
+
+    const [trainers, rooms] = await Promise.all([
       trainerIds.length > 0
-        ? await prisma.employee.findMany({
+        ? prisma.employee.findMany({
             where: { id: { in: trainerIds } },
             select: { id: true, firstName: true, lastName: true, pbSrc: true },
           })
-        : [];
-    const trainerMap = Object.fromEntries(trainers.map((t) => [t.id, t]));
-
-    const roomIds = [...new Set(courses.map((c) => c.room).filter(Boolean))] as string[];
-    const rooms =
+        : Promise.resolve([]),
       roomIds.length > 0
-        ? await prisma.room.findMany({
+        ? prisma.room.findMany({
             where: { id: { in: roomIds } },
             select: { id: true, name: true },
           })
-        : [];
+        : Promise.resolve([]),
+    ]);
+
+    const trainerMap = Object.fromEntries(trainers.map((t) => [t.id, t]));
     const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
 
     return {

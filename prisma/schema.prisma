@@ -150,20 +150,31 @@ model Room {
   @@index([createdBy])
 }
 
+model GuestLead {
+  id        String          @id @default(uuid())
+  email     String          @unique
+  name      String?
+  bookings  CourseBooking[]
+  createdAt DateTime        @default(now())
+}
+
 model CourseBooking {
   id String @id @default(uuid())
   courseId String
-  userId String
+  userId String?
+  guestLeadId           String?
   paymentStatus         String   @default("pending") // "pending" | "paid" | "failed" | "refunded"
   stripeSessionId       String?  @unique
   stripePaymentIntentId String?  @unique
   amountPaid            Int?     // tatsächlich gezahlter Betrag in Cents
   platformFee           Int?     // unsere Service-Fee in Cents
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestLead  GuestLead? @relation(fields: [guestLeadId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@unique([courseId, userId]) // Ein User kann sich nur einmal pro Kurs anmelden
   @@index([courseId])
   @@index([userId])
+  @@index([guestLeadId])
 }

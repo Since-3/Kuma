@@ -36,7 +36,7 @@ export async function updateBusinessInfo(data: {
       return { success: false, error: "Ungültige E-Mail-Adresse." };
     }
 
-    await prisma.business.update({
+    const updated = await prisma.business.update({
       where: { id: data.businessId },
       data: {
         address: data.address.trim(),
@@ -45,9 +45,12 @@ export async function updateBusinessInfo(data: {
         ustId: data.ustId?.trim() || null,
         banking: data.banking?.trim() || null,
       },
+      select: { slug: true },
     });
 
     (revalidateTag as (tag: string, type: "max") => void)(`user-data-${manager.email}`, "max");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (updated.slug) (revalidateTag as any)(`business-slug-${updated.slug}`);
     return { success: true };
   } catch {
     return { success: false, error: "Fehler beim Speichern der Business-Daten." };

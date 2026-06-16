@@ -9,6 +9,7 @@ export type KundeRow = {
   email: string;
   telefon: string;
   status: "Bezahlt" | "Storniert" | "Ausstehend";
+  isGuest: boolean;
 };
 
 function mapPaymentStatus(paymentStatus: string): KundeRow["status"] {
@@ -28,7 +29,6 @@ export async function getKunden(): Promise<
       return { success: true, kunden: [] };
     }
 
-    // Alle Bookings für Kurse die zu diesem Manager gehören, gruppiert nach User
     const bookings = await prisma.courseBooking.findMany({
       where: {
         course: { businessId: { in: businessIds } },
@@ -36,28 +36,43 @@ export async function getKunden(): Promise<
       select: {
         paymentStatus: true,
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            tel: true,
-          },
+          select: { id: true, name: true, email: true, tel: true },
+        },
+        guestLead: {
+          select: { id: true, name: true, email: true },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Pro User nur den letzten (relevantesten) Status behalten
+    // Deduplizieren: pro User-ID bzw. GuestLead-ID nur den letzten Status
     const seen = new Map<string, KundeRow>();
+
     for (const booking of bookings) {
-      if (!seen.has(booking.user.id)) {
-        seen.set(booking.user.id, {
-          id: booking.user.id,
-          name: booking.user.name ?? booking.user.email,
-          email: booking.user.email,
-          telefon: booking.user.tel ?? "–",
-          status: mapPaymentStatus(booking.paymentStatus),
-        });
+      if (booking.user) {
+        const key = `user:${booking.user.id}`;
+        if (!seen.has(key)) {
+          seen.set(key, {
+            id: booking.user.id,
+            name: booking.user.name ?? booking.user.email,
+            email: booking.user.email,
+            telefon: booking.user.tel ?? "–",
+            status: mapPaymentStatus(booking.paymentStatus),
+            isGuest: false,
+          });
+        }
+      } else if (booking.guestLead) {
+        const key = `guest:${booking.guestLead.id}`;
+        if (!seen.has(key)) {
+          seen.set(key, {
+            id: booking.guestLead.id,
+            name: booking.guestLead.name ?? booking.guestLead.email,
+            email: booking.guestLead.email,
+            telefon: "–",
+            status: mapPaymentStatus(booking.paymentStatus),
+            isGuest: true,
+          });
+        }
       }
     }
 

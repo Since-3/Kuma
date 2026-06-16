@@ -75,10 +75,19 @@ const KundenTable = ({ kunden }: KundenTableProps) => {
             kunden.map((kunde) => (
               <TableRow
                 key={kunde.id}
-                className="border-b border-white/30 transition-colors duration-150 hover:bg-white/70 cursor-pointer"
-                onClick={() => router.push(`/kunden/${kunde.id}`)}
+                className={`border-b border-white/30 transition-colors duration-150 hover:bg-white/70 ${!kunde.isGuest ? "cursor-pointer" : ""}`}
+                onClick={() => !kunde.isGuest && router.push(`/kunden/${kunde.id}`)}
               >
-                <TableCell className="font-medium">{kunde.name}</TableCell>
+                <TableCell className="font-medium">
+                  <span className="flex items-center gap-2">
+                    {kunde.name}
+                    {kunde.isGuest && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                        Gast
+                      </span>
+                    )}
+                  </span>
+                </TableCell>
                 <TableCell className="hidden md:table-cell text-muted-foreground">
                   {kunde.email}
                 </TableCell>
@@ -93,17 +102,19 @@ const KundenTable = ({ kunden }: KundenTableProps) => {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full hover:bg-white/60"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/kunden/${kunde.id}`);
-                    }}
-                  >
-                    <ArrowRight size={16} />
-                  </Button>
+                  {!kunde.isGuest && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full hover:bg-white/60"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/kunden/${kunde.id}`);
+                      }}
+                    >
+                      <ArrowRight size={16} />
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))
