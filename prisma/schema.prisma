@@ -152,12 +152,10 @@ model Room {
 
 model GuestLead {
   id        String          @id @default(uuid())
-  email     String
+  email     String          @unique
   name      String?
   bookings  CourseBooking[]
   createdAt DateTime        @default(now())
-
-  @@index([email])
 }
 
 model CourseBooking {

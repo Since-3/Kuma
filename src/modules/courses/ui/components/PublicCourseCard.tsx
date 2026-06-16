@@ -174,12 +174,20 @@ export const BookingDialog = ({
     };
   }, [open, course.id, isAdminView]);
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleBooking = async (opts?: { asGuest: boolean }) => {
     setIsSubmitting(true);
     try {
       const body: Record<string, string> = { courseId: course.id };
       if (opts?.asGuest) {
-        body.guestEmail = guestEmail;
+        const normalizedEmail = guestEmail.trim().toLowerCase();
+        if (!EMAIL_RE.test(normalizedEmail)) {
+          toast.error("Bitte eine gültige E-Mail-Adresse angeben.");
+          setIsSubmitting(false);
+          return;
+        }
+        body.guestEmail = normalizedEmail;
         if (guestName.trim()) body.guestName = guestName.trim();
       }
 
@@ -196,15 +204,9 @@ export const BookingDialog = ({
         // keep fallback error below
       }
 
-      // Not logged in and no guest email provided → show guest form
-      if (response.status === 401 && data.isGuestRequired) {
-        setShowGuestForm(true);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Not logged in, guest form not yet shown → show it
-      if (response.status === 401 && !opts?.asGuest) {
+      // Not logged in → show guest form (and show server error if already in guest mode)
+      if (response.status === 401 || (response.status === 400 && data.isGuestRequired)) {
+        if (opts?.asGuest && data.error) toast.error(data.error);
         setShowGuestForm(true);
         setIsSubmitting(false);
         return;
@@ -429,7 +431,7 @@ export const BookingDialog = ({
               />
               <Button
                 onClick={() => handleBooking({ asGuest: true })}
-                disabled={isSubmitting || isFull || !guestEmail.trim()}
+                disabled={isSubmitting || isFull || !EMAIL_RE.test(guestEmail.trim().toLowerCase())}
                 className="w-full"
               >
                 {isSubmitting ? "Wird gebucht…" : "Als Gast buchen"}

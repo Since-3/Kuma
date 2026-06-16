@@ -392,12 +392,15 @@ async function runCapacityTransactionGuest(params: {
         where: { courseId, paymentStatus: "paid" },
       });
 
-      // GuestLead anlegen (kein Upsert — mehrere Buchungen eines Gastes sind erlaubt)
-      const guestLead = await tx.guestLead.create({
-        data: { email: guestEmail, name: guestName ?? null },
-      });
-
+      // GuestLead erst nach Kapazitätsprüfung anlegen — verhindert Phantom-Einträge
+      // bei Überbuchung. upsert by email: ein Gast bekommt genau einen Lead-Eintrag,
+      // auch bei mehreren Buchungen (@@unique auf email im Schema).
       if (paidCount >= course.maxParticipants) {
+        const guestLead = await tx.guestLead.upsert({
+          where: { email: guestEmail },
+          update: {},
+          create: { email: guestEmail, name: guestName ?? null },
+        });
         const booking = await tx.courseBooking.create({
           data: {
             courseId,
@@ -412,6 +415,11 @@ async function runCapacityTransactionGuest(params: {
         return { result: "capacity_exceeded" as const, bookingId: booking.id };
       }
 
+      const guestLead = await tx.guestLead.upsert({
+        where: { email: guestEmail },
+        update: {},
+        create: { email: guestEmail, name: guestName ?? null },
+      });
       const booking = await tx.courseBooking.create({
         data: {
           courseId,

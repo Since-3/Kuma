@@ -4,10 +4,20 @@ import { stripe, calculatePlatformFeeCents, eurosToCents } from "@/src/lib/strip
 import { getUserData, isUser } from "@/src/lib/auth/getUser";
 
 // Simple in-memory rate limiter: max 10 checkout attempts per IP per minute.
-// Resets automatically as entries expire — no external dependency needed.
+// Best-effort only — in multi-instance/serverless deployments each instance has
+// its own Map, so a determined attacker can bypass it. The main purpose is to
+// limit accidental bursts and casual abuse on a single instance.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+
+// Purge stale entries every 5 minutes to prevent unbounded memory growth.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  }
+}, 5 * 60_000);
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -76,10 +86,10 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Guest flow: guestEmail required
-      if (!guestEmail || !EMAIL_RE.test(guestEmail)) {
+      if (!guestEmail || !EMAIL_RE.test(guestEmail.trim())) {
         return NextResponse.json(
           { error: "Bitte eine gültige E-Mail-Adresse angeben.", isGuestRequired: true },
-          { status: 401 }
+          { status: 400 }
         );
       }
     }
@@ -150,7 +160,7 @@ export async function POST(request: NextRequest) {
     const priceCents = eurosToCents(course.price);
     const platformFeeCents = calculatePlatformFeeCents(course.price);
 
-    const customerEmail = isGuest ? guestEmail! : userData!.email;
+    const customerEmail = isGuest ? guestEmail!.trim().toLowerCase() : userData!.email;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -177,8 +187,8 @@ export async function POST(request: NextRequest) {
           userId: isGuest ? "" : userData!.id,
           businessId: course.business.id,
           isGuest: isGuest ? "true" : "false",
-          guestEmail: isGuest ? guestEmail! : "",
-          guestName: isGuest ? (guestName ?? "") : "",
+          guestEmail: isGuest ? customerEmail : "",
+          guestName: isGuest ? (guestName?.trim() ?? "") : "",
         },
       },
       metadata: {
@@ -186,8 +196,8 @@ export async function POST(request: NextRequest) {
         userId: isGuest ? "" : userData!.id,
         businessId: course.business.id,
         isGuest: isGuest ? "true" : "false",
-        guestEmail: isGuest ? guestEmail! : "",
-        guestName: isGuest ? (guestName ?? "") : "",
+        guestEmail: isGuest ? customerEmail : "",
+        guestName: isGuest ? (guestName?.trim() ?? "") : "",
       },
       customer_email: customerEmail,
       success_url: `${baseUrl}/courses/book/${course.id}/success?session_id={CHECKOUT_SESSION_ID}`,
