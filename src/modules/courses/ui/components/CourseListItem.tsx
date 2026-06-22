@@ -71,23 +71,31 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
   const currentLevel = levelConfig[level] || levelConfig.any;
 
   // Funktion zum Kopieren des Buchungslinks
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!courseId) return;
 
     const bookingUrl = `${window.location.origin}/courses/book/${courseId}`;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(bookingUrl);
-    } else {
-      const el = document.createElement("textarea");
-      el.value = bookingUrl;
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(bookingUrl);
+      } else {
+        const el = document.createElement("textarea");
+        el.value = bookingUrl;
+        el.style.position = "fixed";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        try {
+          el.select();
+          const ok = document.execCommand("copy");
+          if (!ok) throw new Error("execCommand copy failed");
+        } finally {
+          document.body.removeChild(el);
+        }
+      }
+      toast.success("Link wurde in die Zwischenablage kopiert");
+    } catch {
+      toast.error("Link konnte nicht kopiert werden");
     }
-    toast.success("Link wurde in die Zwischenablage kopiert");
   };
 
   const getInitials = (name: string) => {
