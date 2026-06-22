@@ -75,7 +75,18 @@ const CourseListItem: React.FC<CourseListItemProps> = ({
     if (!courseId) return;
 
     const bookingUrl = `${window.location.origin}/courses/book/${courseId}`;
-    navigator.clipboard.writeText(bookingUrl);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(bookingUrl);
+    } else {
+      const el = document.createElement("textarea");
+      el.value = bookingUrl;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
     toast.success("Link wurde in die Zwischenablage kopiert");
   };
 
