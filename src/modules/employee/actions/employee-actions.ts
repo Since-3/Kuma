@@ -366,8 +366,16 @@ export async function getEmployeeById(employeeId: string) {
       };
     }
 
-    // Step 5: Check if the manager owns this employee record
-    if (isManager(userData) && employee.createdBy !== userData.id) {
+    // Step 5: Check if the caller owns this employee record
+    const ownerManagerId = getEffectiveManagerId(userData);
+    if (!ownerManagerId) {
+      return {
+        success: false,
+        error: "Employee account is not assigned to a manager",
+      };
+    }
+
+    if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,
         error: "You can only edit your own employees",
@@ -941,7 +949,11 @@ export async function resendOnboardingEmail(employeeId: string) {
       companyName: process.env.COMPANY_NAME || "S3 Kuma",
     });
 
-    await sendMail({ to: employee.email, subject, html, text });
+    const mailResult = await sendMail({ to: employee.email, subject, html, text });
+    if (!mailResult.success) {
+      console.error("Error resending onboarding email:", mailResult.error);
+      return { success: false, error: "Error sending email" };
+    }
 
     return { success: true, message: "Onboarding email has been resent" };
   } catch (error) {

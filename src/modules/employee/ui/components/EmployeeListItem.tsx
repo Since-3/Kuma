@@ -175,8 +175,15 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
                   onClick={onResendEmail}
                   disabled={isResendingEmail}
+                  aria-label={
+                    isResendingEmail
+                      ? "Onboarding-Mail wird erneut gesendet"
+                      : "Onboarding-Mail erneut senden"
+                  }
+                  aria-busy={isResendingEmail || undefined}
                   className="p-2 rounded-md hover:bg-blue-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResendingEmail ? (

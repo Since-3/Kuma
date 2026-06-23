@@ -65,12 +65,18 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
 
   const handleResendEmail = async (employeeId: string) => {
     setResendingId(employeeId);
-    const result = await resendOnboardingEmail(employeeId);
-    setResendingId(null);
-    if (result.success) {
-      toast.success("Onboarding-Mail wurde erneut versendet");
-    } else {
-      toast.error(result.error || "Fehler beim Versenden der E-Mail");
+    try {
+      const result = await resendOnboardingEmail(employeeId);
+      if (result.success) {
+        toast.success("Onboarding-Mail wurde erneut versendet");
+      } else {
+        toast.error(result.error || "Fehler beim Versenden der E-Mail");
+      }
+    } catch (error) {
+      console.error("Error resending onboarding email:", error);
+      toast.error("Fehler beim Versenden der E-Mail");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -143,7 +149,7 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
                   : undefined
               }
               onEdit={canEdit ? () => router.push(`/employee/edit/${employee.id}`) : undefined}
-              onResendEmail={() => handleResendEmail(employee.id)}
+              onResendEmail={canEdit ? () => handleResendEmail(employee.id) : undefined}
               isResendingEmail={resendingId === employee.id}
             />
           ))}
