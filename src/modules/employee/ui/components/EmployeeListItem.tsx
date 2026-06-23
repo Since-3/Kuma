@@ -6,7 +6,8 @@
  * inklusive Rollen, Standorte, Onboarding-Status und Bearbeitungsoption.
  */
 
-import { Pen, Trash2, Mail, MapPin, Shield, Lock } from "lucide-react";
+import { Pen, Trash2, Mail, MapPin, Shield, Lock, Send, Loader2 } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/src/components/ui/tooltip";
 
 /**
  * Props für die EmployeeListItem Komponente
@@ -26,6 +27,8 @@ interface EmployeeListItemProps {
   isOnboarded: boolean; // Ob der Mitarbeiter das Onboarding abgeschlossen hat
   onEdit?: () => void; // Callback-Funktion beim Klick auf Bearbeiten-Button
   onDelete?: () => void; // Callback-Funktion beim Klick auf Löschen-Button
+  onResendEmail?: () => void; // Callback-Funktion für erneutes Senden der Onboarding-Mail
+  isResendingEmail?: boolean; // Ob die Mail gerade versendet wird
   showDeleteIcon?: boolean; // Ob das Löschen-Icon angezeigt werden soll
 }
 
@@ -43,6 +46,8 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
   isOnboarded,
   onEdit,
   onDelete,
+  onResendEmail,
+  isResendingEmail,
   showDeleteIcon,
 }) => {
   return (
@@ -165,6 +170,31 @@ const EmployeeListItem: React.FC<EmployeeListItemProps> = ({
             <button onClick={onDelete} className="p-2 rounded-md hover:bg-red-500/10 transition">
               <Trash2 size={20} className="text-red-600" />
             </button>
+          )}
+          {status === "published" && !isOnboarded && onResendEmail && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onResendEmail}
+                  disabled={isResendingEmail}
+                  aria-label={
+                    isResendingEmail
+                      ? "Onboarding-Mail wird erneut gesendet"
+                      : "Onboarding-Mail erneut senden"
+                  }
+                  aria-busy={isResendingEmail || undefined}
+                  className="p-2 rounded-md hover:bg-blue-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResendingEmail ? (
+                    <Loader2 size={20} className="text-blue-600 animate-spin" />
+                  ) : (
+                    <Send size={20} className="text-blue-600" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Onboarding-Mail erneut senden</TooltipContent>
+            </Tooltip>
           )}
           {onEdit && (
             <button onClick={onEdit} className="p-2 rounded-md hover:bg-white/50 transition">

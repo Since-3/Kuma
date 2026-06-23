@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useEffect } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import PublicCourseCard from "../components/PublicCourseCard";
 import { getPublishedCoursesForBusiness } from "../../actions/booking-actions";
@@ -53,26 +53,26 @@ const BusinessPublicView = ({
   initialCourses,
   initialWindow,
 }: BusinessPublicViewProps) => {
-  const [loadedCourses, setLoadedCourses] = useState<PublicCourse[]>(initialCourses);
-  const [loadedWindow, setLoadedWindow] = useState(initialWindow);
-  const [selectedDate, setSelectedDate] = useState<Date>(TODAY);
-  const [activeSport, setActiveSport] = useState<string>("Alle");
-  const [isPending, startTransition] = useTransition();
-
-  // Deep-Link: ?course=<id> öffnet das Detail-Popup des Kurses und springt
-  // auf dessen Datum, damit die Karte sichtbar ist (z.B. geteilter Buchungslink).
+  // Deep-Link: ?course=<id> opens the course detail popup and jumps to its date
+  // (e.g. a shared booking link). Resolved once at mount via the lazy initializer below.
   const searchParams = useSearchParams();
   const deepLinkCourseId = searchParams.get("course");
 
-  useEffect(() => {
-    if (!deepLinkCourseId) return;
-    const target = loadedCourses.find((c) => c.id === deepLinkCourseId);
-    if (!target) return;
-    const day = new Date(target.date);
-    day.setHours(0, 0, 0, 0);
-    setSelectedDate(day);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLinkCourseId]);
+  const [loadedCourses, setLoadedCourses] = useState<PublicCourse[]>(initialCourses);
+  const [loadedWindow, setLoadedWindow] = useState(initialWindow);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (deepLinkCourseId) {
+      const target = initialCourses.find((c) => c.id === deepLinkCourseId);
+      if (target) {
+        const day = new Date(target.date);
+        day.setHours(0, 0, 0, 0);
+        return day;
+      }
+    }
+    return TODAY;
+  });
+  const [activeSport, setActiveSport] = useState<string>("Alle");
+  const [isPending, startTransition] = useTransition();
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;

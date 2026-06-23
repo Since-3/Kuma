@@ -8,7 +8,7 @@ import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import CourseListItem from "../components/CourseListItem";
-import { Filter, ChevronUp, ChevronDown } from "lucide-react";
+import { Filter } from "lucide-react";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import CourseFilter from "../components/CourseFilter";
 
@@ -77,18 +77,13 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
   } = useDeleteCourse({
     onSuccess: async () => {
       if (loadedDateFrom && loadedDateTo) {
-        await loadCourses({ dateFrom: loadedDateFrom, dateTo: loadedDateTo }, "initial");
+        await loadCourses({ dateFrom: loadedDateFrom, dateTo: loadedDateTo });
       }
     },
   });
 
-  // Date range state for infinite scroll
   const [loadedDateFrom, setLoadedDateFrom] = useState<Date | null>(null);
   const [loadedDateTo, setLoadedDateTo] = useState<Date | null>(null);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [isLoadingNewer, setIsLoadingNewer] = useState(false);
-  const [hasOlderCourses, setHasOlderCourses] = useState(true);
-  const [hasNewerCourses, setHasNewerCourses] = useState(true);
 
   // Load rooms once on mount
   useEffect(() => {
@@ -120,35 +115,10 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     loadTrainers();
   }, []);
 
-  /**
-   * Load courses with optional date range
-   * @param options - Optional date range parameters
-   * @param mode - Loading mode: 'initial', 'older', or 'newer'
-   */
-  const loadCourses = async (
-    options?: { dateFrom?: Date; dateTo?: Date },
-    mode: "initial" | "older" | "newer" = "initial"
-  ) => {
+  const loadCourses = async (options?: { dateFrom?: Date; dateTo?: Date }) => {
     const result = await getMyCourses(options);
     if (result.success) {
-      if (mode === "initial") {
-        // Replace all courses on initial load
-        setCourses(result.courses);
-      } else if (mode === "older") {
-        // Prepend older courses to the beginning
-        setCourses((prev) => [...result.courses, ...prev]);
-      } else if (mode === "newer") {
-        // Append newer courses to the end
-        setCourses((prev) => [...prev, ...result.courses]);
-      }
-
-      // Check if there are more courses to load
-      if (mode === "older" && result.courses.length === 0) {
-        setHasOlderCourses(false);
-      }
-      if (mode === "newer" && result.courses.length === 0) {
-        setHasNewerCourses(false);
-      }
+      setCourses(result.courses);
     } else {
       toast.error(result.error || "Fehler beim Laden der Kurse");
     }
@@ -175,7 +145,7 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       setLoadedDateFrom(twoWeeksAgo);
       setLoadedDateTo(sixWeeksLater);
 
-      await loadCourses({ dateFrom: twoWeeksAgo, dateTo: sixWeeksLater }, "initial");
+      await loadCourses({ dateFrom: twoWeeksAgo, dateTo: sixWeeksLater });
       setIsLoading(false);
     };
     fetchCourses();
@@ -216,57 +186,13 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
         setIsLoading(true);
         setLoadedDateFrom(newDateFrom);
         setLoadedDateTo(newDateTo);
-        await loadCourses({ dateFrom: newDateFrom, dateTo: newDateTo }, "initial");
+        await loadCourses({ dateFrom: newDateFrom, dateTo: newDateTo });
         setIsLoading(false);
       }
     };
 
     extendRange();
   }, [dateFrom, dateTo, loadedDateFrom, loadedDateTo, isLoading]);
-
-  /**
-   * Load older courses (extend the date range backwards by 4 weeks)
-   */
-  const loadOlderCourses = async () => {
-    if (!loadedDateFrom || isLoadingOlder) return;
-
-    setIsLoadingOlder(true);
-
-    // Calculate new date range: 4 weeks before the current loadedDateFrom
-    const fourWeeksEarlier = new Date(loadedDateFrom);
-    fourWeeksEarlier.setDate(loadedDateFrom.getDate() - 28); // -4 weeks
-
-    const oneDayBeforeLoadedFrom = new Date(loadedDateFrom);
-    oneDayBeforeLoadedFrom.setDate(loadedDateFrom.getDate() - 1); // -1 day to avoid duplicates
-
-    await loadCourses({ dateFrom: fourWeeksEarlier, dateTo: oneDayBeforeLoadedFrom }, "older");
-
-    // Update the loaded date range
-    setLoadedDateFrom(fourWeeksEarlier);
-    setIsLoadingOlder(false);
-  };
-
-  /**
-   * Load newer courses (extend the date range forwards by 4 weeks)
-   */
-  const loadNewerCourses = async () => {
-    if (!loadedDateTo || isLoadingNewer) return;
-
-    setIsLoadingNewer(true);
-
-    // Calculate new date range: 4 weeks after the current loadedDateTo
-    const oneDayAfterLoadedTo = new Date(loadedDateTo);
-    oneDayAfterLoadedTo.setDate(loadedDateTo.getDate() + 1); // +1 day to avoid duplicates
-
-    const fourWeeksLater = new Date(loadedDateTo);
-    fourWeeksLater.setDate(loadedDateTo.getDate() + 28); // +4 weeks
-
-    await loadCourses({ dateFrom: oneDayAfterLoadedTo, dateTo: fourWeeksLater }, "newer");
-
-    // Update the loaded date range
-    setLoadedDateTo(fourWeeksLater);
-    setIsLoadingNewer(false);
-  };
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("de-DE", {
@@ -548,21 +474,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
         </div>
       </div>
 
-      {/* Load Older Courses Button */}
-      {hasOlderCourses && (
-        <div className="mb-4 flex justify-center">
-          <Button
-            variant="outline"
-            onClick={loadOlderCourses}
-            disabled={isLoadingOlder}
-            className="flex items-center gap-2"
-          >
-            <ChevronUp size={18} />
-            {isLoadingOlder ? "Lädt..." : "Ältere Kurse laden"}
-          </Button>
-        </div>
-      )}
-
       {filteredCourses.length === 0 ? (
         <div className="text-center py-16 border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl">
           <p className="text-3xl font-black text-gray-800 mb-2">
@@ -622,21 +533,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Load Newer Courses Button */}
-      {hasNewerCourses && filteredCourses.length > 0 && (
-        <div className="mt-4 flex justify-center">
-          <Button
-            variant="outline"
-            onClick={loadNewerCourses}
-            disabled={isLoadingNewer}
-            className="flex items-center gap-2"
-          >
-            <ChevronDown size={18} />
-            {isLoadingNewer ? "Lädt..." : "Neuere Kurse laden"}
-          </Button>
         </div>
       )}
 
