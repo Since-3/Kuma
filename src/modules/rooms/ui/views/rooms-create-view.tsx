@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import InputComponent from "@/src/components/layout/InputComponent";
 import { Button } from "@/src/components/ui/button";
@@ -18,7 +18,7 @@ interface RoomsCreateViewProps {
 
 const RoomsCreateView = ({ mode = "create", roomId, initialData }: RoomsCreateViewProps = {}) => {
   const router = useRouter();
-  const [roomName, setRoomName] = useState("");
+  const [roomName, setRoomName] = useState(mode === "edit" ? initialData?.name || "" : "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,13 +33,6 @@ const RoomsCreateView = ({ mode = "create", roomId, initialData }: RoomsCreateVi
   } = useDeleteRoom({
     onSuccess: () => router.push("/rooms"),
   });
-
-  // Load initial data when in edit mode
-  useEffect(() => {
-    if (mode === "edit" && initialData) {
-      setRoomName(initialData.name || "");
-    }
-  }, [mode, initialData]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};

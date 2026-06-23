@@ -57,22 +57,55 @@ const CourseCreateView = ({
   customSports = [],
 }: CourseCreateViewProps = {}) => {
   const router = useRouter();
-  const [courseName, setCourseName] = useState("");
-  const [courseDate, setCourseDate] = useState("");
-  const [timeFrom, setTimeFrom] = useState("");
-  const [timeTo, setTimeTo] = useState("");
-  const [selectedSports, setSelectedSports] = useState<string[]>([]);
-  const [sports, setSports] = useState<Array<{ value: string; label: string }>>(customSports);
+  const isEdit = mode === "edit" && !!initialData;
+
+  const [courseName, setCourseName] = useState(isEdit ? initialData!.name || "" : "");
+  const [courseDate, setCourseDate] = useState(() => {
+    if (isEdit && initialData!.date) {
+      const d = new Date(initialData!.date);
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0"),
+      ].join("-");
+    }
+    return "";
+  });
+  const [timeFrom, setTimeFrom] = useState(isEdit ? initialData!.timeFrom || "" : "");
+  const [timeTo, setTimeTo] = useState(isEdit ? initialData!.timeTo || "" : "");
+  const [selectedSports, setSelectedSports] = useState<string[]>(
+    isEdit ? initialData!.sport || [] : []
+  );
+  const [sports, setSports] = useState<Array<{ value: string; label: string }>>(() => {
+    if (isEdit) {
+      const existingValues = new Set(customSports.map((s) => s.value));
+      const extra = (initialData!.sport || [])
+        .filter((s) => !existingValues.has(s))
+        .map((s) => ({ value: s, label: s }));
+      return [...customSports, ...extra];
+    }
+    return customSports;
+  });
   const [newlyCreatedSports, setNewlyCreatedSports] = useState<string[]>([]);
-  const [selectedLevel, setSelectedLevel] = useState("");
-  const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState("");
-  const [description, setDescription] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState("");
-  const [isStandingOrder, setIsStandingOrder] = useState(false);
-  const [selectedFrequency, setSelectedFrequency] = useState("");
-  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
-  const [price, setPrice] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState(isEdit ? initialData!.level || "" : "");
+  const [selectedTrainers, setSelectedTrainers] = useState<string[]>(
+    isEdit ? initialData!.trainers || [] : []
+  );
+  const [selectedRoom, setSelectedRoom] = useState(isEdit ? initialData!.room || "" : "");
+  const [description, setDescription] = useState(isEdit ? initialData!.description || "" : "");
+  const [maxParticipants, setMaxParticipants] = useState(
+    isEdit ? initialData!.maxParticipants?.toString() || "" : ""
+  );
+  const [isStandingOrder, setIsStandingOrder] = useState(
+    isEdit ? initialData!.isStandingOrder || false : false
+  );
+  const [selectedFrequency, setSelectedFrequency] = useState(
+    isEdit ? initialData!.frequency || "" : ""
+  );
+  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
+    isEdit ? initialData!.weekdays || [] : []
+  );
+  const [price, setPrice] = useState(isEdit ? initialData!.price?.toString() || "" : "");
   const [priceDisplay, setPriceDisplay] = useState("");
   const [isPriceFocused, setIsPriceFocused] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -81,9 +114,13 @@ const CourseCreateView = ({
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [trainers, setTrainers] = useState<Array<{ value: string; label: string }>>([]);
   const [isLoadingTrainers, setIsLoadingTrainers] = useState(true);
-  const [selectedBusinessId, setSelectedBusinessId] = useState("");
+  const [selectedBusinessId, setSelectedBusinessId] = useState(
+    isEdit ? (initialData!.businessId ?? "") : ""
+  );
   const [businesses, setBusinesses] = useState<Array<{ value: string; label: string }>>([]);
-  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [coverImage, setCoverImage] = useState<string | null>(
+    isEdit ? (initialData!.coverImage ?? null) : null
+  );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const {
@@ -144,46 +181,6 @@ const CourseCreateView = ({
     };
     loadTrainers();
   }, []);
-
-  // Load initial data when in edit mode
-  useEffect(() => {
-    if (mode === "edit" && initialData) {
-      setCourseName(initialData.name || "");
-      const sportValues = initialData.sport || [];
-      setSelectedSports(sportValues);
-      // Merge initialData sports with customSports (no duplicates)
-      const existingValues = new Set(customSports.map((s) => s.value));
-      const newOptions = sportValues
-        .filter((s) => !existingValues.has(s))
-        .map((s) => ({ value: s, label: s }));
-      setSports([...customSports, ...newOptions]);
-      setSelectedLevel(initialData.level || "");
-
-      // Format date for input field (YYYY-MM-DD)
-      if (initialData.date) {
-        const date = new Date(initialData.date);
-        const formattedDate = [
-          date.getFullYear(),
-          String(date.getMonth() + 1).padStart(2, "0"),
-          String(date.getDate()).padStart(2, "0"),
-        ].join("-");
-        setCourseDate(formattedDate);
-      }
-
-      setTimeFrom(initialData.timeFrom || "");
-      setTimeTo(initialData.timeTo || "");
-      setSelectedTrainers(initialData.trainers || []);
-      setSelectedRoom(initialData.room || "");
-      setDescription(initialData.description || "");
-      setMaxParticipants(initialData.maxParticipants?.toString() || "");
-      setPrice(initialData.price?.toString() || "");
-      setIsStandingOrder(initialData.isStandingOrder || false);
-      setSelectedFrequency(initialData.frequency || "");
-      setSelectedWeekdays(initialData.weekdays || []);
-      setSelectedBusinessId(initialData.businessId ?? "");
-      setCoverImage(initialData.coverImage ?? null);
-    }
-  }, [mode, initialData, customSports]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

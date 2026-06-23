@@ -1,7 +1,7 @@
 import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getMyEmployees } from "../../actions/employee-actions";
+import { getMyEmployees, resendOnboardingEmail } from "../../actions/employee-actions";
 import EmployeeListItem from "../components/EmployeeListItem";
 import { toast } from "sonner";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
@@ -33,6 +33,7 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteMode, setDeleteMode] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const {
     deleteDialogOpen,
@@ -61,6 +62,17 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
 
     loadEmployees();
   }, []);
+
+  const handleResendEmail = async (employeeId: string) => {
+    setResendingId(employeeId);
+    const result = await resendOnboardingEmail(employeeId);
+    setResendingId(null);
+    if (result.success) {
+      toast.success("Onboarding-Mail wurde erneut versendet");
+    } else {
+      toast.error(result.error || "Fehler beim Versenden der E-Mail");
+    }
+  };
 
   const getEmployeeName = (employee: Employee) => {
     if (employee.firstName && employee.lastName) {
@@ -131,6 +143,8 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
                   : undefined
               }
               onEdit={canEdit ? () => router.push(`/employee/edit/${employee.id}`) : undefined}
+              onResendEmail={() => handleResendEmail(employee.id)}
+              isResendingEmail={resendingId === employee.id}
             />
           ))}
         </div>

@@ -8,23 +8,26 @@ const isValidPhoneNumber = (phone: string): boolean => {
 };
 
 // Step 1: Personal Info
-export const adminRegisterStep1Schema = z
-  .object({
-    fullName: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
-    email: z.string().email("Bitte eine gültige E-Mail-Adresse eingeben"),
-    tel: z
-      .string()
-      .min(1, "Telefonnummer ist erforderlich")
-      .refine((val) => isValidPhoneNumber(val), {
-        message: "Bitte eine gültige Telefonnummer eingeben",
-      }),
-    password: z.string().min(8, "Passwort muss mindestens 8 Zeichen lang sein"),
-    passwordConfirm: z.string(),
-  })
-  .refine((data) => data.password === data.passwordConfirm, {
+const adminRegisterStep1Base = z.object({
+  fullName: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
+  email: z.string().email("Bitte eine gültige E-Mail-Adresse eingeben"),
+  tel: z
+    .string()
+    .min(1, "Telefonnummer ist erforderlich")
+    .refine((val) => isValidPhoneNumber(val), {
+      message: "Bitte eine gültige Telefonnummer eingeben",
+    }),
+  password: z.string().min(8, "Passwort muss mindestens 8 Zeichen lang sein"),
+  passwordConfirm: z.string(),
+});
+
+export const adminRegisterStep1Schema = adminRegisterStep1Base.refine(
+  (data) => data.password === data.passwordConfirm,
+  {
     message: "Passwürter müssen übereinstimmen",
     path: ["passwordConfirm"],
-  });
+  }
+);
 
 // Step 2: Address Info
 export const adminRegisterStep2Schema = z.object({
@@ -34,7 +37,7 @@ export const adminRegisterStep2Schema = z.object({
 });
 
 // Step 3: Business Info
-export const adminRegisterStep3Schema = z.object({
+const adminRegisterStep3Base = z.object({
   companyName: z.string().min(2, "Unternehmensname muss mindestens 2 Zeichen lang sein"),
   companyPlace: z.string().min(2, "Unternehmenssitz muss mindestens 2 Zeichen lang sein"),
   companyPLZ: z
@@ -47,24 +50,37 @@ export const adminRegisterStep3Schema = z.object({
     .email("Bitte eine gültige E-Mail-Adresse eingeben")
     .optional()
     .or(z.literal("")),
-  companyNumber: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .refine(
-      (val) => {
-        if (!val || val === "") return true;
-        return isValidPhoneNumber(val);
-      },
-      {
-        message: "Bitte eine gültige Telefonnummer eingeben",
-      }
-    ),
+  companyNumber: z.string().optional().or(z.literal("")),
 });
 
-// Full schema for complete validation
-export const adminRegisterSchema = adminRegisterStep1Schema
-  .merge(adminRegisterStep2Schema)
-  .merge(adminRegisterStep3Schema);
+export const adminRegisterStep3Schema = adminRegisterStep3Base.refine(
+  (data) => {
+    if (!data.companyNumber || data.companyNumber === "") return true;
+    return isValidPhoneNumber(data.companyNumber);
+  },
+  {
+    message: "Bitte eine gültige Telefonnummer eingeben",
+    path: ["companyNumber"],
+  }
+);
+
+// Full schema for complete validation — extend base shapes, then apply refinements
+export const adminRegisterSchema = adminRegisterStep1Base
+  .extend(adminRegisterStep2Schema.shape)
+  .extend(adminRegisterStep3Base.shape)
+  .refine((data) => data.password === data.passwordConfirm, {
+    message: "Passwürter müssen übereinstimmen",
+    path: ["passwordConfirm"],
+  })
+  .refine(
+    (data) => {
+      if (!data.companyNumber || data.companyNumber === "") return true;
+      return isValidPhoneNumber(data.companyNumber);
+    },
+    {
+      message: "Bitte eine gültige Telefonnummer eingeben",
+      path: ["companyNumber"],
+    }
+  );
 
 export type AdminRegisterFormData = z.infer<typeof adminRegisterSchema>;

@@ -1,9 +1,9 @@
 /**
- * Employee Actions - Server-seitige Aktionen für Mitarbeiterverwaltung
+ * Employee Actions - Server-side actions for employee management
  *
- * Diese Datei enthält alle Server Actions für das Mitarbeiter-Management-System.
- * Funktionen umfassen: Mitarbeiter erstellen, abrufen, aktualisieren und löschen.
- * Alle Funktionen sind mit Authentifizierung und Autorisierung geschützt.
+ * This file contains all Server Actions for the employee management system.
+ * Functions include: creating, fetching, updating, and deleting employees.
+ * All functions are protected with authentication and authorization.
  */
 
 "use server";
@@ -24,9 +24,9 @@ import { generateOnboardingEmail } from "@/src/lib/mail/templates/employee-onboa
 import { generateOnboardingCompleteEmail } from "@/src/lib/mail/templates/onboarding-complete";
 
 /**
- * Generiert einen sicheren Onboarding-Token
+ * Generates a secure onboarding token
  *
- * @returns Ein zufälliger 32-Byte Token als Hex-String
+ * @returns A random 32-byte token as a hex string
  */
 function generateOnboardingToken(): string {
   return randomBytes(32).toString("hex");
@@ -40,8 +40,8 @@ type PermissionsObj = {
 };
 
 /**
- * Begrenzt die zu speichernden Berechtigungen auf das, was der Aufrufer selbst besitzt.
- * Verhindert Privilege-Escalation: ein Employee kann nur Rechte vergeben, die er selbst hat.
+ * Clamps the permissions to be stored to what the caller themselves possesses.
+ * Prevents privilege escalation: an employee can only grant permissions they already have.
  */
 function clampPermissions(requested: PermissionsObj, ceiling: PermissionsObj): PermissionsObj {
   const clamp = (req: PermissionGroup, ceil: PermissionGroup): PermissionGroup => ({
@@ -58,54 +58,54 @@ function clampPermissions(requested: PermissionsObj, ceiling: PermissionsObj): P
 }
 
 /**
- * Erstellt einen neuen Mitarbeiter in der Datenbank
+ * Creates a new employee in the database
  *
- * Diese Funktion validiert die Eingabedaten, überprüft die Berechtigungen des Benutzers
- * und erstellt einen neuen Mitarbeiter. Der Mitarbeiter erhält einen Onboarding-Token,
- * der später für den Onboarding-Prozess verwendet wird.
- * Nur Manager können Mitarbeiter erstellen.
+ * This function validates the input data, checks the user's permissions,
+ * and creates a new employee. The employee receives an onboarding token
+ * that is later used for the onboarding process.
+ * Only managers can create employees.
  *
- * @param data - Die Mitarbeiterdaten aus dem Formular
- * @param status - Der Status des Mitarbeiters ("draft" für Entwurf oder "published" für veröffentlicht)
- * @returns Ein Objekt mit success-Flag, optionaler employeeId, onboardingToken und Nachricht oder Fehler
+ * @param data - The employee data from the form
+ * @param status - The employee's status ("draft" or "published")
+ * @returns An object with a success flag, optional employeeId, onboardingToken, and a message or error
  */
 export async function createEmployee(data: EmployeeFormData, status: "draft" | "published") {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer angemeldet ist
+    // Step 2: Check if the user is logged in
     if (!userData) {
       return {
         success: false,
-        error: "Sie müssen angemeldet sein, um einen Mitarbeiter zu erstellen",
+        error: "You must be logged in to create an employee",
       };
     }
 
-    // Schritt 3: Manager oder Employee mit Berechtigung
+    // Step 3: Manager or employee with the required permission
     const canManageEmployees =
       isManager(userData) || (isEmployee(userData) && userData.permissions.employees.create);
     if (!canManageEmployees) {
       return {
         success: false,
-        error: "Keine Berechtigung zum Erstellen von Mitarbeitern",
+        error: "You do not have permission to create employees",
       };
     }
 
-    // Schritt 4: Formulardaten mit Zod-Schema validieren
+    // Step 4: Validate form data against the Zod schema
     const validation = employeeSchema.safeParse(data);
 
     if (!validation.success) {
       return {
         success: false,
-        error: "Validierungsfehler",
+        error: "Validation error",
         fieldErrors: validation.error.flatten().fieldErrors,
       };
     }
 
     const validatedData = validation.data;
 
-    // Schritt 5: Überprüfen, ob E-Mail bereits existiert
+    // Step 5: Check if the email already exists
     const existingEmployee = await prisma.employee.findUnique({
       where: { email: validatedData.email },
     });
@@ -113,32 +113,32 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
     if (existingEmployee) {
       return {
         success: false,
-        error: "Ein Mitarbeiter mit dieser E-Mail-Adresse existiert bereits",
+        error: "An employee with this email address already exists",
       };
     }
 
-    // Schritt 6: Onboarding-Token generieren (nur wenn veröffentlicht)
+    // Step 6: Generate an onboarding token (only when publishing)
     let onboardingToken: string | null = null;
     let onboardingTokenExpiry: Date | null = null;
 
     if (status === "published") {
       onboardingToken = generateOnboardingToken();
-      // Token ist 7 Tage gültig
+      // Token is valid for 7 days
       onboardingTokenExpiry = new Date();
       onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
     }
 
-    // Schritt 7: Manager-ID ermitteln (Employee erbt createdBy vom eigenen Datensatz)
+    // Step 7: Determine the manager ID (an employee inherits createdBy from their own record)
     const managerId = getEffectiveManagerId(userData);
     if (!managerId)
-      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
+      return { success: false, error: "Employee account is not assigned to a manager" };
 
-    // Schritt 8: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    // Step 8: Clamp permissions to the caller's ceiling (prevent privilege escalation)
     const finalPermissions = isEmployee(userData)
       ? clampPermissions(validatedData.permissions, userData.permissions)
       : validatedData.permissions;
 
-    // Schritt 9: Mitarbeiter in der Datenbank erstellen
+    // Step 9: Create the employee in the database
     const employee = await prisma.employee.create({
       data: {
         email: validatedData.email,
@@ -153,7 +153,7 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       },
     });
 
-    // Schritt 8: E-Mail versenden wenn veröffentlicht
+    // Step 10: Send email if status is published
     if (status === "published" && onboardingToken) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const onboardingUrl = `${baseUrl}/employee/onboarding/${onboardingToken}`;
@@ -164,20 +164,20 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
         companyName: process.env.COMPANY_NAME || "S3 Kuma",
       });
 
-      // E-Mail asynchron versenden (nicht auf Antwort warten)
+      // Send email asynchronously (fire and forget)
       sendMail({
         to: validatedData.email,
         subject,
         html,
         text,
       }).catch((error) => {
-        console.error("Fehler beim E-Mail-Versand:", error);
-        // E-Mail-Fehler wird nicht an den Benutzer weitergegeben
-        // Der Mitarbeiter wurde trotzdem erstellt
+        console.error("Error sending email:", error);
+        // Email errors are not surfaced to the user;
+        // the employee record has already been created
       });
     }
 
-    // Schritt 9: Next.js Cache für /employee Seite invalidieren, damit neue Daten angezeigt werden
+    // Step 11: Invalidate the Next.js cache for /employee so new data is shown
     revalidatePath("/employee");
 
     return {
@@ -186,22 +186,22 @@ export async function createEmployee(data: EmployeeFormData, status: "draft" | "
       onboardingToken: onboardingToken || undefined,
       message:
         status === "published"
-          ? "Mitarbeiter erfolgreich veröffentlicht. Onboarding-E-Mail wurde versendet."
-          : "Entwurf erfolgreich gespeichert",
+          ? "Employee successfully published. Onboarding email has been sent."
+          : "Draft successfully saved",
     };
   } catch (error) {
     console.error("Error creating employee:", error);
     return {
       success: false,
-      error: "Ein Fehler ist beim Erstellen des Mitarbeiters aufgetreten",
+      error: "An error occurred while creating the employee",
     };
   }
 }
 
 /**
- * Ruft alle Trainer (Mitarbeiter mit Rolle "trainer") ab, die vom eingeloggten Manager erstellt wurden
+ * Fetches all trainers (employees with the role "trainer") created by the logged-in manager
  *
- * @returns Ein Objekt mit success-Flag und einem Array von Trainern im Format {value, label}
+ * @returns An object with a success flag and an array of trainers in the format {value, label}
  */
 export async function getMyTrainers() {
   try {
@@ -222,7 +222,7 @@ export async function getMyTrainers() {
     if (!managerId)
       return {
         success: false,
-        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        error: "Employee account is not assigned to a manager",
         employees: [],
         trainers: [],
       };
@@ -254,26 +254,26 @@ export async function getMyTrainers() {
     console.error("Error fetching trainers:", error);
     return {
       success: false,
-      error: "Fehler beim Laden der Trainer",
+      error: "Error loading trainers",
       trainers: [],
     };
   }
 }
 
 /**
- * Ruft alle Mitarbeiter ab, die vom eingeloggten Manager erstellt wurden
+ * Fetches all employees created by the logged-in manager
  *
- * Diese Funktion gibt alle Mitarbeiter zurück, die vom aktuellen Manager erstellt wurden,
- * unabhängig vom Status (draft oder published).
+ * This function returns all employees created by the current manager,
+ * regardless of status (draft or published).
  *
- * @returns Ein Objekt mit success-Flag und einem Array von Mitarbeitern
+ * @returns An object with a success flag and an array of employees
  */
 export async function getMyEmployees() {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    // Step 2: Check if the user is a manager or an employee with the required permission
     if (
       !userData ||
       (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
@@ -285,14 +285,14 @@ export async function getMyEmployees() {
       };
     }
 
-    // Schritt 3: Mitarbeiter aus der Datenbank abrufen
+    // Step 3: Build the database query depending on the caller's role
     let whereClause: Record<string, unknown>;
     if (isManager(userData)) {
-      // Manager sieht alle Mitarbeiter unter seiner ID
+      // Manager sees all employees under their own ID
       whereClause = { createdBy: userData.id };
     } else {
-      // Employee: alle unter demselben Manager anzeigen (außer sich selbst)
-      // createdBy kann null sein (verwaister Account) — in dem Fall nichts zurückgeben
+      // Employee: show everyone under the same manager (excluding themselves)
+      // createdBy can be null (orphaned account) — return nothing in that case
       const managerId = userData.createdBy;
       if (!managerId) {
         return { success: true, employees: [] };
@@ -314,63 +314,63 @@ export async function getMyEmployees() {
     console.error("Error fetching employees:", error);
     return {
       success: false,
-      error: "Fehler beim Laden der Mitarbeiter",
+      error: "Error loading employees",
       employees: [],
     };
   }
 }
 
 /**
- * Ruft einen einzelnen Mitarbeiter nach ID ab
+ * Fetches a single employee by ID
  *
- * Diese Funktion gibt einen Mitarbeiter zurück, wenn der eingeloggte Manager
- * der Ersteller des Mitarbeiters ist.
+ * This function returns an employee only if the logged-in manager
+ * is the one who created that employee.
  *
- * @param employeeId - Die eindeutige ID des Mitarbeiters
- * @returns Ein Objekt mit success-Flag und dem Mitarbeiter oder Fehler
+ * @param employeeId - The unique ID of the employee
+ * @returns An object with a success flag and the employee or an error
  */
 export async function getEmployeeById(employeeId: string) {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    // Step 2: Check if the user is a manager or an employee with the required permission
     if (
       !userData ||
       (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
     ) {
       return {
         success: false,
-        error: "Nur Manager können Mitarbeiter bearbeiten",
+        error: "Only managers can edit employees",
       };
     }
 
-    // Schritt 3: Mitarbeiter aus der Datenbank abrufen
+    // Step 3: Fetch the employee from the database
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
     });
 
-    // Schritt 4: Überprüfen, ob Mitarbeiter existiert
+    // Step 4: Check if the employee exists
     if (!employee) {
       return {
         success: false,
-        error: "Mitarbeiter nicht gefunden",
+        error: "Employee not found",
       };
     }
 
-    // Schritt 4b: Employee darf eigenen Account nicht bearbeiten
+    // Step 4b: An employee may not edit their own account
     if (isEmployee(userData) && employee.email === userData.email) {
       return {
         success: false,
-        error: "Sie können Ihren eigenen Account nicht bearbeiten",
+        error: "You cannot edit your own account",
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Manager der Besitzer des Mitarbeiters ist
+    // Step 5: Check if the manager owns this employee record
     if (isManager(userData) && employee.createdBy !== userData.id) {
       return {
         success: false,
-        error: "Sie können nur Ihre eigenen Mitarbeiter bearbeiten",
+        error: "You can only edit your own employees",
       };
     }
 
@@ -382,22 +382,22 @@ export async function getEmployeeById(employeeId: string) {
     console.error("Error fetching employee:", error);
     return {
       success: false,
-      error: "Fehler beim Laden des Mitarbeiters",
+      error: "Error loading employee",
     };
   }
 }
 
 /**
- * Aktualisiert einen bestehenden Mitarbeiter
+ * Updates an existing employee
  *
- * Diese Funktion validiert die Eingabedaten, überprüft die Berechtigungen des Benutzers
- * und aktualisiert einen bestehenden Mitarbeiter. Nur der Manager, der den Mitarbeiter erstellt hat,
- * kann ihn bearbeiten.
+ * This function validates the input data, checks the user's permissions,
+ * and updates an existing employee. Only the manager who created the employee
+ * can edit them.
  *
- * @param employeeId - Die eindeutige ID des zu aktualisierenden Mitarbeiters
- * @param data - Die aktualisierten Mitarbeiterdaten aus dem Formular
- * @param status - Der Status des Mitarbeiters ("draft" für Entwurf oder "published" für veröffentlicht)
- * @returns Ein Objekt mit success-Flag und Nachricht oder Fehler
+ * @param employeeId - The unique ID of the employee to update
+ * @param data - The updated employee data from the form
+ * @param status - The employee's status ("draft" or "published")
+ * @returns An object with a success flag and a message or error
  */
 export async function updateEmployee(
   employeeId: string,
@@ -405,73 +405,73 @@ export async function updateEmployee(
   status: "draft" | "published"
 ) {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer angemeldet ist
+    // Step 2: Check if the user is logged in
     if (!userData) {
       return {
         success: false,
-        error: "Sie müssen angemeldet sein, um einen Mitarbeiter zu bearbeiten",
+        error: "You must be logged in to edit an employee",
       };
     }
 
-    // Schritt 3: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    // Step 3: Check if the user is a manager or an employee with the required permission
     const canManageEmployees =
       isManager(userData) || (isEmployee(userData) && userData.permissions.employees.edit);
     if (!canManageEmployees) {
       return {
         success: false,
-        error: "Nur Manager können Mitarbeiter bearbeiten",
+        error: "Only managers can edit employees",
       };
     }
 
-    // Schritt 4: Mitarbeiter aus der Datenbank abrufen
+    // Step 4: Fetch the existing employee from the database
     const existingEmployee = await prisma.employee.findUnique({
       where: { id: employeeId },
     });
 
-    // Schritt 5: Überprüfen, ob Mitarbeiter existiert
+    // Step 5: Check if the employee exists
     if (!existingEmployee) {
       return {
         success: false,
-        error: "Mitarbeiter nicht gefunden",
+        error: "Employee not found",
       };
     }
 
-    // Schritt 5b: Employee darf eigenen Account nicht bearbeiten
+    // Step 5b: An employee may not edit their own account
     if (isEmployee(userData) && existingEmployee.email === userData.email) {
       return {
         success: false,
-        error: "Sie können Ihren eigenen Account nicht bearbeiten",
+        error: "You cannot edit your own account",
       };
     }
 
-    // Schritt 6: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    // Step 6: Check if the caller owns this employee record
     const ownerManagerId = getEffectiveManagerId(userData);
     if (!ownerManagerId)
-      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
+      return { success: false, error: "Employee account is not assigned to a manager" };
     if (existingEmployee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Mitarbeiter Ihres Managers bearbeiten",
+        error: "You can only edit employees belonging to your manager",
       };
     }
 
-    // Schritt 7: Formulardaten mit Zod-Schema validieren
+    // Step 7: Validate form data against the Zod schema
     const validation = employeeSchema.safeParse(data);
 
     if (!validation.success) {
       return {
         success: false,
-        error: "Validierungsfehler",
+        error: "Validation error",
         fieldErrors: validation.error.flatten().fieldErrors,
       };
     }
 
     const validatedData = validation.data;
 
-    // Schritt 8: Onboarding-Token generieren, falls noch nicht vorhanden und veröffentlicht
+    // Step 8: Generate a new onboarding token if the employee is being published for the first time
     let onboardingToken = existingEmployee.onboardingToken;
     let onboardingTokenExpiry = existingEmployee.onboardingTokenExpiry;
     let shouldSendEmail = false;
@@ -484,15 +484,15 @@ export async function updateEmployee(
       onboardingToken = generateOnboardingToken();
       onboardingTokenExpiry = new Date();
       onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
-      shouldSendEmail = true; // E-Mail nur senden wenn neuer Token generiert wurde
+      shouldSendEmail = true; // Only send email when a new token was generated
     }
 
-    // Schritt 9: Berechtigungen auf Caller-Ceiling begrenzen (Privilege-Escalation verhindern)
+    // Step 9: Clamp permissions to the caller's ceiling (prevent privilege escalation)
     const finalPermissions = isEmployee(userData)
       ? clampPermissions(validatedData.permissions, userData.permissions)
       : validatedData.permissions;
 
-    // Schritt 10: Mitarbeiter in der Datenbank aktualisieren
+    // Step 10: Update the employee in the database
     await prisma.employee.update({
       where: { id: employeeId },
       data: {
@@ -506,7 +506,7 @@ export async function updateEmployee(
       },
     });
 
-    // Schritt 10: E-Mail versenden wenn neuer Token generiert wurde
+    // Step 11: Send email if a new onboarding token was generated
     if (shouldSendEmail && onboardingToken) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const onboardingUrl = `${baseUrl}/employee/onboarding/${onboardingToken}`;
@@ -517,23 +517,23 @@ export async function updateEmployee(
         companyName: process.env.COMPANY_NAME || "S3 Kuma",
       });
 
-      // E-Mail asynchron versenden (nicht auf Antwort warten)
+      // Send email asynchronously (fire and forget)
       sendMail({
         to: validatedData.email,
         subject,
         html,
         text,
       }).catch((error) => {
-        console.error("Fehler beim E-Mail-Versand:", error);
-        // E-Mail-Fehler wird nicht an den Benutzer weitergegeben
+        console.error("Error sending email:", error);
+        // Email errors are not surfaced to the user
       });
     }
 
-    // Schritt 11: Next.js Cache invalidieren
+    // Step 12: Invalidate the Next.js cache
     revalidatePath("/employee");
     revalidatePath(`/employee/edit/${employeeId}`);
     invalidateUserDataCache(validatedData.email);
-    // If email changed, also invalidate the old email's cache entry
+    // If the email changed, also invalidate the old email's cache entry
     if (existingEmployee.email !== validatedData.email) {
       invalidateUserDataCache(existingEmployee.email);
     }
@@ -543,34 +543,34 @@ export async function updateEmployee(
       message:
         status === "published"
           ? shouldSendEmail
-            ? "Mitarbeiter erfolgreich aktualisiert. Onboarding-E-Mail wurde versendet."
-            : "Mitarbeiter erfolgreich aktualisiert und veröffentlicht"
-          : "Entwurf erfolgreich aktualisiert",
+            ? "Employee successfully updated. Onboarding email has been sent."
+            : "Employee successfully updated and published"
+          : "Draft successfully updated",
     };
   } catch (error) {
     console.error("Error updating employee:", error);
     return {
       success: false,
-      error: "Ein Fehler ist beim Aktualisieren des Mitarbeiters aufgetreten",
+      error: "An error occurred while updating the employee",
     };
   }
 }
 
 /**
- * Ruft alle verwendeten Rollen des Managers ab
+ * Fetches all roles currently used by the manager's employees
  *
- * Diese Funktion extrahiert alle Rollen aus den Mitarbeitern des aktuellen Managers,
- * dedupliziert sie und gibt sie zurück. Dies ermöglicht es, custom Rollen
- * wiederzuverwenden ohne eine separate Rollen-Tabelle zu benötigen.
+ * This function extracts all roles from the current manager's employees,
+ * deduplicates them, and returns the result. This allows custom roles to be
+ * reused without requiring a separate roles table.
  *
- * @returns Ein Objekt mit success-Flag und einem Array von Rollen im Format {value, label}
+ * @returns An object with a success flag and an array of roles in the format {value, label}
  */
 export async function getMyEmployeeRoles() {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Manager oder Employee mit Berechtigung
+    // Step 2: Manager or employee with the required permission
     if (
       !userData ||
       (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.view))
@@ -582,16 +582,16 @@ export async function getMyEmployeeRoles() {
       };
     }
 
-    // Schritt 3: Effektive Manager-ID ermitteln
+    // Step 3: Determine the effective manager ID
     const managerId = getEffectiveManagerId(userData);
     if (!managerId)
       return {
         success: false,
-        error: "Mitarbeiter-Account ist keinem Manager zugeordnet",
+        error: "Employee account is not assigned to a manager",
         roles: [],
       };
 
-    // Schritt 4: Alle Mitarbeiter des Managers abrufen (nur roles Feld)
+    // Step 4: Fetch all of the manager's employees (roles field only)
     const employees = await prisma.employee.findMany({
       where: {
         createdBy: managerId,
@@ -601,11 +601,11 @@ export async function getMyEmployeeRoles() {
       },
     });
 
-    // Schritt 4: Alle Rollen extrahieren und deduplizieren
+    // Step 5: Extract all roles and deduplicate
     const allRoles = employees.flatMap((employee) => employee.roles);
     const uniqueRoles = [...new Set(allRoles)];
 
-    // Schritt 5: In das Format {value, label} konvertieren
+    // Step 6: Convert to {value, label} format
     const formattedRoles = uniqueRoles.map((role) => ({
       value: role,
       label: role.charAt(0).toUpperCase() + role.slice(1), // Capitalize first letter
@@ -619,77 +619,77 @@ export async function getMyEmployeeRoles() {
     console.error("Error fetching employee roles:", error);
     return {
       success: false,
-      error: "Fehler beim Laden der Rollen",
+      error: "Error loading roles",
       roles: [],
     };
   }
 }
 
 /**
- * Löscht einen Mitarbeiter aus der Datenbank
+ * Deletes an employee from the database
  *
- * Diese Funktion löscht einen Mitarbeiter, überprüft aber vorher:
- * - Ob der Benutzer ein Manager ist
- * - Ob der Mitarbeiter existiert
- * - Ob der Manager der Besitzer des Mitarbeiters ist (Manager können nur eigene Mitarbeiter löschen)
+ * Before deleting, this function verifies that:
+ * - The caller is a manager or has the delete permission
+ * - The employee exists
+ * - The caller owns the employee record (managers can only delete their own employees)
  *
- * @param employeeId - Die eindeutige ID des zu löschenden Mitarbeiters
- * @returns Ein Objekt mit success-Flag und Nachricht oder Fehler
+ * @param employeeId - The unique ID of the employee to delete
+ * @returns An object with a success flag and a message or error
  */
 export async function deleteEmployee(employeeId: string) {
   try {
-    // Schritt 1: Aktuellen Benutzer abrufen
+    // Step 1: Fetch the current user
     const userData = await getUserData();
 
-    // Schritt 2: Überprüfen, ob Benutzer ein Manager oder Employee mit Berechtigung ist
+    // Step 2: Check if the user is a manager or an employee with the required permission
     if (
       !userData ||
       (!isManager(userData) && !(isEmployee(userData) && userData.permissions.employees.delete))
     ) {
       return {
         success: false,
-        error: "Nur Manager können Mitarbeiter löschen",
+        error: "Only managers can delete employees",
       };
     }
 
-    // Schritt 3: Mitarbeiter aus der Datenbank abrufen
+    // Step 3: Fetch the employee from the database
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
     });
 
-    // Schritt 4: Überprüfen, ob Mitarbeiter existiert
+    // Step 4: Check if the employee exists
     if (!employee) {
       return {
         success: false,
-        error: "Mitarbeiter nicht gefunden",
+        error: "Employee not found",
       };
     }
 
-    // Schritt 4b: Employee darf eigenen Account nicht löschen
+    // Step 4b: An employee may not delete their own account
     if (isEmployee(userData) && employee.email === userData.email) {
       return {
         success: false,
-        error: "Sie können Ihren eigenen Account nicht löschen",
+        error: "You cannot delete your own account",
       };
     }
 
-    // Schritt 5: Überprüfen, ob der Benutzer der Besitzer des Mitarbeiters ist
+    // Step 5: Check if the caller owns this employee record
     const ownerManagerId = getEffectiveManagerId(userData);
     if (!ownerManagerId)
-      return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
+      return { success: false, error: "Employee account is not assigned to a manager" };
     if (employee.createdBy !== ownerManagerId) {
       return {
         success: false,
-        error: "Sie können nur Mitarbeiter Ihres Managers löschen",
+        error: "You can only delete employees belonging to your manager",
       };
     }
 
-    // Schritt 6: Mitarbeiter aus der Datenbank löschen
+    // Step 6: Delete the employee from the database
     await prisma.employee.delete({
       where: { id: employeeId },
     });
 
-    // Schritt 7: Supabase Auth User löschen (erzwingt automatisches Ausloggen)
+    // Step 7: Delete the Supabase Auth user (forces automatic sign-out)
     if (employee.isOnboarded) {
       try {
         const adminClient = createAdminClient();
@@ -699,31 +699,31 @@ export async function deleteEmployee(employeeId: string) {
           await adminClient.auth.admin.deleteUser(authUser.id);
         }
       } catch (err) {
-        // Auth-Löschung schlägt fehl wenn SERVICE_ROLE_KEY fehlt — DB ist bereits gelöscht
-        console.error("Supabase Auth User konnte nicht gelöscht werden:", err);
+        // Auth deletion fails if SERVICE_ROLE_KEY is missing — the DB record is already gone
+        console.error("Could not delete Supabase Auth user:", err);
       }
     }
 
-    // Schritt 8: Next.js Cache invalidieren
+    // Step 8: Invalidate the Next.js cache
     revalidatePath("/employee");
     invalidateUserDataCache(employee.email);
 
     return {
       success: true,
-      message: "Mitarbeiter erfolgreich gelöscht",
+      message: "Employee successfully deleted",
     };
   } catch (error) {
     console.error("Error deleting employee:", error);
     return {
       success: false,
-      error: "Fehler beim Löschen des Mitarbeiters",
+      error: "Error deleting employee",
     };
   }
 }
 
 /**
- * Prüft, ob ein Trainer noch in aktiven (zukünftigen) Kursen eingetragen ist.
- * Gibt die Anzahl der betroffenen Kurse zurück.
+ * Checks whether a trainer is still assigned to active (future) courses.
+ * Returns the number of affected courses.
  */
 export async function getActiveCoursesCountByTrainer(employeeId: string) {
   try {
@@ -749,12 +749,12 @@ export async function getActiveCoursesCountByTrainer(employeeId: string) {
     return { success: true, count };
   } catch (error) {
     console.error("Error checking active courses for trainer:", error);
-    return { success: false, error: "Fehler beim Prüfen der Kurse", count: 0 };
+    return { success: false, error: "Error checking courses", count: 0 };
   }
 }
 
 /**
- * Ruft einen Mitarbeiter anhand des Onboarding-Tokens ab (öffentlich, kein Login nötig)
+ * Fetches an employee by their onboarding token (public — no login required)
  */
 export async function getEmployeeByOnboardingToken(token: string) {
   try {
@@ -763,26 +763,26 @@ export async function getEmployeeByOnboardingToken(token: string) {
     });
 
     if (!employee) {
-      return { success: false, error: "Ungültiger Onboarding-Link" };
+      return { success: false, error: "Invalid onboarding link" };
     }
 
     if (employee.isOnboarded) {
-      return { success: false, error: "Onboarding wurde bereits abgeschlossen" };
+      return { success: false, error: "Onboarding has already been completed" };
     }
 
     if (employee.onboardingTokenExpiry && employee.onboardingTokenExpiry < new Date()) {
-      return { success: false, error: "Dieser Onboarding-Link ist abgelaufen" };
+      return { success: false, error: "This onboarding link has expired" };
     }
 
     return { success: true, employee };
   } catch (error) {
     console.error("Error fetching employee by token:", error);
-    return { success: false, error: "Fehler beim Laden der Mitarbeiterdaten" };
+    return { success: false, error: "Error loading employee data" };
   }
 }
 
 /**
- * Schließt das Onboarding eines Mitarbeiters ab und erstellt einen Supabase-Account
+ * Completes an employee's onboarding and creates their Supabase account
  */
 export async function completeEmployeeOnboarding(
   token: string,
@@ -802,10 +802,10 @@ export async function completeEmployeeOnboarding(
     });
 
     if (!employee) {
-      return { success: false, error: "Ungültiger Onboarding-Link" };
+      return { success: false, error: "Invalid onboarding link" };
     }
 
-    // Supabase Account über API Route erstellen
+    // Create the Supabase account via the API route
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/auth/register/employee`, {
       method: "POST",
@@ -825,10 +825,10 @@ export async function completeEmployeeOnboarding(
     const result = await res.json();
 
     if (!res.ok) {
-      return { success: false, error: result.error || "Registrierung fehlgeschlagen" };
+      return { success: false, error: result.error || "Registration failed" };
     }
 
-    // Mitarbeiter atomisch als onboarded markieren — verhindert TOCTOU race condition
+    // Atomically mark the employee as onboarded — prevents TOCTOU race condition
     const updated = await prisma.employee.updateMany({
       where: {
         onboardingToken: token,
@@ -849,13 +849,13 @@ export async function completeEmployeeOnboarding(
     if (updated.count === 0) {
       return {
         success: false,
-        error: "Onboarding wurde bereits abgeschlossen oder der Link ist abgelaufen",
+        error: "Onboarding has already been completed or the link has expired",
       };
     }
 
     invalidateUserDataCache(employee.email);
 
-    // Manager-Bestätigungs-E-Mail senden
+    // Send a confirmation email to the manager
     if (employee.createdBy) {
       const manager = await prisma.manager.findUnique({
         where: { id: employee.createdBy },
@@ -872,7 +872,7 @@ export async function completeEmployeeOnboarding(
         });
 
         sendMail({ to: manager.email, subject, html, text }).catch((error) => {
-          console.error("Fehler beim Senden der Manager-Benachrichtigung:", error);
+          console.error("Error sending manager notification:", error);
         });
       }
     }
@@ -880,6 +880,72 @@ export async function completeEmployeeOnboarding(
     return { success: true };
   } catch (error) {
     console.error("Error completing onboarding:", error);
-    return { success: false, error: "Ein Fehler ist aufgetreten" };
+    return { success: false, error: "An error occurred" };
+  }
+}
+
+/**
+ * Resends the onboarding email to an employee who has not yet completed onboarding.
+ * Generates a fresh token with a new 7-day expiry before sending.
+ */
+export async function resendOnboardingEmail(employeeId: string) {
+  try {
+    const userData = await getUserData();
+
+    // Check if the caller has permission to manage employees
+    const canManage =
+      userData &&
+      (isManager(userData) || (isEmployee(userData) && userData.permissions.employees.edit));
+
+    if (!canManage) {
+      return { success: false, error: "You do not have permission to perform this action" };
+    }
+
+    const managerId = getEffectiveManagerId(userData);
+    if (!managerId) return { success: false, error: "Manager ID not found" };
+
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, email: true, status: true, isOnboarded: true, createdBy: true },
+    });
+
+    // Verify the employee exists and belongs to this manager
+    if (!employee || employee.createdBy !== managerId) {
+      return { success: false, error: "Employee not found" };
+    }
+
+    if (employee.isOnboarded) {
+      return { success: false, error: "This employee has already completed onboarding" };
+    }
+
+    if (employee.status !== "published") {
+      return { success: false, error: "Only published employees can receive an onboarding email" };
+    }
+
+    // Generate a new token and reset its expiry
+    const newToken = generateOnboardingToken();
+    const newExpiry = new Date();
+    newExpiry.setDate(newExpiry.getDate() + 7);
+
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: { onboardingToken: newToken, onboardingTokenExpiry: newExpiry },
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const onboardingUrl = `${baseUrl}/employee/onboarding/${newToken}`;
+
+    const { subject, html, text } = generateOnboardingEmail({
+      email: employee.email,
+      onboardingUrl,
+      companyName: process.env.COMPANY_NAME || "S3 Kuma",
+    });
+
+    await sendMail({ to: employee.email, subject, html, text });
+
+    return { success: true, message: "Onboarding email has been resent" };
+  } catch (error) {
+    console.error("Error resending onboarding email:", error);
+    return { success: false, error: "Error sending email" };
   }
 }
