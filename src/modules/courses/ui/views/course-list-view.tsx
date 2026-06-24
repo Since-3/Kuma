@@ -87,7 +87,10 @@ const CourseListView = ({
     handleDeleteClick,
     handleDeleteConfirm,
   } = useDeleteCourse({
-    onSuccess: () => router.refresh(),
+    onSuccess: (deletedId) => {
+      setCourses((prev) => prev.filter((c) => c.id !== deletedId));
+      router.refresh();
+    },
   });
 
   const loadCourses = async (options: { dateFrom: Date; dateTo: Date }) => {

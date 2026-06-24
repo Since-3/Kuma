@@ -4,7 +4,7 @@ import { deleteCourse } from "../actions/course-actions";
 import { toast } from "sonner";
 
 interface UseDeleteCourseOptions {
-  onSuccess?: () => void;
+  onSuccess?: (deletedId: string) => void;
 }
 
 export function useDeleteCourse({ onSuccess }: UseDeleteCourseOptions = {}) {
@@ -27,8 +27,9 @@ export function useDeleteCourse({ onSuccess }: UseDeleteCourseOptions = {}) {
 
     if (result.success) {
       toast.success(result.message);
+      const deletedId = courseToDelete.id;
       setCourseToDelete(null);
-      onSuccess?.();
+      onSuccess?.(deletedId);
     } else {
       setCourseToDelete(null);
       toast.error(result.error || "Fehler beim Löschen des Kurses");
