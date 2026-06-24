@@ -54,6 +54,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // IMPORTANT: do not destroy supabaseResponse between createServerClient and supabase.auth.getUser()
+  // Any logic between these two calls that creates a new NextResponse will break session refresh.
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

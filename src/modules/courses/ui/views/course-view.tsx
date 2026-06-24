@@ -5,13 +5,51 @@ import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import CourseListView from "./course-list-view";
 
+type Course = {
+  id: string;
+  name: string;
+  sport: string[];
+  level: string;
+  date: Date;
+  timeFrom: string;
+  timeTo: string;
+  trainers: string[];
+  room: string;
+  description: string;
+  maxParticipants: number;
+  price: number;
+  isStandingOrder: boolean;
+  frequency: string | null;
+  weekdays: string[];
+  status: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  coverImage: string | null;
+  _count?: { bookings: number };
+};
+
 interface CourseViewProps {
+  initialCourses: Course[];
+  initialDateFrom: Date;
+  initialDateTo: Date;
+  roomsMap: Record<string, string>;
+  trainersMap: Record<string, { label: string; pbSrc?: string }>;
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const CourseView = ({ canCreate, canEdit, canDelete }: CourseViewProps) => {
+const CourseView = ({
+  initialCourses,
+  initialDateFrom,
+  initialDateTo,
+  roomsMap,
+  trainersMap,
+  canCreate,
+  canEdit,
+  canDelete,
+}: CourseViewProps) => {
   const router = useRouter();
 
   return (
@@ -30,7 +68,16 @@ const CourseView = ({ canCreate, canEdit, canDelete }: CourseViewProps) => {
         </div>
       </div>
       <Suspense>
-        <CourseListView canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} />
+        <CourseListView
+          initialCourses={initialCourses}
+          initialDateFrom={initialDateFrom}
+          initialDateTo={initialDateTo}
+          roomsMap={roomsMap}
+          trainersMap={trainersMap}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
       </Suspense>
     </div>
   );

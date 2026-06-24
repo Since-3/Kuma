@@ -1,7 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getMyEmployees, resendOnboardingEmail } from "../../actions/employee-actions";
+import { resendOnboardingEmail } from "../../actions/employee-actions";
 import EmployeeListItem from "../components/EmployeeListItem";
 import { toast } from "sonner";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
@@ -23,15 +25,14 @@ type Employee = {
 };
 
 interface EmployeeListViewProps {
+  employees: Employee[];
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewProps) => {
+const EmployeeListView = ({ employees, canCreate, canEdit, canDelete }: EmployeeListViewProps) => {
   const router = useRouter();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [deleteMode, setDeleteMode] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
@@ -45,23 +46,8 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
     handleDeleteClick,
     handleDeleteConfirm,
   } = useDeleteEmployee({
-    onSuccess: (deletedId) => setEmployees((prev) => prev.filter((e) => e.id !== deletedId)),
+    onSuccess: () => router.refresh(),
   });
-
-  useEffect(() => {
-    const loadEmployees = async () => {
-      setIsLoading(true);
-      const result = await getMyEmployees();
-      if (result.success) {
-        setEmployees(result.employees);
-      } else {
-        toast.error(result.error || "Fehler beim Laden der Mitarbeiter");
-      }
-      setIsLoading(false);
-    };
-
-    loadEmployees();
-  }, []);
 
   const handleResendEmail = async (employeeId: string) => {
     setResendingId(employeeId);
@@ -72,8 +58,7 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
       } else {
         toast.error(result.error || "Fehler beim Versenden der E-Mail");
       }
-    } catch (error) {
-      console.error("Error resending onboarding email:", error);
+    } catch {
       toast.error("Fehler beim Versenden der E-Mail");
     } finally {
       setResendingId(null);
@@ -86,14 +71,6 @@ const EmployeeListView = ({ canCreate, canEdit, canDelete }: EmployeeListViewPro
     }
     return employee.email;
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Mitarbeiter wird geladen</p>
-      </div>
-    );
-  }
 
   return (
     <div>

@@ -5,7 +5,7 @@ import { deleteRoom } from "../actions/room-actions";
 import { toast } from "sonner";
 
 interface UseDeleteRoomOptions {
-  onSuccess?: (deletedId: string) => void;
+  onSuccess?: () => void;
 }
 
 export function useDeleteRoom({ onSuccess }: UseDeleteRoomOptions = {}) {
@@ -28,9 +28,8 @@ export function useDeleteRoom({ onSuccess }: UseDeleteRoomOptions = {}) {
     if (result.success) {
       toast.success(result.message);
       setDeleteDialogOpen(false);
-      const deletedId = roomToDelete.id;
       setRoomToDelete(null);
-      onSuccess?.(deletedId);
+      onSuccess?.();
     } else if (result.hasActiveCourses) {
       setDeleteDialogOpen(false);
       setRoomToDelete(null);

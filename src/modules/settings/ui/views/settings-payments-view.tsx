@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import {
   createConnectOnboardingLink,
   createStripeExpressDashboardLink,
-  getBusinessesWithStripeStatus,
 } from "@/src/modules/settings/actions/stripe-connect-actions";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, CreditCard, ExternalLink, Loader2 } from "lucide-react";
@@ -17,29 +16,12 @@ type BusinessWithStatus = {
   stripeAccountStatus: string | null;
 };
 
-const SettingsPaymentsView = () => {
-  const [businesses, setBusinesses] = useState<BusinessWithStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pendingId, setPendingId] = useState<string | null>(null);
+interface SettingsPaymentsViewProps {
+  businesses: BusinessWithStatus[];
+}
 
-  useEffect(() => {
-    const loadBusinesses = async () => {
-      setIsLoading(true);
-      try {
-        const result = await getBusinessesWithStripeStatus();
-        if (result.success) {
-          setBusinesses(result.businesses);
-        } else {
-          toast.error(result.error || "Fehler beim Laden");
-        }
-      } catch {
-        toast.error("Fehler beim Laden");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    void loadBusinesses();
-  }, []);
+const SettingsPaymentsView = ({ businesses }: SettingsPaymentsViewProps) => {
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const handleConnect = async (businessId: string) => {
     setPendingId(businessId);
@@ -104,14 +86,6 @@ const SettingsPaymentsView = () => {
       </span>
     );
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

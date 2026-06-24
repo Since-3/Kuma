@@ -5,13 +5,22 @@ import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import RoomsListView from "./rooms-list-view";
 
+type Room = {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 interface RoomsViewProps {
+  rooms: Room[];
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const RoomsView = ({ canCreate, canEdit, canDelete }: RoomsViewProps) => {
+const RoomsView = ({ rooms, canCreate, canEdit, canDelete }: RoomsViewProps) => {
   const router = useRouter();
   const [deleteMode, setDeleteMode] = useState(false);
 
@@ -39,7 +48,12 @@ const RoomsView = ({ canCreate, canEdit, canDelete }: RoomsViewProps) => {
           )}
         </div>
       </div>
-      <RoomsListView deleteMode={deleteMode && canDelete} canEdit={canEdit} canDelete={canDelete} />
+      <RoomsListView
+        rooms={rooms}
+        deleteMode={deleteMode && canDelete}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
     </div>
   );
 };

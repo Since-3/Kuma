@@ -1,7 +1,11 @@
-import { requireManager } from "@/src/lib/auth/getUser";
+import { Suspense } from "react";
 import SettingsBusinessPageView from "@/src/modules/settings/ui/views/settings-business-page-view";
+import SettingsLoading from "../loading";
 
-export default async function SettingsBusinessPage() {
-  await requireManager();
-  return <SettingsBusinessPageView />;
+export default function SettingsBusinessPage() {
+  return (
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsBusinessPageView />
+    </Suspense>
+  );
 }

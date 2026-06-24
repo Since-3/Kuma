@@ -1,9 +1,11 @@
 import { LogoutButton } from "@/src/components/layout/LogoutButton";
-import { isManager, isEmployee, requireAuthWithData, isUser } from "@/src/lib/auth/getUser";
+import { isManager, isEmployee, isUser, type AuthUserData } from "@/src/lib/auth/getUser";
 
-const DashboardView = async () => {
-  const userData = await requireAuthWithData();
+interface DashboardViewProps {
+  userData: AuthUserData;
+}
 
+const DashboardView = ({ userData }: DashboardViewProps) => {
   const displayName = isManager(userData)
     ? `${userData.firstName} ${userData.lastName}`
     : isEmployee(userData)
