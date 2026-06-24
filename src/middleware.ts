@@ -24,29 +24,23 @@ export async function middleware(request: NextRequest) {
   );
 
   // Required by Supabase SSR: refreshes expired tokens and propagates updated cookies.
-  // Do not remove and do not use the result for routing decisions — route protection
-  // is handled by requireAuthWithData() / requireGuest() in Server Components.
-  await supabase.auth.getUser();
+  // Route protection is handled by requireAuthWithData() / requireGuest() in Server Components.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Lightweight UX hint: redirect users who have a session cookie away from auth pages
-  // before the page renders. No network call — Server Components do the real verification.
+  // Redirect verified authenticated users away from auth pages before the page renders.
   const authRoutes = ["/login", "/register", "/forgot-password"];
   const isAuthRoute = authRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
 
-  if (isAuthRoute) {
-    const hasSession = request.cookies
-      .getAll()
-      .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
-
-    if (hasSession) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      const redirectResponse = NextResponse.redirect(url);
-      supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
-        redirectResponse.cookies.set(name, value, options);
-      });
-      return redirectResponse;
-    }
+  if (isAuthRoute && user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
+      redirectResponse.cookies.set(name, value, options);
+    });
+    return redirectResponse;
   }
 
   return supabaseResponse;
