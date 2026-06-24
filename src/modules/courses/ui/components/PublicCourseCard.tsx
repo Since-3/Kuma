@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Clock, MapPin, Users, Mail, Phone, DoorOpen, Info } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/src/components/ui/dialog";
@@ -409,9 +410,9 @@ export const BookingDialog = ({
             <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
               <p className="text-xs text-gray-500">
                 Ohne Konto buchen – oder{" "}
-                <a href="/login" className="underline text-gray-700 hover:text-gray-900">
+                <Link href="/login" className="underline text-gray-700 hover:text-gray-900">
                   anmelden
-                </a>
+                </Link>
                 .
               </p>
               <input

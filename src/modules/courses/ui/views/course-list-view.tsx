@@ -1,9 +1,9 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import { getMyCourses } from "../../actions/course-actions";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
-import { getMyRooms } from "@/src/modules/rooms/actions/room-actions";
-import { getMyTrainers } from "@/src/modules/employee/actions/employee-actions";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -33,22 +33,38 @@ type Course = {
   createdAt: Date;
   updatedAt: Date;
   coverImage: string | null;
-  _count?: {
-    bookings: number;
-  };
+  _count?: { bookings: number };
 };
 
 interface CourseListViewProps {
+  initialCourses: Course[];
+  initialDateFrom: Date;
+  initialDateTo: Date;
+  roomsMap: Record<string, string>;
+  trainersMap: Record<string, { label: string; pbSrc?: string }>;
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) => {
+const CourseListView = ({
+  initialCourses,
+  initialDateFrom,
+  initialDateTo,
+  roomsMap,
+  trainersMap,
+  canCreate,
+  canEdit,
+  canDelete,
+}: CourseListViewProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [courses, setCourses] = useState<Course[]>(initialCourses);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadedDateFrom, setLoadedDateFrom] = useState<Date>(initialDateFrom);
+  const [loadedDateTo, setLoadedDateTo] = useState<Date>(initialDateTo);
+
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "published">("all");
   const [filterSport, setFilterSport] = useState<string>("all");
   const [filterTrainer, setFilterTrainer] = useState<string>(searchParams.get("trainer") ?? "all");
@@ -61,10 +77,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
   const [priceMin, setPriceMin] = useState<number | null>(null);
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
-  const [roomsMap, setRoomsMap] = useState<Record<string, string>>({});
-  const [trainersMap, setTrainersMap] = useState<Record<string, { label: string; pbSrc?: string }>>(
-    {}
-  );
 
   const {
     deleteDialogOpen,
@@ -75,47 +87,10 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     handleDeleteClick,
     handleDeleteConfirm,
   } = useDeleteCourse({
-    onSuccess: async () => {
-      if (loadedDateFrom && loadedDateTo) {
-        await loadCourses({ dateFrom: loadedDateFrom, dateTo: loadedDateTo });
-      }
-    },
+    onSuccess: () => router.refresh(),
   });
 
-  const [loadedDateFrom, setLoadedDateFrom] = useState<Date | null>(null);
-  const [loadedDateTo, setLoadedDateTo] = useState<Date | null>(null);
-
-  // Load rooms once on mount
-  useEffect(() => {
-    const loadRooms = async () => {
-      const result = await getMyRooms();
-      if (result.success) {
-        const map: Record<string, string> = {};
-        result.rooms.forEach((room) => {
-          map[room.id] = room.name;
-        });
-        setRoomsMap(map);
-      }
-    };
-    loadRooms();
-  }, []);
-
-  // Load trainers once on mount
-  useEffect(() => {
-    const loadTrainers = async () => {
-      const result = await getMyTrainers();
-      if (result.success) {
-        const map: Record<string, { label: string; pbSrc?: string }> = {};
-        result.trainers.forEach((t) => {
-          map[t.value] = { label: t.label, pbSrc: t.pbSrc ?? undefined };
-        });
-        setTrainersMap(map);
-      }
-    };
-    loadTrainers();
-  }, []);
-
-  const loadCourses = async (options?: { dateFrom?: Date; dateTo?: Date }) => {
+  const loadCourses = async (options: { dateFrom: Date; dateTo: Date }) => {
     const result = await getMyCourses(options);
     if (result.success) {
       setCourses(result.courses);
@@ -124,45 +99,15 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     }
   };
 
-  /**
-   * Initial load: Load courses from -2 weeks to +6 weeks from today
-   */
+  // Extend loaded date range only when filter dates go outside the server-fetched range
   useEffect(() => {
-    const fetchCourses = async () => {
-      setIsLoading(true);
-
-      // Calculate default date range: -2 weeks to +6 weeks from today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const twoWeeksAgo = new Date(today);
-      twoWeeksAgo.setDate(today.getDate() - 14); // -2 weeks
-
-      const sixWeeksLater = new Date(today);
-      sixWeeksLater.setDate(today.getDate() + 42); // +6 weeks
-
-      // Store the loaded date range
-      setLoadedDateFrom(twoWeeksAgo);
-      setLoadedDateTo(sixWeeksLater);
-
-      await loadCourses({ dateFrom: twoWeeksAgo, dateTo: sixWeeksLater });
-      setIsLoading(false);
-    };
-    fetchCourses();
-  }, []);
-
-  /**
-   * Extend loaded date range when filter dates are outside the current range
-   */
-  useEffect(() => {
-    if (!loadedDateFrom || !loadedDateTo || isLoading) return;
+    if (isLoading) return;
 
     const extendRange = async () => {
       let needsReload = false;
       let newDateFrom = loadedDateFrom;
       let newDateTo = loadedDateTo;
 
-      // Check if dateFrom filter is before loaded range
       if (dateFrom) {
         const filterFromDate = new Date(dateFrom);
         filterFromDate.setHours(0, 0, 0, 0);
@@ -172,7 +117,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
         }
       }
 
-      // Check if dateTo filter is after loaded range
       if (dateTo) {
         const filterToDate = new Date(dateTo);
         filterToDate.setHours(0, 0, 0, 0);
@@ -192,22 +136,18 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     };
 
     extendRange();
-  }, [dateFrom, dateTo, loadedDateFrom, loadedDateTo, isLoading]);
+  }, [dateFrom, dateTo]);
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("de-DE", {
+  const formatDate = (date: Date) =>
+    new Date(date).toLocaleDateString("de-DE", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-  };
 
-  const formatDateKey = (date: Date) => {
-    return new Date(date).toLocaleDateString("de-DE");
-  };
+  const formatDateKey = (date: Date) => new Date(date).toLocaleDateString("de-DE");
 
-  // Helper to check if a course is in the past
   const isPastCourse = (courseDate: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -216,22 +156,15 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     return course < today;
   };
 
-  // Filter courses (client-side filtering for status, sport, etc.)
   const filteredCourses = courses.filter((course) => {
     if (filterStatus !== "all" && course.status !== filterStatus) return false;
     if (filterSport !== "all" && !course.sport.includes(filterSport)) return false;
     if (filterLevel !== "all" && course.level !== filterLevel) return false;
-
-    // Trainer filter
     if (filterTrainer !== "all" && !course.trainers.includes(filterTrainer)) return false;
-
-    // Room filter (compare by room name, not ID)
     if (filterRoom !== "all") {
       const roomName = roomsMap[course.room] || course.room;
       if (roomName !== filterRoom) return false;
     }
-
-    // Date range filter (additional client-side filter on top of server-side)
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
       fromDate.setHours(0, 0, 0, 0);
@@ -239,14 +172,12 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       courseDate.setHours(0, 0, 0, 0);
       if (courseDate < fromDate) return false;
     } else {
-      // If no dateFrom filter is set, only show courses from today onwards
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const courseDate = new Date(course.date);
       courseDate.setHours(0, 0, 0, 0);
       if (courseDate < today) return false;
     }
-
     if (dateTo) {
       const toDate = new Date(dateTo);
       toDate.setHours(0, 0, 0, 0);
@@ -254,66 +185,40 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
       courseDate.setHours(0, 0, 0, 0);
       if (courseDate > toDate) return false;
     }
-
-    // Time range filter
     if (timeFrom && course.timeFrom < timeFrom) return false;
     if (timeTo && course.timeTo > timeTo) return false;
-
-    // Price range filter
     if (priceMin !== null && course.price < priceMin) return false;
     if (priceMax !== null && course.price > priceMax) return false;
-
     return true;
   });
 
-  // Group courses by date
   const groupedCourses = filteredCourses.reduce(
     (acc, course) => {
       const dateKey = formatDateKey(course.date);
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
+      if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(course);
       return acc;
     },
     {} as Record<string, Course[]>
   );
 
-  // Sort dates
-  const sortedDates = Object.keys(groupedCourses).sort((a, b) => {
-    return (
+  const sortedDates = Object.keys(groupedCourses).sort(
+    (a, b) =>
       new Date(a.split(".").reverse().join("-")).getTime() -
       new Date(b.split(".").reverse().join("-")).getTime()
-    );
-  });
+  );
 
-  // Calculate price range from courses
   const priceRangeMin =
     courses.length > 0 ? Math.floor(Math.min(...courses.map((c) => c.price))) : 0;
   const priceRangeMax =
     courses.length > 0 ? Math.ceil(Math.max(...courses.map((c) => c.price))) : 0;
-
-  // Get unique sports for filter
   const uniqueSports = Array.from(new Set(courses.flatMap((c) => c.sport)));
-
-  // Get unique trainers for filter (flatten trainer UIDs, map to labels)
   const uniqueTrainers = Array.from(new Set(courses.flatMap((c) => c.trainers))).map((uid) => ({
     value: uid,
     label: trainersMap[uid]?.label ?? uid,
   }));
-
-  // Get unique rooms for filter (using room names from roomsMap)
   const uniqueRooms = Array.from(new Set(courses.map((c) => roomsMap[c.room] || c.room)));
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Kurse werden geladen...</p>
-      </div>
-    );
-  }
-
-  // Count active filters
   const activeFiltersCount = [
     filterStatus !== "all",
     filterSport !== "all",
@@ -327,6 +232,84 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
     priceMin !== null && priceMin !== priceRangeMin,
     priceMax !== null && priceMax !== priceRangeMax,
   ].filter(Boolean).length;
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-5 space-y-3"
+          >
+            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <div className="flex justify-between pt-1">
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const filterProps = {
+    filterStatus,
+    filterSport,
+    filterTrainer,
+    filterRoom,
+    filterLevel,
+    dateFrom,
+    dateTo,
+    timeFrom,
+    timeTo,
+    priceMin: priceMin ?? priceRangeMin,
+    priceMax: priceMax ?? priceRangeMax,
+    priceRangeMin,
+    priceRangeMax,
+    uniqueSports,
+    uniqueTrainers,
+    uniqueRooms,
+    onApplyFilters: (filters: {
+      filterStatus: "all" | "draft" | "published";
+      filterSport: string;
+      filterTrainer: string;
+      filterRoom: string;
+      filterLevel: string;
+      dateFrom: string;
+      dateTo: string;
+      timeFrom: string;
+      timeTo: string;
+      priceMin: number;
+      priceMax: number;
+    }) => {
+      setFilterStatus(filters.filterStatus);
+      setFilterSport(filters.filterSport);
+      setFilterTrainer(filters.filterTrainer);
+      setFilterRoom(filters.filterRoom);
+      setFilterLevel(filters.filterLevel);
+      setDateFrom(filters.dateFrom);
+      setDateTo(filters.dateTo);
+      setTimeFrom(filters.timeFrom);
+      setTimeTo(filters.timeTo);
+      setPriceMin(filters.priceMin === priceRangeMin ? null : filters.priceMin);
+      setPriceMax(filters.priceMax === priceRangeMax ? null : filters.priceMax);
+    },
+    onReset: () => {
+      setFilterStatus("all");
+      setFilterSport("all");
+      setFilterTrainer("all");
+      setFilterRoom("all");
+      setFilterLevel("all");
+      setDateFrom("");
+      setDateTo("");
+      setTimeFrom("");
+      setTimeTo("");
+      setPriceMin(null);
+      setPriceMax(null);
+    },
+  };
 
   return (
     <div>
@@ -348,53 +331,8 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
               </Button>
             )}
           </div>
-
-          {/* Mobile: Filter button below the two action buttons */}
           <div className="sm:hidden">
-            <CourseFilter
-              filterStatus={filterStatus}
-              filterSport={filterSport}
-              filterTrainer={filterTrainer}
-              filterRoom={filterRoom}
-              filterLevel={filterLevel}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              timeFrom={timeFrom}
-              timeTo={timeTo}
-              priceMin={priceMin ?? priceRangeMin}
-              priceMax={priceMax ?? priceRangeMax}
-              priceRangeMin={priceRangeMin}
-              priceRangeMax={priceRangeMax}
-              uniqueSports={uniqueSports}
-              uniqueTrainers={uniqueTrainers}
-              uniqueRooms={uniqueRooms}
-              onApplyFilters={(filters) => {
-                setFilterStatus(filters.filterStatus);
-                setFilterSport(filters.filterSport);
-                setFilterTrainer(filters.filterTrainer);
-                setFilterRoom(filters.filterRoom);
-                setFilterLevel(filters.filterLevel);
-                setDateFrom(filters.dateFrom);
-                setDateTo(filters.dateTo);
-                setTimeFrom(filters.timeFrom);
-                setTimeTo(filters.timeTo);
-                setPriceMin(filters.priceMin === priceRangeMin ? null : filters.priceMin);
-                setPriceMax(filters.priceMax === priceRangeMax ? null : filters.priceMax);
-              }}
-              onReset={() => {
-                setFilterStatus("all");
-                setFilterSport("all");
-                setFilterTrainer("all");
-                setFilterRoom("all");
-                setFilterLevel("all");
-                setDateFrom("");
-                setDateTo("");
-                setTimeFrom("");
-                setTimeTo("");
-                setPriceMin(null);
-                setPriceMax(null);
-              }}
-            >
+            <CourseFilter {...filterProps}>
               <Button variant="outline" className="flex w-full items-center gap-2 relative">
                 <Filter size={18} />
                 Filter
@@ -406,52 +344,7 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
               </Button>
             </CourseFilter>
           </div>
-
-          {/* Desktop: Filter + Kurs löschen nebeneinander */}
-          <CourseFilter
-            filterStatus={filterStatus}
-            filterSport={filterSport}
-            filterTrainer={filterTrainer}
-            filterRoom={filterRoom}
-            filterLevel={filterLevel}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            timeFrom={timeFrom}
-            timeTo={timeTo}
-            priceMin={priceMin ?? priceRangeMin}
-            priceMax={priceMax ?? priceRangeMax}
-            priceRangeMin={priceRangeMin}
-            priceRangeMax={priceRangeMax}
-            uniqueSports={uniqueSports}
-            uniqueTrainers={uniqueTrainers}
-            uniqueRooms={uniqueRooms}
-            onApplyFilters={(filters) => {
-              setFilterStatus(filters.filterStatus);
-              setFilterSport(filters.filterSport);
-              setFilterTrainer(filters.filterTrainer);
-              setFilterRoom(filters.filterRoom);
-              setFilterLevel(filters.filterLevel);
-              setDateFrom(filters.dateFrom);
-              setDateTo(filters.dateTo);
-              setTimeFrom(filters.timeFrom);
-              setTimeTo(filters.timeTo);
-              setPriceMin(filters.priceMin === priceRangeMin ? null : filters.priceMin);
-              setPriceMax(filters.priceMax === priceRangeMax ? null : filters.priceMax);
-            }}
-            onReset={() => {
-              setFilterStatus("all");
-              setFilterSport("all");
-              setFilterTrainer("all");
-              setFilterRoom("all");
-              setFilterLevel("all");
-              setDateFrom("");
-              setDateTo("");
-              setTimeFrom("");
-              setTimeTo("");
-              setPriceMin(null);
-              setPriceMax(null);
-            }}
-          >
+          <CourseFilter {...filterProps}>
             <Button variant="outline" className="hidden sm:flex items-center gap-2 relative">
               <Filter size={18} />
               Filter
@@ -495,7 +388,6 @@ const CourseListView = ({ canCreate, canEdit, canDelete }: CourseListViewProps) 
           {sortedDates.map((dateKey) => {
             const coursesForDate = groupedCourses[dateKey];
             const firstCourse = coursesForDate[0];
-
             return (
               <div key={dateKey}>
                 <div className="flex items-center gap-3 mb-4">

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import { getCourseById } from "../../actions/course-actions";
 import { toast } from "sonner";
 import CourseCreateView from "./course-create-view";
@@ -40,8 +41,15 @@ const CourseEditView = ({ courseId, customSports }: CourseEditViewProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Kurs wird geladen...</p>
+      <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-8 space-y-6 mt-4">
+        <Skeleton className="h-7 w-48" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
+        ))}
+        <Skeleton className="h-10 w-32 rounded-xl" />
       </div>
     );
   }

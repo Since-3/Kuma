@@ -4,13 +4,28 @@ import { Button } from "@/src/components/ui/button";
 import { useRouter } from "next/navigation";
 import EmployeeListView from "./employee-list-view";
 
+type Employee = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  roles: string[];
+  locations: string[];
+  permissions: unknown;
+  status: string | null;
+  isOnboarded: boolean;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+};
+
 interface EmployeeViewProps {
+  employees: Employee[];
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const EmployeeView = ({ canCreate, canEdit, canDelete }: EmployeeViewProps) => {
+const EmployeeView = ({ employees, canCreate, canEdit, canDelete }: EmployeeViewProps) => {
   const router = useRouter();
 
   return (
@@ -28,7 +43,12 @@ const EmployeeView = ({ canCreate, canEdit, canDelete }: EmployeeViewProps) => {
           )}
         </div>
       </div>
-      <EmployeeListView canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} />
+      <EmployeeListView
+        employees={employees}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
     </div>
   );
 };

@@ -1,7 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
-import { getMyRooms } from "../../actions/room-actions";
-import { toast } from "sonner";
+
 import { useRouter } from "next/navigation";
 import RoomsListItem from "../components/RoomsListItem";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
@@ -16,15 +14,14 @@ type Room = {
 };
 
 interface RoomsListViewProps {
+  rooms: Room[];
   deleteMode: boolean;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-const RoomsListView = ({ deleteMode, canEdit, canDelete }: RoomsListViewProps) => {
+const RoomsListView = ({ rooms, deleteMode, canEdit, canDelete }: RoomsListViewProps) => {
   const router = useRouter();
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const {
     deleteDialogOpen,
@@ -35,45 +32,15 @@ const RoomsListView = ({ deleteMode, canEdit, canDelete }: RoomsListViewProps) =
     handleDeleteClick,
     handleDeleteConfirm,
   } = useDeleteRoom({
-    onSuccess: (deletedId) => setRooms((prev) => prev.filter((room) => room.id !== deletedId)),
+    onSuccess: () => router.refresh(),
   });
 
-  // Load rooms
-  const loadRooms = async () => {
-    const result = await getMyRooms();
-    if (result.success) {
-      setRooms(result.rooms);
-    } else {
-      toast.error(result.error || "Fehler beim Laden der Räume");
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    const fetchRooms = async () => {
-      setIsLoading(true);
-      await loadRooms();
-      setIsLoading(false);
-    };
-    fetchRooms();
-  }, []);
-
-  // Handle edit click
   const handleEditClick = (id: string) => {
     router.push(`/rooms/edit/${id}`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Räume werden geladen...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-6">
-      {/* Rooms List */}
       {rooms.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 text-lg">Keine Räume gefunden</p>
@@ -92,7 +59,6 @@ const RoomsListView = ({ deleteMode, canEdit, canDelete }: RoomsListViewProps) =
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       <DeleteDialog
         open={deleteDialogOpen}
         onOpenChange={(open) => {

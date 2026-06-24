@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import { getEmployeeById } from "../../actions/employee-actions";
 import { toast } from "sonner";
 import EmployeeCreateView from "./employee-create-view";
@@ -58,8 +59,15 @@ const EmployeeEditView = ({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Mitarbeiter wird geladen...</p>
+      <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-8 space-y-6 mt-4">
+        <Skeleton className="h-7 w-56" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
+        ))}
+        <Skeleton className="h-10 w-36 rounded-xl" />
       </div>
     );
   }

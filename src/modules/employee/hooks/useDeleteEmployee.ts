@@ -4,7 +4,7 @@ import { deleteEmployee, getActiveCoursesCountByTrainer } from "../actions/emplo
 import { toast } from "sonner";
 
 interface UseDeleteEmployeeOptions {
-  onSuccess?: (deletedId: string) => void;
+  onSuccess?: () => void;
 }
 
 export function useDeleteEmployee({ onSuccess }: UseDeleteEmployeeOptions = {}) {
@@ -32,10 +32,9 @@ export function useDeleteEmployee({ onSuccess }: UseDeleteEmployeeOptions = {}) 
 
     if (result.success) {
       toast.success(result.message);
-      const deletedId = employeeToDelete.id;
       setEmployeeToDelete(null);
       setActiveCourseCount(0);
-      onSuccess?.(deletedId);
+      onSuccess?.();
     } else {
       setEmployeeToDelete(null);
       setActiveCourseCount(0);

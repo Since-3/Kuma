@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import { getRoomById } from "../../actions/room-actions";
 import { toast } from "sonner";
 import RoomsCreateView from "./rooms-create-view";
@@ -39,8 +40,13 @@ const RoomsEditView = ({ roomId }: RoomsEditViewProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-xl">Raum wird geladen...</p>
+      <div className="border border-white/60 bg-white/55 backdrop-blur-xl rounded-2xl shadow-sm p-8 space-y-6 mt-4">
+        <Skeleton className="h-7 w-48" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-10 w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-10 w-32 rounded-xl" />
       </div>
     );
   }
