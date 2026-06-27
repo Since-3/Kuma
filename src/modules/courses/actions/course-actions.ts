@@ -14,6 +14,9 @@ import { courseSchema, publishedCourseSchema, type CourseFormData } from "../sch
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { generateUniqueSlug } from "@/src/lib/slug";
+import { generateOccurrences, type FrequencyType } from "../utils/generate-instances";
+
+type StandingOrderScope = "this" | "this_and_following" | "all";
 
 /**
  * Erstellt einen neuen Kurs in der Datenbank
@@ -67,31 +70,104 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
     if (!creatorId)
       return { success: false, error: "Mitarbeiter-Account ist keinem Manager zugeordnet" };
 
-    // Schritt 6: Kurs in der Datenbank erstellen
-    const course = await prisma.course.create({
-      data: {
-        name: validatedData.name || "",
-        sport: validatedData.sport || [],
-        level: validatedData.level || "any",
-        date: new Date(validatedData.date || new Date()),
-        timeFrom: validatedData.timeFrom || "",
-        timeTo: validatedData.timeTo || "",
-        trainers: validatedData.trainers || [],
-        room: validatedData.room || "",
-        description: validatedData.description || "",
-        coverImage: validatedData.coverImage ?? null,
-        maxParticipants: validatedData.maxParticipants || 0,
-        price: validatedData.price ?? 0,
-        isStandingOrder: validatedData.isStandingOrder,
-        frequency: validatedData.frequency || null,
-        weekdays: validatedData.weekdays || [],
-        status,
-        createdBy: creatorId,
-        businessId: validatedData.businessId ?? null,
-      },
-    });
+    // Schritt 6: Kurs erstellen — bei Dauerauftrag Template + Instanzen, sonst einzelner Kurs
+    const commonFields = {
+      name: validatedData.name || "",
+      sport: validatedData.sport || [],
+      level: validatedData.level || "any",
+      timeFrom: validatedData.timeFrom || "",
+      timeTo: validatedData.timeTo || "",
+      trainers: validatedData.trainers || [],
+      room: validatedData.room || "",
+      description: validatedData.description || "",
+      coverImage: validatedData.coverImage ?? null,
+      maxParticipants: validatedData.maxParticipants || 0,
+      price: validatedData.price ?? 0,
+      frequency: validatedData.frequency || null,
+      weekdays: validatedData.weekdays || [],
+      weekdayTimings: validatedData.weekdayTimings
+        ? (validatedData.weekdayTimings as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      status,
+      createdBy: creatorId,
+      businessId: validatedData.businessId ?? null,
+    };
 
-    // Schritt 6: Next.js Cache für /courses Seite invalidieren, damit neue Daten angezeigt werden
+    let course: { id: string };
+
+    const isCompleteStandingOrder =
+      validatedData.isStandingOrder && validatedData.frequency && validatedData.endDate;
+
+    if (isCompleteStandingOrder) {
+      // Vollständiger Dauerauftrag: Template + Instanzen in einer Transaction
+      const startDate = new Date(validatedData.date || new Date());
+      const endDate = new Date(validatedData.endDate!);
+
+      course = await prisma.$transaction(async (tx) => {
+        const template = await tx.course.create({
+          data: {
+            ...commonFields,
+            date: startDate,
+            endDate,
+            isStandingOrder: true,
+            parentCourseId: null,
+          },
+        });
+
+        const occurrences = generateOccurrences({
+          startDate,
+          endDate,
+          frequency: validatedData.frequency as FrequencyType,
+          defaultTimeFrom: validatedData.timeFrom || "",
+          defaultTimeTo: validatedData.timeTo || "",
+          weekdays: validatedData.weekdays || [],
+          weekdayTimings:
+            (validatedData.weekdayTimings as Record<
+              string,
+              { timeFrom: string; timeTo: string }
+            >) ?? {},
+        });
+
+        if (occurrences.length > 0) {
+          await tx.course.createMany({
+            data: occurrences.map((o) => ({
+              ...commonFields,
+              date: o.date,
+              timeFrom: o.timeFrom,
+              timeTo: o.timeTo,
+              endDate: null,
+              isStandingOrder: false,
+              parentCourseId: template.id,
+            })),
+          });
+        }
+
+        return template;
+      });
+    } else if (validatedData.isStandingOrder) {
+      // Unvollständiger Dauerauftrag-Entwurf: als Template ohne Instanzen speichern
+      course = await prisma.course.create({
+        data: {
+          ...commonFields,
+          date: new Date(validatedData.date || new Date()),
+          endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+          isStandingOrder: true,
+          parentCourseId: null,
+        },
+      });
+    } else {
+      course = await prisma.course.create({
+        data: {
+          ...commonFields,
+          date: new Date(validatedData.date || new Date()),
+          endDate: null,
+          isStandingOrder: false,
+          parentCourseId: null,
+        },
+      });
+    }
+
+    // Next.js Cache für /courses Seite invalidieren
     revalidatePath("/courses");
 
     return {
@@ -187,6 +263,7 @@ export async function getMyCourses(options?: { dateFrom?: Date; dateTo?: Date })
     // Step 4: Build the where clause with optional date filtering
     const whereClause: Prisma.CourseWhereInput = {
       createdBy: managerId,
+      isStandingOrder: false, // Templates ausblenden — nur Instanzen anzeigen
     };
 
     // Add date range filter if provided
@@ -310,7 +387,8 @@ export async function getCourseById(courseId: string) {
 export async function updateCourse(
   courseId: string,
   data: CourseFormData,
-  status: "draft" | "published"
+  status: "draft" | "published",
+  scope: StandingOrderScope = "this"
 ) {
   try {
     // Schritt 1: Aktuellen Benutzer abrufen
@@ -374,31 +452,63 @@ export async function updateCourse(
 
     const validatedData = validation.data;
 
-    // Schritt 8: Kurs in der Datenbank aktualisieren
-    await prisma.course.update({
-      where: { id: courseId },
-      data: {
-        name: validatedData.name || "",
-        sport: validatedData.sport || [],
-        level: validatedData.level || "any",
-        date: new Date(validatedData.date || new Date()),
-        timeFrom: validatedData.timeFrom || "",
-        timeTo: validatedData.timeTo || "",
-        trainers: validatedData.trainers || [],
-        room: validatedData.room || "",
-        description: validatedData.description || "",
-        coverImage: validatedData.coverImage ?? null,
-        maxParticipants: validatedData.maxParticipants || 0,
-        price: validatedData.price ?? 0,
-        isStandingOrder: validatedData.isStandingOrder,
-        frequency: validatedData.frequency || null,
-        weekdays: validatedData.weekdays || [],
-        status,
-        ...(validatedData.businessId !== undefined
-          ? { businessId: validatedData.businessId || null }
-          : {}),
-      },
-    });
+    // Felder, die auf Instanzen angewendet werden (ohne date/timeFrom/timeTo)
+    const sharedUpdateFields = {
+      name: validatedData.name || "",
+      sport: validatedData.sport || [],
+      level: validatedData.level || "any",
+      trainers: validatedData.trainers || [],
+      room: validatedData.room || "",
+      description: validatedData.description || "",
+      coverImage: validatedData.coverImage ?? null,
+      maxParticipants: validatedData.maxParticipants || 0,
+      price: validatedData.price ?? 0,
+      status,
+      ...(validatedData.businessId !== undefined
+        ? { businessId: validatedData.businessId || null }
+        : {}),
+    };
+
+    const isTemplate = !existingCourse.parentCourseId;
+    const templateId = isTemplate ? existingCourse.id : existingCourse.parentCourseId!;
+
+    // Schritt 8: Kurs aktualisieren je nach Scope
+    if (scope === "this") {
+      await prisma.course.update({
+        where: { id: courseId },
+        data: {
+          ...sharedUpdateFields,
+          date: new Date(validatedData.date || existingCourse.date),
+          timeFrom: validatedData.timeFrom || "",
+          timeTo: validatedData.timeTo || "",
+        },
+      });
+    } else if (scope === "this_and_following") {
+      await prisma.course.updateMany({
+        where: { parentCourseId: templateId, date: { gte: existingCourse.date } },
+        data: sharedUpdateFields,
+      });
+    } else if (scope === "all") {
+      if (isTemplate) {
+        await prisma.course.update({
+          where: { id: courseId },
+          data: {
+            ...sharedUpdateFields,
+            isStandingOrder: validatedData.isStandingOrder,
+            frequency: validatedData.frequency || null,
+            weekdays: validatedData.weekdays || [],
+            weekdayTimings: validatedData.weekdayTimings
+              ? (validatedData.weekdayTimings as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
+            endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+          },
+        });
+      }
+      await prisma.course.updateMany({
+        where: { parentCourseId: templateId },
+        data: sharedUpdateFields,
+      });
+    }
 
     // Schritt 9: Next.js Cache für /courses Seite invalidieren
     revalidatePath("/courses");
@@ -431,7 +541,7 @@ export async function updateCourse(
  * @param courseId - Die eindeutige ID des zu löschenden Kurses
  * @returns Ein Objekt mit success-Flag und Nachricht oder Fehler
  */
-export async function deleteCourse(courseId: string) {
+export async function deleteCourse(courseId: string, scope: StandingOrderScope = "this") {
   try {
     // Schritt 1: Aktuellen Benutzer abrufen
     const userData = await getUserData();
@@ -473,12 +583,22 @@ export async function deleteCourse(courseId: string) {
       };
     }
 
-    // Schritt 7: Kurs aus der Datenbank löschen
-    await prisma.course.delete({
-      where: { id: courseId },
-    });
+    // Schritt 7: Kurs löschen je nach Scope
+    const isTemplate = !course.parentCourseId;
+    const templateId = isTemplate ? course.id : course.parentCourseId!;
 
-    // Schritt 8: Next.js Cache invalidieren, damit gelöschter Kurs nicht mehr angezeigt wird
+    if (scope === "this") {
+      await prisma.course.delete({ where: { id: courseId } });
+    } else if (scope === "this_and_following") {
+      await prisma.course.deleteMany({
+        where: { parentCourseId: templateId, date: { gte: course.date } },
+      });
+    } else if (scope === "all") {
+      // Cascade löscht automatisch alle Kinder
+      await prisma.course.delete({ where: { id: templateId } });
+    }
+
+    // Schritt 8: Next.js Cache invalidieren
     revalidatePath("/courses");
 
     return {

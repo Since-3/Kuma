@@ -1,4 +1,22 @@
 import { z } from "zod";
+import { VALID_FREQUENCIES } from "../utils/generate-instances";
+
+const frequencyEnum = z.enum(VALID_FREQUENCIES as [string, ...string[]], {
+  message: "Ungültige Häufigkeit",
+});
+
+const weekdayTimingsSchema = z
+  .record(z.string(), z.object({ timeFrom: z.string(), timeTo: z.string() }))
+  .refine(
+    (timings) =>
+      Object.values(timings).every(
+        ({ timeFrom, timeTo }) => !timeFrom || !timeTo || timeFrom < timeTo
+      ),
+    { message: "Endzeit muss nach der Anfangszeit liegen (Wochentag-Uhrzeiten)" }
+  )
+  .optional();
+
+const isoDateOptional = z.union([z.iso.date(), z.literal("")]).optional();
 
 // Basis-Schema mit allen Feldern optional — für Entwürfe
 export const courseSchema = z
@@ -6,7 +24,7 @@ export const courseSchema = z
     name: z.string().min(1, "Kursname ist erforderlich").optional().or(z.literal("")),
     sport: z.array(z.string()).optional(),
     level: z.string().optional(),
-    date: z.string().optional().or(z.literal("")),
+    date: isoDateOptional,
     timeFrom: z.string().optional().or(z.literal("")),
     timeTo: z.string().optional().or(z.literal("")),
     trainers: z.array(z.string()).optional(),
@@ -16,21 +34,18 @@ export const courseSchema = z
     maxParticipants: z.number().max(100).optional(),
     price: z.number().max(9999.99).optional(),
     isStandingOrder: z.boolean(),
-    frequency: z.string().optional(),
+    frequency: frequencyEnum.optional(),
     weekdays: z.array(z.string()).optional(),
+    weekdayTimings: weekdayTimingsSchema,
+    endDate: isoDateOptional,
     businessId: z.string().optional(),
   })
   .refine(
     (data) => {
-      if (data.timeFrom && data.timeTo && data.timeFrom >= data.timeTo) {
-        return false;
-      }
+      if (data.timeFrom && data.timeTo && data.timeFrom >= data.timeTo) return false;
       return true;
     },
-    {
-      message: "Endzeit muss nach der Anfangszeit liegen",
-      path: ["timeTo"],
-    }
+    { message: "Endzeit muss nach der Anfangszeit liegen", path: ["timeTo"] }
   );
 
 // Strenges Schema für veröffentlichte Kurse — alle Pflichtfelder erforderlich
@@ -39,7 +54,7 @@ export const publishedCourseSchema = z
     name: z.string().min(1, "Kursname ist erforderlich"),
     sport: z.array(z.string()).min(1, "Mindestens eine Sportart ist erforderlich"),
     level: z.string().optional(),
-    date: z.string().min(1, "Datum ist erforderlich"),
+    date: z.iso.date().min(1, "Datum ist erforderlich"),
     timeFrom: z.string().min(1, "Anfangszeit ist erforderlich"),
     timeTo: z.string().min(1, "Endzeit ist erforderlich"),
     trainers: z
@@ -58,8 +73,10 @@ export const publishedCourseSchema = z
       .min(0, "Preis muss eine gültige positive Zahl sein")
       .max(9999.99, "Preis darf maximal 9.999,99 € betragen"),
     isStandingOrder: z.boolean(),
-    frequency: z.string().optional(),
+    frequency: frequencyEnum.optional(),
     weekdays: z.array(z.string()).optional(),
+    weekdayTimings: weekdayTimingsSchema,
+    endDate: isoDateOptional,
     businessId: z.string().optional(),
   })
   .refine(
@@ -68,6 +85,22 @@ export const publishedCourseSchema = z
       return true;
     },
     { message: "Häufigkeit ist erforderlich bei Daueraufträgen", path: ["frequency"] }
+  )
+  .refine(
+    (data) => {
+      if (data.isStandingOrder && !data.endDate) return false;
+      return true;
+    },
+    { message: "Enddatum ist erforderlich bei Daueraufträgen", path: ["endDate"] }
+  )
+  .refine(
+    (data) => {
+      if (data.isStandingOrder && data.date && data.endDate) {
+        return new Date(data.endDate) > new Date(data.date);
+      }
+      return true;
+    },
+    { message: "Enddatum muss nach dem Startdatum liegen", path: ["endDate"] }
   )
   .refine(
     (data) => {

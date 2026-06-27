@@ -21,6 +21,7 @@ type Course = {
   isStandingOrder: boolean;
   frequency: string | null;
   weekdays: string[];
+  parentCourseId: string | null;
   status: string;
   createdBy: string;
   createdAt: Date;

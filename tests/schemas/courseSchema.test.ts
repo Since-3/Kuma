@@ -128,6 +128,7 @@ describe("publishedCourseSchema", () => {
       ...validPublishedCourse,
       isStandingOrder: true,
       frequency: "weekly",
+      endDate: "2026-12-31",
     });
     expect(result.success).toBe(true);
   });
@@ -137,6 +138,7 @@ describe("publishedCourseSchema", () => {
       ...validPublishedCourse,
       isStandingOrder: true,
       frequency: "custom",
+      endDate: "2026-12-31",
       weekdays: [],
     });
     expect(result.success).toBe(false);
@@ -148,6 +150,7 @@ describe("publishedCourseSchema", () => {
       ...validPublishedCourse,
       isStandingOrder: true,
       frequency: "custom",
+      endDate: "2026-12-31",
       weekdays: ["Montag", "Mittwoch"],
     });
     expect(result.success).toBe(true);
