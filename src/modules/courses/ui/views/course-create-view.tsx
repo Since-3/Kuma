@@ -17,6 +17,12 @@ import { Trash2, ImagePlus, X } from "lucide-react";
 import Image from "next/image";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import { useDeleteCourse } from "../../hooks/useDeleteCourse";
+import {
+  StandingOrderScopeDialog,
+  type StandingOrderScope,
+} from "../components/StandingOrderScopeDialog";
+
+type WeekdayTiming = { timeFrom: string; timeTo: string };
 
 const LEVELS = [
   { value: "any", label: "Jedes Niveau" },
@@ -105,6 +111,27 @@ const CourseCreateView = ({
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
     isEdit ? initialData!.weekdays || [] : []
   );
+  const [weekdayTimings, setWeekdayTimings] = useState<Record<string, WeekdayTiming>>(() => {
+    if (isEdit && initialData!.weekdayTimings) {
+      return initialData!.weekdayTimings as Record<string, WeekdayTiming>;
+    }
+    return {};
+  });
+  const [endDate, setEndDate] = useState(() => {
+    if (isEdit && initialData!.endDate) {
+      const d = new Date(initialData!.endDate);
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0"),
+      ].join("-");
+    }
+    return "";
+  });
+  const [editScopeDialogOpen, setEditScopeDialogOpen] = useState(false);
+  const [pendingSubmitStatus, setPendingSubmitStatus] = useState<"draft" | "published" | null>(
+    null
+  );
   const [price, setPrice] = useState(isEdit ? initialData!.price?.toString() || "" : "");
   const [priceDisplay, setPriceDisplay] = useState("");
   const [isPriceFocused, setIsPriceFocused] = useState(false);
@@ -123,13 +150,19 @@ const CourseCreateView = ({
   );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+  const isStandingOrderRelated =
+    isEdit && !!(initialData?.parentCourseId || initialData?.isStandingOrder);
+
   const {
     deleteDialogOpen,
     setDeleteDialogOpen,
+    scopeDialogOpen: deleteScopeDialogOpen,
+    setScopeDialogOpen: setDeleteScopeDialogOpen,
     courseToDelete,
     setCourseToDelete,
     isDeleting,
     handleDeleteClick,
+    handleScopeConfirm: handleDeleteScopeConfirm,
     handleDeleteConfirm,
   } = useDeleteCourse({
     onSuccess: () => router.push("/courses"),
@@ -235,8 +268,19 @@ const CourseCreateView = ({
     if (isStandingOrder) {
       if (!selectedFrequency)
         newErrors.frequency = "Häufigkeit ist erforderlich bei Daueraufträgen";
+      if (!endDate) newErrors.endDate = "Enddatum ist erforderlich bei Daueraufträgen";
+      if (endDate && courseDate && endDate <= courseDate)
+        newErrors.endDate = "Enddatum muss nach dem Startdatum liegen";
       if (selectedFrequency === "custom" && selectedWeekdays.length === 0) {
         newErrors.weekdays = "Mindestens ein Tag muss ausgewählt werden";
+      }
+      if (selectedFrequency === "custom" && selectedWeekdays.length > 0) {
+        const hasInvalidTiming = selectedWeekdays.some((day) => {
+          const t = weekdayTimings[day];
+          return !t?.timeFrom || !t?.timeTo || t.timeFrom >= t.timeTo;
+        });
+        if (hasInvalidTiming)
+          newErrors.weekdayTimings = "Bitte gültige Uhrzeiten für alle Wochentage eingeben";
       }
     }
 
@@ -251,45 +295,37 @@ const CourseCreateView = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (status: "draft" | "published") => {
-    if (status === "published" && !validateForm()) {
-      toast.error("Bitte füllen Sie alle erforderlichen Felder aus");
-      return;
-    }
-    if (status === "draft" && !validateDraft()) {
-      toast.error("Bitte geben Sie mindestens einen Kursnamen ein");
-      return;
-    }
+  const buildCourseData = () => ({
+    name: courseName,
+    sport: selectedSports,
+    level: selectedLevel,
+    date: courseDate,
+    timeFrom: timeFrom,
+    timeTo: timeTo,
+    trainers: selectedTrainers.length > 0 ? selectedTrainers : undefined,
+    room: selectedRoom,
+    description,
+    coverImage: coverImage ?? undefined,
+    maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
+    price: price ? parseFloat(price) : undefined,
+    isStandingOrder,
+    frequency: selectedFrequency || undefined,
+    weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
+    weekdayTimings: Object.keys(weekdayTimings).length > 0 ? weekdayTimings : undefined,
+    endDate: endDate || undefined,
+    businessId: selectedBusinessId || undefined,
+  });
 
+  const doSubmit = async (status: "draft" | "published", scope: StandingOrderScope = "this") => {
     setIsSubmitting(true);
-
     try {
-      const courseData = {
-        name: courseName,
-        sport: selectedSports,
-        level: selectedLevel,
-        date: courseDate,
-        timeFrom: timeFrom,
-        timeTo: timeTo,
-        trainers: selectedTrainers.length > 0 ? selectedTrainers : undefined,
-        room: selectedRoom,
-        description,
-        coverImage: coverImage ?? undefined,
-        maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
-        price: price ? parseFloat(price) : undefined,
-        isStandingOrder,
-        frequency: selectedFrequency || undefined,
-        weekdays: selectedWeekdays.length > 0 ? selectedWeekdays : undefined,
-        businessId: selectedBusinessId || undefined,
-      };
+      const courseData = buildCourseData();
 
-      if (mode === "edit" && !courseId) {
-        throw new Error("Missing courseId in edit mode");
-      }
+      if (mode === "edit" && !courseId) throw new Error("Missing courseId in edit mode");
 
       const result =
         mode === "edit"
-          ? await updateCourse(courseId!, courseData, status)
+          ? await updateCourse(courseId!, courseData, status, scope)
           : await createCourse(courseData, status);
 
       if (result.success) {
@@ -315,6 +351,33 @@ const CourseCreateView = ({
     }
   };
 
+  const handleSubmit = async (status: "draft" | "published") => {
+    if (status === "published" && !validateForm()) {
+      toast.error("Bitte füllen Sie alle erforderlichen Felder aus");
+      return;
+    }
+    if (status === "draft" && !validateDraft()) {
+      toast.error("Bitte geben Sie mindestens einen Kursnamen ein");
+      return;
+    }
+
+    if (mode === "edit" && isStandingOrderRelated) {
+      setPendingSubmitStatus(status);
+      setEditScopeDialogOpen(true);
+      return;
+    }
+
+    await doSubmit(status);
+  };
+
+  const handleEditScopeConfirm = async (scope: StandingOrderScope) => {
+    setEditScopeDialogOpen(false);
+    if (pendingSubmitStatus) {
+      await doSubmit(pendingSubmitStatus, scope);
+      setPendingSubmitStatus(null);
+    }
+  };
+
   return (
     <div>
       <div className="w-full flex items-center justify-between">
@@ -329,7 +392,10 @@ const CourseCreateView = ({
           </p>
         </div>
         {mode === "edit" && (
-          <Button variant="destructive" onClick={() => handleDeleteClick(courseId!, courseName)}>
+          <Button
+            variant="destructive"
+            onClick={() => handleDeleteClick(courseId!, courseName, isStandingOrderRelated)}
+          >
             <Trash2 className="mb-1" /> Löschen
           </Button>
         )}
@@ -549,6 +615,8 @@ const CourseCreateView = ({
               if (!checked) {
                 setSelectedFrequency("");
                 setSelectedWeekdays([]);
+                setWeekdayTimings({});
+                setEndDate("");
               }
             }}
           />
@@ -566,20 +634,85 @@ const CourseCreateView = ({
                 setSelectedFrequency(value);
                 if (value !== "custom") {
                   setSelectedWeekdays([]);
+                  setWeekdayTimings({});
                 }
               }}
               options={FREQUENCIES}
               error={errors.frequency}
             />
 
-            {selectedFrequency === "custom" && (
-              <MultiSelectDropdown
-                label="An welchen Tagen soll der Kurs stattfinden?"
-                selected={selectedWeekdays}
-                onSelect={setSelectedWeekdays}
-                options={WEEKDAYS}
-                error={errors.weekdays}
+            <div>
+              <InputComponent
+                isLabel
+                label="Enddatum des Dauerauftrags"
+                type="date"
+                id="course-create-end-date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
               />
+              {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>}
+            </div>
+
+            {selectedFrequency === "custom" && (
+              <>
+                <MultiSelectDropdown
+                  label="An welchen Tagen soll der Kurs stattfinden?"
+                  selected={selectedWeekdays}
+                  onSelect={(days) => {
+                    setSelectedWeekdays(days);
+                    // Nicht mehr ausgewählte Tage aus weekdayTimings entfernen
+                    setWeekdayTimings((prev) => {
+                      const next: Record<string, WeekdayTiming> = {};
+                      days.forEach((d) => {
+                        next[d] = prev[d] ?? { timeFrom: "", timeTo: "" };
+                      });
+                      return next;
+                    });
+                  }}
+                  options={WEEKDAYS}
+                  error={errors.weekdays}
+                />
+
+                {selectedWeekdays.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Uhrzeiten pro Tag</p>
+                    {selectedWeekdays.map((day) => {
+                      const dayLabel = WEEKDAYS.find((w) => w.value === day)?.label ?? day;
+                      return (
+                        <div key={day} className="flex items-center gap-3">
+                          <span className="w-24 text-sm shrink-0">{dayLabel}</span>
+                          <InputComponent
+                            type="time"
+                            id={`weekday-time-from-${day}`}
+                            value={weekdayTimings[day]?.timeFrom ?? ""}
+                            onChange={(e) =>
+                              setWeekdayTimings((prev) => ({
+                                ...prev,
+                                [day]: { ...prev[day], timeFrom: e.target.value },
+                              }))
+                            }
+                          />
+                          <span className="text-sm">–</span>
+                          <InputComponent
+                            type="time"
+                            id={`weekday-time-to-${day}`}
+                            value={weekdayTimings[day]?.timeTo ?? ""}
+                            onChange={(e) =>
+                              setWeekdayTimings((prev) => ({
+                                ...prev,
+                                [day]: { ...prev[day], timeTo: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                    {errors.weekdayTimings && (
+                      <p className="text-red-500 text-sm">{errors.weekdayTimings}</p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -614,6 +747,20 @@ const CourseCreateView = ({
         topicName="Kurs"
         onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
+      />
+
+      <StandingOrderScopeDialog
+        open={deleteScopeDialogOpen}
+        onOpenChange={setDeleteScopeDialogOpen}
+        onConfirm={handleDeleteScopeConfirm}
+        action="delete"
+      />
+
+      <StandingOrderScopeDialog
+        open={editScopeDialogOpen}
+        onOpenChange={setEditScopeDialogOpen}
+        onConfirm={handleEditScopeConfirm}
+        action="edit"
       />
     </div>
   );

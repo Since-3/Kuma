@@ -18,6 +18,10 @@ export const courseSchema = z
     isStandingOrder: z.boolean(),
     frequency: z.string().optional(),
     weekdays: z.array(z.string()).optional(),
+    weekdayTimings: z
+      .record(z.string(), z.object({ timeFrom: z.string(), timeTo: z.string() }))
+      .optional(),
+    endDate: z.string().optional(),
     businessId: z.string().optional(),
   })
   .refine(
@@ -60,6 +64,10 @@ export const publishedCourseSchema = z
     isStandingOrder: z.boolean(),
     frequency: z.string().optional(),
     weekdays: z.array(z.string()).optional(),
+    weekdayTimings: z
+      .record(z.string(), z.object({ timeFrom: z.string(), timeTo: z.string() }))
+      .optional(),
+    endDate: z.string().optional(),
     businessId: z.string().optional(),
   })
   .refine(
@@ -68,6 +76,21 @@ export const publishedCourseSchema = z
       return true;
     },
     { message: "Häufigkeit ist erforderlich bei Daueraufträgen", path: ["frequency"] }
+  )
+  .refine(
+    (data) => {
+      if (data.isStandingOrder && !data.endDate) return false;
+      return true;
+    },
+    { message: "Enddatum ist erforderlich bei Daueraufträgen", path: ["endDate"] }
+  )
+  .refine(
+    (data) => {
+      if (data.isStandingOrder && data.date && data.endDate && data.endDate <= data.date)
+        return false;
+      return true;
+    },
+    { message: "Enddatum muss nach dem Startdatum liegen", path: ["endDate"] }
   )
   .refine(
     (data) => {

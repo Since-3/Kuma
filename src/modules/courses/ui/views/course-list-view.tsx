@@ -11,6 +11,7 @@ import CourseListItem from "../components/CourseListItem";
 import { Filter } from "lucide-react";
 import DeleteDialog from "@/src/components/layout/DeleteDialog";
 import CourseFilter from "../components/CourseFilter";
+import { StandingOrderScopeDialog } from "../components/StandingOrderScopeDialog";
 
 type Course = {
   id: string;
@@ -28,6 +29,7 @@ type Course = {
   isStandingOrder: boolean;
   frequency: string | null;
   weekdays: string[];
+  parentCourseId: string | null;
   status: string;
   createdBy: string;
   createdAt: Date;
@@ -81,10 +83,13 @@ const CourseListView = ({
   const {
     deleteDialogOpen,
     setDeleteDialogOpen,
+    scopeDialogOpen,
+    setScopeDialogOpen,
     courseToDelete,
     setCourseToDelete,
     isDeleting,
     handleDeleteClick,
+    handleScopeConfirm,
     handleDeleteConfirm,
   } = useDeleteCourse({
     onSuccess: (deletedId) => {
@@ -419,7 +424,14 @@ const CourseListView = ({
                       showDeleteIcon={deleteMode && canDelete}
                       coverImage={course.coverImage ?? undefined}
                       onDelete={
-                        canDelete ? () => handleDeleteClick(course.id, course.name) : undefined
+                        canDelete
+                          ? () =>
+                              handleDeleteClick(
+                                course.id,
+                                course.name,
+                                !!(course.isStandingOrder || course.parentCourseId)
+                              )
+                          : undefined
                       }
                       onEdit={canEdit ? () => router.push(`/courses/edit/${course.id}`) : undefined}
                     />
@@ -441,6 +453,13 @@ const CourseListView = ({
         topicName="Kurs"
         onConfirm={handleDeleteConfirm}
         isLoading={isDeleting}
+      />
+
+      <StandingOrderScopeDialog
+        open={scopeDialogOpen}
+        onOpenChange={setScopeDialogOpen}
+        onConfirm={handleScopeConfirm}
+        action="delete"
       />
     </div>
   );

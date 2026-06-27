@@ -25,7 +25,7 @@ const CourseEditView = ({ courseId, customSports }: CourseEditViewProps) => {
       const result = await getCourseById(courseId);
 
       if (result.success && result.course) {
-        if (alive) setCourseData(result.course);
+        if (alive) setCourseData(result.course as unknown as Course);
       } else {
         toast.error(result.error || "Fehler beim Laden des Kurses");
         router.push("/courses");

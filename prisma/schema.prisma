@@ -125,6 +125,11 @@ model Course {
   isStandingOrder Boolean @default(false)
   frequency String? // daily, weekly, biweekly, monthly, custom
   weekdays String[] // For custom frequency
+  weekdayTimings Json? // { "monday": { "timeFrom": "08:00", "timeTo": "09:00" }, ... }
+  endDate DateTime? // Required when isStandingOrder = true
+  parentCourseId String? // Null on template; set on every child instance
+  parentCourse   Course?  @relation("StandingOrderInstances", fields: [parentCourseId], references: [id], onDelete: Cascade)
+  children       Course[] @relation("StandingOrderInstances")
   status String @default("draft") // draft, published
   createdBy String // Manager ID who created the course
   businessId  String?
@@ -138,6 +143,8 @@ model Course {
   @@index([date])
   @@index([status])
   @@index([businessId])
+  @@index([parentCourseId])
+  @@index([parentCourseId, date])
 }
 
 model Room {

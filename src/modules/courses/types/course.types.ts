@@ -14,6 +14,9 @@ export type Course = {
   isStandingOrder: boolean;
   frequency: string | null;
   weekdays: string[];
+  weekdayTimings: Record<string, { timeFrom: string; timeTo: string }> | null;
+  endDate: Date | null;
+  parentCourseId: string | null;
   status: string;
   createdBy: string;
   businessId: string | null;
