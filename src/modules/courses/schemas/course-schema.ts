@@ -16,13 +16,15 @@ const weekdayTimingsSchema = z
   )
   .optional();
 
+const isoDateOptional = z.union([z.iso.date(), z.literal("")]).optional();
+
 // Basis-Schema mit allen Feldern optional — für Entwürfe
 export const courseSchema = z
   .object({
     name: z.string().min(1, "Kursname ist erforderlich").optional().or(z.literal("")),
     sport: z.array(z.string()).optional(),
     level: z.string().optional(),
-    date: z.string().optional().or(z.literal("")),
+    date: isoDateOptional,
     timeFrom: z.string().optional().or(z.literal("")),
     timeTo: z.string().optional().or(z.literal("")),
     trainers: z.array(z.string()).optional(),
@@ -35,7 +37,7 @@ export const courseSchema = z
     frequency: frequencyEnum.optional(),
     weekdays: z.array(z.string()).optional(),
     weekdayTimings: weekdayTimingsSchema,
-    endDate: z.string().optional(),
+    endDate: isoDateOptional,
     businessId: z.string().optional(),
   })
   .refine(
@@ -52,7 +54,7 @@ export const publishedCourseSchema = z
     name: z.string().min(1, "Kursname ist erforderlich"),
     sport: z.array(z.string()).min(1, "Mindestens eine Sportart ist erforderlich"),
     level: z.string().optional(),
-    date: z.string().min(1, "Datum ist erforderlich"),
+    date: z.iso.date().min(1, "Datum ist erforderlich"),
     timeFrom: z.string().min(1, "Anfangszeit ist erforderlich"),
     timeTo: z.string().min(1, "Endzeit ist erforderlich"),
     trainers: z
@@ -74,7 +76,7 @@ export const publishedCourseSchema = z
     frequency: frequencyEnum.optional(),
     weekdays: z.array(z.string()).optional(),
     weekdayTimings: weekdayTimingsSchema,
-    endDate: z.string().optional(),
+    endDate: isoDateOptional,
     businessId: z.string().optional(),
   })
   .refine(
@@ -94,10 +96,7 @@ export const publishedCourseSchema = z
   .refine(
     (data) => {
       if (data.isStandingOrder && data.date && data.endDate) {
-        const start = new Date(data.date);
-        const end = new Date(data.endDate);
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
-        return end > start;
+        return new Date(data.endDate) > new Date(data.date);
       }
       return true;
     },
