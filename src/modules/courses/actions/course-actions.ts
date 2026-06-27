@@ -95,49 +95,66 @@ export async function createCourse(data: CourseFormData, status: "draft" | "publ
 
     let course: { id: string };
 
-    if (validatedData.isStandingOrder && validatedData.frequency && validatedData.endDate) {
-      const startDate = new Date(validatedData.date || new Date());
-      const endDate = new Date(validatedData.endDate);
+    const isCompleteStandingOrder =
+      validatedData.isStandingOrder && validatedData.frequency && validatedData.endDate;
 
-      // Template anlegen
-      const template = await prisma.course.create({
+    if (isCompleteStandingOrder) {
+      // Vollständiger Dauerauftrag: Template + Instanzen in einer Transaction
+      const startDate = new Date(validatedData.date || new Date());
+      const endDate = new Date(validatedData.endDate!);
+
+      course = await prisma.$transaction(async (tx) => {
+        const template = await tx.course.create({
+          data: {
+            ...commonFields,
+            date: startDate,
+            endDate,
+            isStandingOrder: true,
+            parentCourseId: null,
+          },
+        });
+
+        const occurrences = generateOccurrences({
+          startDate,
+          endDate,
+          frequency: validatedData.frequency as FrequencyType,
+          defaultTimeFrom: validatedData.timeFrom || "",
+          defaultTimeTo: validatedData.timeTo || "",
+          weekdays: validatedData.weekdays || [],
+          weekdayTimings:
+            (validatedData.weekdayTimings as Record<
+              string,
+              { timeFrom: string; timeTo: string }
+            >) ?? {},
+        });
+
+        if (occurrences.length > 0) {
+          await tx.course.createMany({
+            data: occurrences.map((o) => ({
+              ...commonFields,
+              date: o.date,
+              timeFrom: o.timeFrom,
+              timeTo: o.timeTo,
+              endDate: null,
+              isStandingOrder: false,
+              parentCourseId: template.id,
+            })),
+          });
+        }
+
+        return template;
+      });
+    } else if (validatedData.isStandingOrder) {
+      // Unvollständiger Dauerauftrag-Entwurf: als Template ohne Instanzen speichern
+      course = await prisma.course.create({
         data: {
           ...commonFields,
-          date: startDate,
-          endDate,
+          date: new Date(validatedData.date || new Date()),
+          endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
           isStandingOrder: true,
           parentCourseId: null,
         },
       });
-
-      // Instanzdaten berechnen
-      const occurrences = generateOccurrences({
-        startDate,
-        endDate,
-        frequency: validatedData.frequency as FrequencyType,
-        defaultTimeFrom: validatedData.timeFrom || "",
-        defaultTimeTo: validatedData.timeTo || "",
-        weekdays: validatedData.weekdays || [],
-        weekdayTimings:
-          (validatedData.weekdayTimings as Record<string, { timeFrom: string; timeTo: string }>) ??
-          {},
-      });
-
-      if (occurrences.length > 0) {
-        await prisma.course.createMany({
-          data: occurrences.map((o) => ({
-            ...commonFields,
-            date: o.date,
-            timeFrom: o.timeFrom,
-            timeTo: o.timeTo,
-            endDate: null,
-            isStandingOrder: false,
-            parentCourseId: template.id,
-          })),
-        });
-      }
-
-      course = template;
     } else {
       course = await prisma.course.create({
         data: {

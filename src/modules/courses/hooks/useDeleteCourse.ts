@@ -16,6 +16,7 @@ export function useDeleteCourse({ onSuccess }: UseDeleteCourseOptions = {}) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteClick = (id: string, name: string, isStandingOrderRelated = false) => {
+    setDeleteScope("this");
     setCourseToDelete({ id, name });
     if (isStandingOrderRelated) {
       setScopeDialogOpen(true);
